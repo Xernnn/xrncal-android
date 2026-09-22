@@ -133,7 +133,7 @@ usually a missing `.env`, not a bug. CalDAV needs no client credentials.
   window of year blocks, scroll-anchor compensation and an active-year probe, which is why
   `App.tsx` had a `yearSpan` state widening the event query to whatever span was mounted; all of
   that is gone and the query is the plain `visibleRange`. Twelve months divide the page with
-  `.gc-year-grid` (3 columns on a phone, 4 normally, 6 when short and wide, 6 when very wide), and
+  `.gc-year-grid` (3 columns on a phone, 4 normally, 6 only when short and wide), and
   each month always lays out six week rows so the cards stay the same height. Two rules in
   `index.css` earn their keep: a `min-height` per card, without which short windows shrank the
   rows below the height of the digits and the numbers overlapped into an unreadable stack; and
