@@ -54,6 +54,7 @@
     "tests/layout-allday-events.test.ts",
     "tests/roving-index.test.ts",
     "tests/wheel-navigation.test.ts",
-    "tests/android-sqlite-bridge.test.ts"
+    "tests/android-sqlite-bridge.test.ts",
+    "tests/android-native-fetch.test.ts"
   ]
 }

@@ -21,6 +21,9 @@ import org.json.JSONObject
 class MainActivity : BridgeActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // App-local plugins are not discovered from capacitor.plugins.json;
+        // they have to be registered before super.onCreate() builds the Bridge.
+        registerPlugin(XrncalHttpPlugin::class.java)
         super.onCreate(savedInstanceState)
         bridge.webView.addJavascriptInterface(XrncalNative(this), "XrncalNative")
         publishWindowInsets()
