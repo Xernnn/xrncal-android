@@ -1,9 +1,12 @@
 import React, { useRef, useEffect, useMemo, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import HourGutter from '../components/HourGutter'
 import { DateTime } from 'luxon'
 import type { ExpandedOccurrence } from '@shared/event-model'
 import { TODAY_COLOR } from '@shared/mini-calendar-grid'
 import { segmentTimedOccurrence, type TimedSegment } from '@shared/timed-event-segments'
+import { compactWeekday } from '@shared/compact-labels'
+import { formatClockTime } from '@shared/time-format'
 import LunarLabel from '../components/LunarLabel'
 import WeekNumber from '../components/WeekNumber'
 import EventPill from '../components/EventPill'
@@ -47,6 +50,8 @@ interface WeekViewProps {
 }
 
 const WEEK_GRID_COLS = 'grid-cols-[76px_repeat(7,minmax(0,1fr))]'
+// Phone layout: a gutter just wide enough for "23", so all seven days fit.
+const WEEK_GRID_COLS_COMPACT = 'grid-cols-[26px_repeat(7,minmax(0,1fr))]'
 
 function withResizePreview(
   occurrences: ExpandedOccurrence[],
@@ -86,9 +91,10 @@ export const WeekView: React.FC<WeekViewProps> = ({
   const gridRef = useRef<HTMLDivElement>(null)
   const allDayScrollRef = useRef<HTMLDivElement>(null)
 
-  const { hourBlockSize, dayStartHour, dragSnapMinutes } = useDisplayPreferences()
+  const { i18n } = useTranslation()
+  const { hourBlockSize, dayStartHour, dragSnapMinutes, compact, timeFormat } = useDisplayPreferences()
   const HOUR_HEIGHT = HOUR_HEIGHT_BY_SIZE[hourBlockSize]
-  const gridColsClass = WEEK_GRID_COLS
+  const gridColsClass = compact ? WEEK_GRID_COLS_COMPACT : WEEK_GRID_COLS
   const dayColOffset = 2
 
   const today = DateTime.local()
@@ -202,7 +208,9 @@ export const WeekView: React.FC<WeekViewProps> = ({
       >
           <div className={`gc-week-grid grid ${gridColsClass} divide-x divide-hairline`}>
             <div className="flex items-center justify-center bg-app">
-              {showWeekNumbers && (
+              {/* The phone header already says "week 40"; the corner is too
+                  narrow for the badge anyway. */}
+              {showWeekNumbers && !compact && (
                 <button
                   type="button"
                   onClick={() => onGoToday?.()}
@@ -222,6 +230,33 @@ export const WeekView: React.FC<WeekViewProps> = ({
               const isToday = day.hasSame(today, 'day')
               const monthChanged = day.day === 1
               const isDraftAllDay = isDraftAllDayOn(day)
+              if (compact) {
+                // "Mo 28" on one line, today in the today colour rather than a
+                // filled pill - a pill does not fit a 55px column.
+                return (
+                  <div
+                    key={day.toISO()}
+                    className="flex min-w-0 flex-col items-center overflow-hidden px-0.5 py-1.5 text-center"
+                    style={isDraftAllDay ? { backgroundColor: `${previewSlot!.color}1f` } : undefined}
+                  >
+                    <span
+                      className={`truncate text-[13px] leading-tight ${isToday ? 'font-semibold' : 'font-medium text-primary/80'}`}
+                      style={isToday ? { color: TODAY_COLOR } : undefined}
+                    >
+                      {compactWeekday(day, i18n.language)} {day.day}
+                    </span>
+                    {showLunar && (
+                      <LunarLabel
+                        day={day.day}
+                        month={day.month}
+                        year={day.year}
+                        forceMonth={day.weekday === 1}
+                        className="mt-0.5 leading-none"
+                      />
+                    )}
+                  </div>
+                )
+              }
               return (
                 <div
                   key={day.toISO()}
@@ -310,7 +345,7 @@ export const WeekView: React.FC<WeekViewProps> = ({
                     // Gap on one side only (not both) - two adjacent bars then get a single
                     // ~4px seam between them instead of each contributing its own padding
                     // and doubling it, so the visible block reads bigger for the same gap.
-                    className="pointer-events-auto min-w-0 h-full pr-1"
+                    className={`pointer-events-auto min-w-0 h-full ${compact ? 'px-px' : 'pr-1'}`}
                     style={{
                       gridColumn: `${l.startCol + dayColOffset} / span ${l.span}`,
                       gridRow: l.lane + 1
@@ -433,8 +468,20 @@ export const WeekView: React.FC<WeekViewProps> = ({
                       className="pointer-events-none absolute right-0 left-0 z-20 flex items-center"
                       style={{ top: `${((today.hour * 60 + today.minute) / 60) * HOUR_HEIGHT}px` }}
                     >
-                      <div className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: TODAY_COLOR }} />
+                      {!compact && (
+                        <div className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: TODAY_COLOR }} />
+                      )}
                       <div className="h-0.5 flex-1" style={{ backgroundColor: TODAY_COLOR }} />
+                      {/* The phone gutter has no room for a moving clock, so the
+                          time rides on the line itself. */}
+                      {compact && (
+                        <span
+                          className="absolute right-0.5 bottom-1 text-[10px] leading-none font-semibold tabular-nums"
+                          style={{ color: TODAY_COLOR }}
+                        >
+                          {formatClockTime(today, timeFormat)}
+                        </span>
+                      )}
                     </div>
                   )}
 
@@ -443,7 +490,7 @@ export const WeekView: React.FC<WeekViewProps> = ({
                       key={`${layout.occ.id}_${layout.segment.dateKey}`}
                       layout={layout}
                       segment={layout.segment}
-                      minHeight={24}
+                      minHeight={compact ? 18 : 24}
                       isDragging={draggedOccurrenceId === layout.occ.id}
                       isResizing={preview?.occId === layout.occ.id}
                       isSelected={selectedOccurrenceId === layout.occ.id}

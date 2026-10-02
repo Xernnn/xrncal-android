@@ -1,5 +1,6 @@
 import React, { useRef } from 'react'
 import { DEFAULT_EVENT_COLOR } from '@shared/mini-calendar-grid'
+import { useDisplayPreferences } from '../context/DisplayPreferencesContext'
 
 interface EventPillProps {
   title: string
@@ -32,6 +33,7 @@ export const EventPill: React.FC<EventPillProps> = ({
   onDragStart,
   onDragEnd
 }) => {
+  const { compact } = useDisplayPreferences()
   const bg = color || DEFAULT_EVENT_COLOR
   const dragStartedRef = useRef(false)
 
@@ -82,8 +84,12 @@ export const EventPill: React.FC<EventPillProps> = ({
         // Dense pills (all-day bars, Month view's mini list) are short enough that a
         // 6px radius - fine on a full-height timed block - eats a chunk of their own
         // height at each corner, which reads as extra empty space next to a neighbor.
+        // The phone layout trims the padding too: a week column there is ~55px, and
+        // 12px of padding is the difference between "Deadline" and "Dead...".
         dense
-          ? 'gc-event-dense rounded-[4px] px-1.5 py-0.5 text-[11px] leading-tight'
+          ? compact
+            ? 'gc-event-dense rounded-[2px] px-[3px] py-0.5 text-[11px] leading-tight'
+            : 'gc-event-dense rounded-[4px] px-1.5 py-0.5 text-[11px] leading-tight'
           : 'rounded-[6px] px-2 py-1 text-[13px]'
       } ${draggable ? 'cursor-grab active:cursor-grabbing' : ''} ${isDragging ? 'is-dragging' : ''} ${
         isSelected ? 'is-key-selected' : ''

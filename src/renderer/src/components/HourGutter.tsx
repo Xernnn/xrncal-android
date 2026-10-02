@@ -1,6 +1,7 @@
 import React from 'react'
 import { DateTime } from 'luxon'
 import { formatClockTime } from '@shared/time-format'
+import { compactHourLabel } from '@shared/compact-labels'
 import { useDisplayPreferences } from '../context/DisplayPreferencesContext'
 
 interface HourGutterProps {
@@ -28,8 +29,28 @@ export const HourGutter: React.FC<HourGutterProps> = ({
   referenceDay,
   dense = false
 }) => {
-  const { secondaryTimezone, timeFormat } = useDisplayPreferences()
+  const { secondaryTimezone, timeFormat, compact } = useDisplayPreferences()
   const startOfDay = referenceDay.startOf('day')
+
+  if (compact) {
+    // Phone layout: the bare hour, centred in a ~26px column. A secondary
+    // zone has nowhere to go at this width, so it is left to the desktop.
+    return (
+      <div className="bg-app text-center select-none min-w-0">
+        {hours.map((hour) => (
+          <div
+            key={hour}
+            style={{ height: `${hourHeight}px` }}
+            className={`leading-none ${hour === 0 ? 'pt-1' : '-translate-y-1.5'}`}
+          >
+            <span className="text-[12px] font-medium tabular-nums text-primary/75">
+              {compactHourLabel(hour, timeFormat)}
+            </span>
+          </div>
+        ))}
+      </div>
+    )
+  }
 
   return (
     <div className="bg-app pr-2 text-right select-none min-w-0">
