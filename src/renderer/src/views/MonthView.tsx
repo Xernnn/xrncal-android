@@ -82,7 +82,7 @@ const MonthDayCell: React.FC<MonthDayCellProps> = ({
   onPeekDay
 }) => {
   const { t } = useTranslation()
-  const { timeFormat } = useDisplayPreferences()
+  const { timeFormat, compact } = useDisplayPreferences()
   const today = DateTime.local()
   const dayKey = day.toFormat('yyyy-MM-dd')
   const isCurrentMonth = day.month === anchorDate.month
@@ -129,7 +129,9 @@ const MonthDayCell: React.FC<MonthDayCellProps> = ({
           {day.day}
         </span>
         <div className="flex items-center gap-1">
-          {totalItems >= 2 && (
+          {/* A ~55px phone cell has no room for the count beside the day
+              number; tapping the cell or its "+N" opens the same peek. */}
+          {totalItems >= 2 && !compact && (
             <button
               type="button"
               onClick={(e) => {
@@ -164,7 +166,9 @@ const MonthDayCell: React.FC<MonthDayCellProps> = ({
               isSelected={selectedOccurrenceId === occ.id}
               title={occ.title}
               color={occ.color}
-              time={occ.allDay ? undefined : formatClockTime(occTime, timeFormat)}
+              // On a phone the time would take the whole pill and leave one
+              // letter of the title, so the pill is the title alone.
+              time={occ.allDay || compact ? undefined : formatClockTime(occTime, timeFormat)}
               onDragStart={(e) => onDragStart?.(e, occ)}
               onDragEnd={onDragEnd}
               onClick={(e) => {
@@ -190,7 +194,7 @@ const MonthDayCell: React.FC<MonthDayCellProps> = ({
             }}
             className="w-full cursor-pointer truncate rounded-[3px] px-1 py-0.5 text-left text-[10px] font-medium text-muted transition-colors hover:bg-hover hover:text-primary"
           >
-            {t('month.moreCount', { count: overflow })}
+            {compact ? `+${overflow}` : t('month.moreCount', { count: overflow })}
           </button>
         )}
       </div>

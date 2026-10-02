@@ -34,7 +34,7 @@ export const ListView: React.FC<ListViewProps> = ({
   onNearEdge
 }) => {
   const { t, i18n } = useTranslation()
-  const { timeFormat } = useDisplayPreferences()
+  const { timeFormat, compact } = useDisplayPreferences()
   const today = DateTime.local()
   const scrollRef = useRef<HTMLDivElement>(null)
   const groupRefs = useRef<Map<string, HTMLDivElement>>(new Map())
@@ -171,7 +171,15 @@ export const ListView: React.FC<ListViewProps> = ({
                 : undefined
             }
           >
-            <div className="sticky top-0 z-10 flex items-center justify-between gap-3 bg-surface/90 backdrop-blur-md py-1.5 border-b border-hairline">
+            {/* Frosted on desktop. Android's WebView does not draw the blur, which
+                left a 90% header with the event cards reading through it.
+                -top-5 cancels the scroller's p-5: a sticky top-0 parks below the
+                padding, leaving a 20px strip the previous day scrolls through. */}
+            <div
+              className={`sticky -top-5 z-10 flex items-center justify-between gap-3 py-1.5 border-b border-hairline ${
+                compact ? 'bg-surface' : 'bg-surface/90 backdrop-blur-md'
+              }`}
+            >
               <div className="flex min-w-0 items-center gap-2">
                 <span
                   className={`truncate rounded-full px-3 py-1 text-sm font-semibold ${

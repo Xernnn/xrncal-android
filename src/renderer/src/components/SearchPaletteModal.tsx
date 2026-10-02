@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
+  ArrowLeft,
   Search,
   MapPin,
   Clock,
@@ -28,7 +29,7 @@ export const SearchPaletteModal: React.FC<SearchPaletteModalProps> = ({
   onSelectEvent
 }) => {
   const { t } = useTranslation()
-  const { timeFormat } = useDisplayPreferences()
+  const { timeFormat, compact } = useDisplayPreferences()
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<CalendarEvent[]>([])
   const [selectedIndex, setSelectedIndex] = useState(0)
@@ -113,23 +114,46 @@ export const SearchPaletteModal: React.FC<SearchPaletteModalProps> = ({
 
   return (
     <div
-      className="gc-overlay items-start pt-20 select-none"
+      // Phone layout: a full-screen sheet under a search bar, like the editor
+      // and settings, rather than a dialog dropped from the top of the screen.
+      className={compact ? 'fixed inset-0 z-50 select-none' : 'gc-overlay items-start pt-20 select-none'}
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose()
       }}
     >
-      <div className="gc-dialog w-full max-w-2xl max-h-[80vh]">
+      <div
+        className={
+          compact
+            ? 'gc-fullscreen-sheet absolute inset-0 flex flex-col overflow-hidden bg-dialog text-primary'
+            : 'gc-dialog w-full max-w-2xl max-h-[80vh]'
+        }
+      >
         {/* Search Header Input */}
-        <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center gap-3 bg-slate-50 dark:bg-slate-950/60">
-          <Search className="h-5 w-5 text-slate-400 shrink-0" />
+        <div
+          className={
+            compact
+              ? 'gc-app-bar flex shrink-0 items-center gap-1 border-b border-hairline bg-sidebar'
+              : 'p-4 border-b border-slate-200 dark:border-slate-800 flex items-center gap-3 bg-slate-50 dark:bg-slate-950/60'
+          }
+        >
+          {compact ? (
+            <button type="button" onClick={onClose} aria-label={t('common.back')} className="gc-app-bar-btn text-primary">
+              <ArrowLeft className="h-6 w-6" />
+            </button>
+          ) : (
+            <Search className="h-5 w-5 text-slate-400 shrink-0" />
+          )}
           <input
             ref={inputRef}
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={t('search.placeholder')}
-            className="w-full bg-transparent border-none text-slate-800 dark:text-slate-100 text-sm placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-hidden"
+            // The desktop placeholder ends in "(Ctrl+K)", which means nothing on a phone.
+            placeholder={compact ? t('search.placeholderShort') : t('search.placeholder')}
+            className={`w-full bg-transparent border-none text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-hidden ${
+              compact ? 'min-w-0 px-2 text-[17px]' : 'text-sm'
+            }`}
           />
           {query && (
             <button
