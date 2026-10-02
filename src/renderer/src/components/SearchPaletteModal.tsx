@@ -132,13 +132,13 @@ export const SearchPaletteModal: React.FC<SearchPaletteModalProps> = ({
         <div
           className={
             compact
-              ? 'gc-app-bar flex shrink-0 items-center gap-1 border-b border-hairline bg-sidebar'
+              ? 'gc-app-bar flex shrink-0 items-center gap-1 border-b border-hairline bg-dialog'
               : 'p-4 border-b border-slate-200 dark:border-slate-800 flex items-center gap-3 bg-slate-50 dark:bg-slate-950/60'
           }
         >
           {compact ? (
-            <button type="button" onClick={onClose} aria-label={t('common.back')} className="gc-app-bar-btn text-primary">
-              <ArrowLeft className="h-6 w-6" />
+            <button type="button" onClick={onClose} aria-label={t('common.back')} className="gc-app-bar-btn text-muted">
+              <ArrowLeft className="h-5 w-5" />
             </button>
           ) : (
             <Search className="h-5 w-5 text-slate-400 shrink-0" />
@@ -152,7 +152,7 @@ export const SearchPaletteModal: React.FC<SearchPaletteModalProps> = ({
             // The desktop placeholder ends in "(Ctrl+K)", which means nothing on a phone.
             placeholder={compact ? t('search.placeholderShort') : t('search.placeholder')}
             className={`w-full bg-transparent border-none text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-hidden ${
-              compact ? 'min-w-0 px-2 text-[17px]' : 'text-sm'
+              compact ? 'min-w-0 px-1 text-[16px]' : 'text-sm'
             }`}
           />
           {query && (

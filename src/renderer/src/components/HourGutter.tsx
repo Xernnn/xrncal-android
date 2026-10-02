@@ -43,7 +43,7 @@ export const HourGutter: React.FC<HourGutterProps> = ({
             style={{ height: `${hourHeight}px` }}
             className={`leading-none ${hour === 0 ? 'pt-1' : '-translate-y-1.5'}`}
           >
-            <span className="text-[12px] font-medium tabular-nums text-primary/75">
+            <span className="font-mono text-[10.5px] font-medium tabular-nums text-primary/80">
               {compactHourLabel(hour, timeFormat)}
             </span>
           </div>

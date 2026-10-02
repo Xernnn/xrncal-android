@@ -88,7 +88,7 @@ export const EventPill: React.FC<EventPillProps> = ({
         // 12px of padding is the difference between "Deadline" and "Dead...".
         dense
           ? compact
-            ? 'gc-event-dense rounded-[2px] px-[3px] py-0.5 text-[11px] leading-tight'
+            ? 'gc-event-dense rounded-[3px] px-[3px] py-0.5 text-[11px] leading-tight'
             : 'gc-event-dense rounded-[4px] px-1.5 py-0.5 text-[11px] leading-tight'
           : 'rounded-[6px] px-2 py-1 text-[13px]'
       } ${draggable ? 'cursor-grab active:cursor-grabbing' : ''} ${isDragging ? 'is-dragging' : ''} ${

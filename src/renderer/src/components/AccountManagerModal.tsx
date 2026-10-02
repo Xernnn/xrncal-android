@@ -14,7 +14,7 @@ import {
 } from 'lucide-react'
 import type { CalendarAccount, SyncStatus } from '@shared/event-model'
 import CalDavConnectModal from './CalDavConnectModal'
-import { toast, showFriendlyError } from './ui'
+import { toast, showFriendlyError, askConfirm } from './ui'
 import { useDisplayPreferences } from '../context/DisplayPreferencesContext'
 
 interface AccountManagerModalProps {
@@ -99,7 +99,7 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({
   }
 
   const handleDisconnect = async (acc: CalendarAccount) => {
-    if (!confirm(t('accounts.disconnectConfirm', { name: acc.name }))) return
+    if (!(await askConfirm(t('accounts.disconnectConfirm', { name: acc.name }), { destructive: true }))) return
     if (!window.xrncal?.auth) return
 
     try {
@@ -120,7 +120,7 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({
 
   const handleDetach = async (acc: CalendarAccount) => {
     if (!window.xrncal?.auth) return
-    if (!confirm(t('accounts.detachConfirm', { name: acc.name }))) return
+    if (!(await askConfirm(t('accounts.detachConfirm', { name: acc.name }), { destructive: true }))) return
 
     try {
       const result = await window.xrncal.auth.detachAccount(acc.id)
@@ -169,11 +169,11 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({
       >
         {compact ? (
           // Phone: the same app bar as settings - one back arrow, no footer.
-          <header className="gc-app-bar flex shrink-0 items-center gap-1 bg-[var(--color-accent-mark)] text-white">
-            <button type="button" onClick={onClose} aria-label={t('common.back')} className="gc-app-bar-btn">
-              <ArrowLeft className="h-6 w-6" />
+          <header className="gc-app-bar flex shrink-0 items-center gap-1 border-b border-hairline bg-dialog">
+            <button type="button" onClick={onClose} aria-label={t('common.back')} className="gc-app-bar-btn text-muted">
+              <ArrowLeft className="h-5 w-5" />
             </button>
-            <h3 className="min-w-0 flex-1 truncate px-2 text-[20px] font-medium">{t('accounts.title')}</h3>
+            <h3 className="min-w-0 flex-1 truncate px-1 text-[16px] font-semibold text-primary">{t('accounts.title')}</h3>
           </header>
         ) : (
         /* Header — plain icon, no indigo icon box */

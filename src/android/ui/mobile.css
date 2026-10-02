@@ -2,13 +2,14 @@
  * Android skin.
  *
  * Loaded after the shared renderer stylesheet, so it only has to state the
- * differences. The phone layout follows the OneCalendar pattern: a top bar
- * and a navigation drawer instead of a bottom bar, all seven week days on
- * screen, title-only event blocks, and full-screen editor and settings sheets
- * under a coloured app bar. Most of that is markup the shared components draw
- * when DisplayPreferences.compact is on; this file carries the insets, sizes
- * and the few styles that only exist on Android. The palette and type are
- * still the desktop's (docs/design-guidelines.md).
+ * differences. The phone layout is the desktop's, rearranged for a hand: a
+ * top bar and a drawer instead of a bottom bar, all seven week days on
+ * screen, and the editor, settings, search and accounts as full-screen sheets
+ * under a neutral app bar. It keeps xrncal's look - the desktop tokens,
+ * hairlines and <5px radii of docs/design-guidelines.md - so a phone does not
+ * read as a different product. Most of it is markup the shared components
+ * draw when DisplayPreferences.compact is on; this file carries the insets,
+ * touch sizes and the few styles that only exist on Android.
  */
 
 /* --- Platform baseline ---------------------------------------------------- */
@@ -184,7 +185,7 @@ body {
 }
 
 .gc-app-bar-btn:active {
-  background-color: rgb(255 255 255 / 15%);
+  background-color: var(--color-hover);
 }
 
 /* Drops from just under the header, and never past the gesture pill. */
@@ -195,11 +196,6 @@ body {
       var(--xrncal-inset-bottom, env(safe-area-inset-bottom, 0px)) - 68px
   );
   border-radius: 4px;
-}
-
-.gc-drawer-active {
-  background-color: color-mix(in srgb, var(--color-accent-mark) 18%, transparent);
-  color: var(--color-accent-mark);
 }
 
 /* --- Touch drag ------------------------------------------------------------
@@ -286,19 +282,21 @@ body {
  *
  * The desktop editor's fields are "ghost" controls that only show an outline
  * on hover - and a touch screen has no hover, so on a phone they read as
- * plain text. In the full-screen sheet every field is a filled, thumb-sized
- * box instead. `.gc-field` marks text inputs and text areas; the date, time
- * and select triggers already share `.gc-focus-ring`.
+ * plain text with nothing to say they can be tapped. In the full-screen sheet
+ * they take the guidelines' boxed form instead (hairline border, surface,
+ * 3px radius - what the CalDAV and account dialogs already use), at thumb
+ * height. `.gc-field` marks text inputs and text areas; the date, time and
+ * select triggers already share `.gc-focus-ring`.
  */
 .gc-fullscreen-sheet form .gc-field,
 .gc-fullscreen-sheet form .gc-focus-ring {
-  min-height: 48px;
+  min-height: 44px;
   align-items: center;
-  padding-left: 14px !important;
-  padding-right: 12px !important;
-  border-color: transparent !important;
-  border-radius: 4px !important;
-  background-color: rgb(127 127 127 / 13%) !important;
+  padding-left: 12px !important;
+  padding-right: 10px !important;
+  border: 1px solid var(--color-hairline) !important;
+  border-radius: 3px !important;
+  background-color: var(--color-surface) !important;
 }
 
 .gc-fullscreen-sheet form .gc-field:focus-within,
@@ -310,4 +308,14 @@ body {
    rhythm, so the hairline between every row is noise at this size. */
 .gc-fullscreen-sheet form .border-b {
   border-bottom-color: transparent;
+}
+
+/* --- Toasts ----------------------------------------------------------------
+ *
+ * Sonner places a top-centre toast from the top of the viewport, which on an
+ * edge-to-edge phone is under the status bar: "Sync complete" was drawn over
+ * the clock. Push it below the inset.
+ */
+[data-sonner-toaster][data-y-position='top'] {
+  top: calc(var(--xrncal-inset-top, env(safe-area-inset-top, 0px)) + 8px) !important;
 }

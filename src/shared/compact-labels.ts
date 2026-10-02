@@ -7,9 +7,13 @@ import { getVisibleRange, type CalendarViewType } from './visible-range'
  * column is ~55px wide and the hour gutter ~28px.
  */
 
-/** The hour ruler's label: `8` / `14` on a 24h clock, `8a` / `2p` on a 12h one. */
+/**
+ * The hour ruler's label: `08` / `14` on a 24h clock - the desktop's "08:00"
+ * without the minutes, which a 26px gutter cannot hold - and `8a` / `2p` on a
+ * 12h one.
+ */
 export function compactHourLabel(hour: number, pref: TimeFormatPref): string {
-  if (pref === '24h') return String(hour)
+  if (pref === '24h') return String(hour).padStart(2, '0')
   const h12 = hour % 12 === 0 ? 12 : hour % 12
   return `${h12}${hour < 12 ? 'a' : 'p'}`
 }

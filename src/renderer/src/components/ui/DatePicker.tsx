@@ -1,4 +1,6 @@
 import i18n from '../../i18n'
+import type { TFunction } from 'i18next'
+import { weekdayShortLabels } from '../../i18n/weekday-labels'
 import React, { useState, useRef, useEffect, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { DateTime } from 'luxon'
@@ -23,6 +25,8 @@ export interface DatePickerProps {
   className?: string
   showPresets?: boolean
   align?: 'left' | 'right'
+  /** Show the × that empties the field. Off where a value is mandatory. */
+  clearable?: boolean
 }
 
 export const DatePicker: React.FC<DatePickerProps> = ({
@@ -36,7 +40,8 @@ export const DatePicker: React.FC<DatePickerProps> = ({
   compact = false,
   className = '',
   showPresets = true,
-  align = 'left'
+  align = 'left',
+  clearable = true
 }) => {
   const [isOpen, setIsOpen] = useState(false)
   const [coords, setCoords] = useState<{ top: number; left: number } | null>(null)
@@ -266,7 +271,9 @@ export const DatePicker: React.FC<DatePickerProps> = ({
     { label: i18n.t('ui.nextWeek'), getDt: () => today.plus({ weeks: 1 }) }
   ]
 
-  const weekHeaders = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN']
+  // Monday-first, in the UI language. These were hard-coded as "T2 … CN", so
+  // the picker read in Vietnamese with the rest of the app in English.
+  const weekHeaders = weekdayShortLabels(i18n.t.bind(i18n) as TFunction, 1)
 
   const popover =
     isOpen && coords && typeof document !== 'undefined'
@@ -471,7 +478,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
           </span>
         </div>
 
-        {parsedValue && !disabled && (
+        {clearable && parsedValue && !disabled && (
           <div
             onClick={handleClear}
             className="p-0.5 text-muted hover:text-primary transition-colors shrink-0 cursor-pointer"

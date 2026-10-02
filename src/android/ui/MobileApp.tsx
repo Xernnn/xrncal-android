@@ -6,13 +6,13 @@ import App, { type AppShellContext } from '@renderer/App'
 import { headerPeriod } from '@shared/compact-labels'
 import MobileHeader from './MobileHeader'
 import NavDrawer from './NavDrawer'
-import { CalendarFilterMenu, DatePickerMenu } from './HeaderPopovers'
+import { DatePickerMenu } from './HeaderPopovers'
 import { useSwipeNavigation } from './use-swipe-navigation'
 import { useAndroidBackButton, dismissTopLayer } from './use-back-button'
 import { useReminderTaps } from './use-reminder-taps'
 
 /** The one piece of shell chrome that can be open over the calendar. */
-type ShellLayer = 'drawer' | 'filter' | 'datePicker' | null
+type ShellLayer = 'drawer' | 'datePicker' | null
 
 /**
  * The Android shell.
@@ -24,9 +24,11 @@ type ShellLayer = 'drawer' | 'filter' | 'datePicker' | null
  * phone. There is exactly one implementation of the calendar itself and no
  * second copy to keep in step.
  *
- * The chrome is a top bar and a navigation drawer, with no bottom bar: views
- * are switched from the drawer, create / filter / today sit in the top bar,
- * and periods change by horizontal swipe.
+ * The chrome is a top bar and a drawer, with no bottom bar: views and
+ * calendars are in the drawer, create / search / today sit in the top bar,
+ * and periods change by horizontal swipe. It is styled with the desktop's
+ * tokens throughout, so it reads as xrncal on a phone rather than as a stock
+ * Android calendar.
  */
 const MobileApp: React.FC = () => {
   const { t, i18n } = useTranslation()
@@ -64,14 +66,16 @@ const MobileApp: React.FC = () => {
             )}
             todayDay={DateTime.local().day}
             conflictCount={shell.conflictCount}
-            filterOpen={layer === 'filter'}
             onOpenDrawer={() => setLayer('drawer')}
             onPickDate={() => toggleLayer('datePicker')}
             onCreate={() => {
               closeLayer()
               shell.newEventOn(shell.anchorDate)
             }}
-            onToggleFilter={() => toggleLayer('filter')}
+            onSearch={() => {
+              closeLayer()
+              shell.openSearch()
+            }}
             onToday={() => {
               closeLayer()
               shell.goToday()
@@ -83,13 +87,6 @@ const MobileApp: React.FC = () => {
       renderSidebar={(shell) => (
         <>
           <NavDrawer open={layer === 'drawer'} onClose={closeLayer} shell={shell} />
-          {layer === 'filter' && (
-            <CalendarFilterMenu
-              calendars={shell.calendars}
-              onToggle={(cal) => void shell.toggleCalendarVisibility(cal)}
-              onClose={closeLayer}
-            />
-          )}
           {layer === 'datePicker' && <DatePickerMenu shell={shell} onClose={closeLayer} />}
         </>
       )}

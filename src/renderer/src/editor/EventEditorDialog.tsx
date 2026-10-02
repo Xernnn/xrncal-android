@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { DateTime } from 'luxon'
-import { Trash2, X, Check, Share2, MapPin, Link as LinkIcon, Users } from 'lucide-react'
+import { Trash2, X, Share2, MapPin, Link as LinkIcon, Users } from 'lucide-react'
 import type {
   Calendar,
   CalendarEvent,
@@ -733,20 +733,26 @@ export const EventEditorDialog: React.FC<EventEditorDialogProps> = ({
         }
       >
         {compact ? (
-          <div className="gc-app-bar flex shrink-0 items-center gap-1 px-1 text-white" style={{ backgroundColor: calendarColor }}>
-            <button type="button" onClick={handleCloseAttempt} aria-label={t('common.cancel')} className="gc-app-bar-btn">
-              <X className="h-6 w-6" />
+          // The desktop panel header at phone size: close, the calendar's
+          // colour dot and the title, and the primary action as a labelled
+          // button - a bare check mark says less than "Save".
+          <div className="gc-app-bar flex shrink-0 items-center gap-1 border-b border-hairline bg-dialog">
+            <button type="button" onClick={handleCloseAttempt} aria-label={t('common.cancel')} className="gc-app-bar-btn text-muted">
+              <X className="h-5 w-5" />
             </button>
-            <h3 className="min-w-0 flex-1 truncate px-2 text-[20px] font-medium">
-              {isEditing ? t('editor.editEvent') : t('editor.newEvent')}
-            </h3>
+            <div className="flex min-w-0 flex-1 items-center gap-2 px-1">
+              <span className="h-3 w-3 shrink-0 rounded-full transition-colors" style={{ backgroundColor: calendarColor }} />
+              <h3 className="min-w-0 truncate text-[16px] font-semibold text-primary">
+                {isEditing ? t('editor.editEvent') : t('editor.newEvent')}
+              </h3>
+            </div>
             <button
               type="button"
               onClick={handleSubmit}
-              aria-label={isEditing ? t('editor.saveChanges') : t('editor.create')}
-              className="gc-app-bar-btn"
+              className="gc-btn-primary mr-1 h-9 px-4 text-[14px]"
+              style={{ borderRadius: 'var(--radius-control)' }}
             >
-              <Check className="h-6 w-6" />
+              {isEditing ? t('editor.saveChanges') : t('editor.create')}
             </button>
           </div>
         ) : (
@@ -780,7 +786,10 @@ export const EventEditorDialog: React.FC<EventEditorDialogProps> = ({
               targetAllDay={allDay || isLunarYearly}
               calendars={calendars || []}
               placeholder={t('editor.titlePlaceholder')}
-              autoFocus
+              // Opening an existing event on a phone is usually to read it or
+              // move it, and a keyboard taking half the screen gets in the way;
+              // a new event is for typing its title, so that still focuses.
+              autoFocus={!(compact && isEditing)}
               enabled={!isEditing}
               onSubmit={submitEvent}
             />
@@ -814,10 +823,15 @@ export const EventEditorDialog: React.FC<EventEditorDialogProps> = ({
                     value={startDateStr}
                     onChange={handleStartDateChange}
                     placeholder={t('editor.startDate')}
+                    // An event cannot lose its date, and on a phone the clear
+                    // button sits exactly where a thumb opens the picker.
+                    clearable={!compact}
                   />
                 </div>
                 {!allDay && !isLunarYearly && (
-                  <div className="w-[105px] shrink-0">
+                  // 105px holds the desktop's 13px time; the phone's 16px one
+                  // was cut off to "09:0(".
+                  <div className={`${compact ? 'w-[132px]' : 'w-[105px]'} shrink-0`}>
                     <TimePicker value={startTimeStr} onChange={handleStartTimeChange} />
                   </div>
                 )}
@@ -830,13 +844,16 @@ export const EventEditorDialog: React.FC<EventEditorDialogProps> = ({
                   <div className="flex-1 min-w-0">
                     <DatePicker
                       value={endDateStr}
+                      clearable={!compact}
                       onChange={(val) => handleFieldChange(setEndDateStr, val)}
                       minDate={startDateStr}
                       placeholder={t('editor.endDate')}
                     />
                   </div>
                   {!allDay && (
-                    <div className="w-[105px] shrink-0">
+                    // 105px holds the desktop's 13px time; the phone's 16px one
+                  // was cut off to "09:0(".
+                  <div className={`${compact ? 'w-[132px]' : 'w-[105px]'} shrink-0`}>
                       <TimePicker
                         value={endTimeStr}
                         onChange={handleEndTimeChange}
@@ -1109,7 +1126,9 @@ export const EventEditorDialog: React.FC<EventEditorDialogProps> = ({
                 <button
                   type="button"
                   onClick={handleShare}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 text-muted hover:text-primary transition-colors text-xs cursor-pointer"
+                  className={`flex items-center gap-1.5 px-2.5 text-muted hover:text-primary transition-colors cursor-pointer ${
+                    compact ? 'min-h-[44px] text-sm' : 'py-1.5 text-xs'
+                  }`}
                   title={t('editor.shareTitle')}
                 >
                   <Share2 className="h-3.5 w-3.5" />
@@ -1120,7 +1139,9 @@ export const EventEditorDialog: React.FC<EventEditorDialogProps> = ({
                   type="button"
                   onClick={deleteEvent}
                   title={t('shortcuts.hintDelete')}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 text-today hover:opacity-80 transition-opacity text-xs cursor-pointer"
+                  className={`flex items-center gap-1.5 px-2.5 text-today hover:opacity-80 transition-opacity cursor-pointer ${
+                    compact ? 'min-h-[44px] text-sm' : 'py-1.5 text-xs'
+                  }`}
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                   <span>{t('common.delete')}</span>

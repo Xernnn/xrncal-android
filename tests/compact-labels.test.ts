@@ -5,9 +5,9 @@ import { compactHourLabel, compactWeekday, headerPeriod, periodTitle } from '../
 const weekLabel = (n: number): string => `week ${n}`
 
 describe('compactHourLabel', () => {
-  it('is the bare hour on a 24h clock', () => {
-    expect(compactHourLabel(0, '24h')).toBe('0')
-    expect(compactHourLabel(8, '24h')).toBe('8')
+  it('is the two-digit hour on a 24h clock, as the desktop ruler reads', () => {
+    expect(compactHourLabel(0, '24h')).toBe('00')
+    expect(compactHourLabel(8, '24h')).toBe('08')
     expect(compactHourLabel(23, '24h')).toBe('23')
   })
 
