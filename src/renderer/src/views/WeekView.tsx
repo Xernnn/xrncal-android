@@ -7,6 +7,7 @@ import { TODAY_COLOR } from '@shared/mini-calendar-grid'
 import { segmentTimedOccurrence, type TimedSegment } from '@shared/timed-event-segments'
 import { compactWeekday } from '@shared/compact-labels'
 import { formatClockTime } from '@shared/time-format'
+import { clockMinutesOfDay } from '@shared/clock-minutes'
 import LunarLabel from '../components/LunarLabel'
 import WeekNumber from '../components/WeekNumber'
 import EventPill from '../components/EventPill'
@@ -187,8 +188,8 @@ export const WeekView: React.FC<WeekViewProps> = ({
     if (previewSlot.end <= dayStart || previewSlot.start >= dayEnd) return null
     const clampedStart = previewSlot.start < dayStart ? dayStart : previewSlot.start
     const clampedEnd = previewSlot.end > dayEnd ? dayEnd : previewSlot.end
-    const startMin = clampedStart.diff(dayStart, 'minutes').minutes
-    const endMin = clampedEnd.diff(dayStart, 'minutes').minutes
+    const startMin = clockMinutesOfDay(clampedStart, dayStart)
+    const endMin = clockMinutesOfDay(clampedEnd, dayStart)
     if (endMin <= startMin) return null
     return { topPos: (startMin / 60) * HOUR_HEIGHT, height: ((endMin - startMin) / 60) * HOUR_HEIGHT }
   }
