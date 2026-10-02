@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
+  ArrowLeft,
   Users,
   Plus,
   RotateCw,
@@ -14,6 +15,7 @@ import {
 import type { CalendarAccount, SyncStatus } from '@shared/event-model'
 import CalDavConnectModal from './CalDavConnectModal'
 import { toast, showFriendlyError } from './ui'
+import { useDisplayPreferences } from '../context/DisplayPreferencesContext'
 
 interface AccountManagerModalProps {
   isOpen: boolean
@@ -27,6 +29,7 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({
   onAccountsChanged
 }) => {
   const { t } = useTranslation()
+  const { compact } = useDisplayPreferences()
   const [accounts, setAccounts] = useState<CalendarAccount[]>([])
   const [syncStatus, setSyncStatus] = useState<SyncStatus | null>(null)
   const [isLoading, setIsLoading] = useState<boolean>(false)
@@ -156,9 +159,24 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({
   }
 
   return (
-    <div className="gc-overlay select-none">
-      <div className="gc-dialog w-full max-w-lg max-h-[85vh]">
-        {/* Header — plain icon, no indigo icon box */}
+    <div className={compact ? 'fixed inset-0 z-50 select-none' : 'gc-overlay select-none'}>
+      <div
+        className={
+          compact
+            ? 'gc-fullscreen-sheet absolute inset-0 flex flex-col overflow-hidden bg-dialog text-primary'
+            : 'gc-dialog w-full max-w-lg max-h-[85vh]'
+        }
+      >
+        {compact ? (
+          // Phone: the same app bar as settings - one back arrow, no footer.
+          <header className="gc-app-bar flex shrink-0 items-center gap-1 bg-[var(--color-accent-mark)] text-white">
+            <button type="button" onClick={onClose} aria-label={t('common.back')} className="gc-app-bar-btn">
+              <ArrowLeft className="h-6 w-6" />
+            </button>
+            <h3 className="min-w-0 flex-1 truncate px-2 text-[20px] font-medium">{t('accounts.title')}</h3>
+          </header>
+        ) : (
+        /* Header — plain icon, no indigo icon box */
         <div className="px-5 py-3 border-b border-hairline flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Users className="h-4 w-4 text-muted" />
@@ -172,6 +190,7 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({
             <X className="h-4 w-4" />
           </button>
         </div>
+        )}
 
         {/* Body */}
         <div className="p-5 overflow-y-auto space-y-4 flex-1 text-xs">
@@ -323,11 +342,13 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="px-5 py-3 border-t border-hairline flex justify-end">
-          <button onClick={onClose} className="gc-btn">
-            {t('common.close')}
-          </button>
-        </div>
+        {!compact && (
+          <div className="px-5 py-3 border-t border-hairline flex justify-end">
+            <button onClick={onClose} className="gc-btn">
+              {t('common.close')}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* CalDAV Connect Modal */}

@@ -335,6 +335,7 @@ export const resources = {
       },
       search: {
         placeholder: 'Search events by title, location, notes… (Ctrl+K)',
+        placeholderShort: 'Search events',
         searching: 'Searching…',
         empty: 'Type a keyword to search across your whole calendar',
         noResults: 'No matching events for "{{q}}"',
@@ -734,6 +735,7 @@ export const resources = {
       },
       search: {
         placeholder: 'Tìm sự kiện theo tiêu đề, địa điểm, ghi chú… (Ctrl+K)',
+        placeholderShort: 'Tìm sự kiện',
         searching: 'Đang tìm kiếm…',
         empty: 'Gõ từ khóa để tìm kiếm nhanh trong toàn bộ lịch',
         noResults: 'Không tìm thấy sự kiện nào khớp với "{{q}}"',
