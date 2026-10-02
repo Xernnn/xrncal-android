@@ -30,10 +30,10 @@ npm run android:run            # build + cap run android (needs a device/emulato
 npm run android:open           # open the Gradle project in Android Studio
 npm run android:configure-oauth # derive the Google redirect scheme -> android/gradle.properties
 npm run typecheck:android      # tsc -p tsconfig.android.json (part of `npm run typecheck`)
-cd android && ./gradlew :app:testDebugUnitTest   # JVM tests for the Kotlin bridge
+cd android && ./gradlew :app:testDebugUnitTest   # JVM tests: SQL splitter + NativeHttp (MockWebServer)
 ```
 
-The APK lands at `android/app/build/outputs/apk/debug/app-debug.apk` (~12 MB; the R8-minified
+The APK lands at `android/app/build/outputs/apk/debug/app-debug.apk` (~16 MB; the R8-minified
 release is ~8 MB).
 
 Release signing is opt-in and never committed: set `xrncalStoreFile`, `xrncalStorePassword`,
@@ -42,12 +42,17 @@ Release signing is opt-in and never committed: set `xrncalStoreFile`, `xrncalSto
 builds, just unsigned, so CI keeps working. R8 is on for release, which matters for the bridge:
 `XrncalNative` is only ever called from JavaScript, so R8 sees no callers and would rename or
 strip every `@JavascriptInterface` method - `android/app/proguard-rules.pro` keeps it, along with
-requery's native SQLite classes and Capacitor's reflectively-resolved plugins. A release build
+requery's native SQLite classes and Capacitor's reflectively-resolved plugins (which covers the
+app's own `XrncalHttpPlugin`). A release build
 that starts but shows an empty calendar is the signature of those rules going missing. The Gradle
 build provisions its own JDK 21 (Capacitor 7 requires it) through the foojay resolver in
 `android/settings.gradle`, so the daemon's JVM does not matter; `android/build.gradle` pins
-every compile task to that toolchain. `android/` is generated - it is in `.eslintignore`
-territory (see `eslint.config.mjs`) and `npx cap add android` can recreate it.
+every compile task to that toolchain. `android/` started as Capacitor scaffolding and
+`eslint.config.mjs` lists it under `ignores`, but it is committed and carries hand edits: the
+Kotlin bridge under `app/src/{main,test}/java/app/xrncal/android/`, the manifest's OAuth intent
+filters, `proguard-rules.pro`, and the signing/toolchain/foojay changes in the Gradle files.
+`cap sync` (run by `build:android`) only refreshes the web assets and `capacitor.*.gradle`;
+`npx cap add android` would regenerate the scaffold and drop those edits.
 
 ### Running it on an emulator
 
@@ -89,7 +94,7 @@ npx vitest run -t "should expand weekly recurring event"           # one test by
 npx vitest                                                         # watch mode
 ```
 
-ESLint 9 (flat config, `eslint.config.mjs`) is the lint gate; **there is no formatter** — match surrounding style by hand (2-space indent, single quotes, no semicolons; `.editorconfig` carries these for your editor). `@typescript-eslint/no-explicit-any` is set to `warn` on purpose: provider payloads and IPC boundaries are genuinely untyped at the edge, so the ~100 existing warnings are visible debt rather than a CI blocker — don't add more, and don't "fix" them by silencing the rule. Everything else is an error and CI fails on it. `npm run typecheck` with the project's strict flags (`noUnusedLocals`, `noImplicitReturns`, etc.) remains the type gate. CI (`.github/workflows/ci.yml`) runs lint + typecheck + test + build on every push/PR.
+ESLint 9 (flat config, `eslint.config.mjs`) is the lint gate; **there is no formatter** — match surrounding style by hand (2-space indent, single quotes, no semicolons; `.editorconfig` carries these for your editor). `@typescript-eslint/no-explicit-any` is set to `warn` on purpose: provider payloads and IPC boundaries are genuinely untyped at the edge, so the ~100 existing warnings are visible debt rather than a CI blocker — don't add more, and don't "fix" them by silencing the rule. Everything else is an error and CI fails on it. `npm run typecheck` with the project's strict flags (`noUnusedLocals`, `noImplicitReturns`, etc.) remains the type gate. CI (`.github/workflows/ci.yml`) runs lint + typecheck + test + desktop build on pushes to `main` and on PRs, so a feature branch with no PR is never checked.
 
 ## Architecture
 
@@ -153,7 +158,7 @@ context, not from props.
 
 ### Sync
 
-`src/main/sync/sync-worker.ts` runs one poll loop across all connected accounts. Interval is adaptive — 20s while the main window is focused, 5m when blurred — driven by `SyncWorker.setFocusState()`, wired to `BrowserWindow` `focus`/`blur` in `src/main/index.ts`. Local edits set `dirty = 1`; the engine pushes dirty rows before pulling. Every request goes through `fetchWithTimeout` (`src/main/sync/http.ts`) — Node's bare `fetch` never times out, and a stalled connection would wedge `SyncWorker.isSyncing` for the life of the process. The three engines run concurrently under `Promise.all` with per-engine `.catch`, so one provider cannot block or cancel the others.
+`src/main/sync/sync-worker.ts` runs one poll loop across all connected accounts. Interval is adaptive — 20s while the main window is focused, 5m when blurred — driven by `SyncWorker.setFocusState()`, wired to `BrowserWindow` `focus`/`blur` in `src/main/index.ts`. Local edits set `dirty = 1`; the engine pushes dirty rows before pulling. Every request goes through `fetchWithTimeout` (`src/main/sync/http.ts`) — Node's bare `fetch` never times out, and a stalled connection would wedge `SyncWorker.isSyncing` for the life of the process. Its deadline rejects on its own instead of waiting for `fetch` to act on the abort, because not every `fetch` does (see Android below). The three engines run concurrently under `Promise.all` with per-engine `.catch`, so one provider cannot block or cancel the others.
 
 Conflict strategy is last-write-wins guarded by an `If-Match` precondition on every update/delete (Google and CalDAV use `If-Match`, Graph uses `if-match`). A 412 sets `has_conflict = 1`, and conflicted rows are excluded from the push set until `resolveConflict()` clears them — otherwise they retry and re-fail every poll.
 
@@ -187,6 +192,45 @@ map. That is what lets `src/main/ipc/*.ts` **and `src/preload/index.ts` run unch
 looks the channel up in the map `handle` wrote to. `node:fs`, `node:path` and friends have
 shims beside it; `Buffer` and `process` are installed by `src/android/boot/polyfills.ts`, which
 the entry point imports first so the globals exist before any main-process module body runs.
+
+The practical consequence: **code you add under `src/main` ships to Android too.** Only the
+desktop-only entry points (`index.ts`, `tray.ts`, `mini-window.ts`, `adopt-legacy-userdata.ts`,
+plus the renderer's `main.tsx` and `mini/`) are excluded in `tsconfig.android.json`. How safe
+that is depends on the shim:
+
+- `electron`, `node:fs`, `node:fs/promises` and `node:path` are mapped in both
+  `vite.android.config.ts` (`resolve.alias`) and `tsconfig.android.json` (`paths`), so calling
+  something the shim does not export fails `typecheck:android`. `node:crypto`, `node:http` and
+  the bare `fs`/`path`/`crypto`/`http` specifiers are aliased in Vite only, so the typecheck sees
+  real Node types there and will not catch a missing export.
+- What the Electron shim *does* export is not uniformly loud. `safeStorage` and
+  `Notification.show` throw, as do `node:crypto`'s `randomBytes`/`createHash` and
+  `node:http`'s `createServer`. But `app.on`/`quit`, `BrowserWindow.on`, `Menu`, `Tray` and
+  `nativeImage` are silent no-ops, and `dialog.showMessageBox` always resolves
+  `{ response: 0 }`. Shared main code that relies on one of those compiles and then quietly
+  does nothing on a phone.
+
+**HTTP on Android uses two transports.** `CapacitorHttp` (enabled in `capacitor.config.ts`)
+patches `window.fetch` so provider calls can leave the WebView at all - CalDAV servers send no
+CORS headers. But it hands every non-GET request to Android's `HttpURLConnection`, which rejects
+PROPFIND and REPORT outright ("Expected one of [OPTIONS, GET, HEAD, POST, PUT, DELETE, TRACE,
+PATCH] but was PROPFIND") and never sees the request's `AbortSignal`. So
+`src/android/platform/native-fetch.ts` wraps that fetch at boot and sends **everything but GET
+and HEAD** to `XrncalHttpPlugin` → `NativeHttp.kt` (OkHttp), which takes any method and cancels
+the native call on abort. Things to know before touching it:
+
+- It is a Capacitor plugin, not another `XrncalNative` method, on purpose: `XrncalNative`
+  blocks the JS thread until it returns, and a slow REPORT would freeze the UI. App-local plugins
+  are registered by hand in `MainActivity` before `super.onCreate()`.
+- OkHttp's redirect following is off and `native-fetch.ts` follows redirects with fetch's
+  rules, because OkHttp replays a redirected REPORT or PUT as a GET.
+- The reply crosses the bridge whole (base64), so on Android `fetchWithTimeout`'s deadline also
+  covers reading the body, not just the headers.
+- `fetchWithTimeout` races its own deadline rather than trusting `fetch` to honour the abort,
+  so even a transport that ignores the signal cannot wedge `SyncWorker.isSyncing`.
+- To check behaviour on a device, drive `fetch` and `window.xrncal.auth.connectCalDav` from
+  the WebView over CDP (see "Running it on an emulator"). Unit tests can't show what Android's
+  HTTP stack actually does.
 
 **The synchronous bridge is the load-bearing decision.** `ISqliteDatabase` is synchronous and
 every repo is written against it, so Capacitor's promise-based plugin bridge is unusable here -
@@ -222,7 +266,11 @@ Two consequences worth knowing:
 values describe display cutouts only and read 0 for the status bar and the gesture pill. The app
 draws edge to edge, so `MainActivity` reads the real insets and pushes them in as
 `--xrncal-inset-*` (see `src/android/platform/window-insets.ts`); `mobile.css` uses those with
-env() only as a fallback. The same applies horizontally - a punch-hole that sits in the status
+env() only as a fallback. The push alone is not enough. Android sends insets on the first
+layout, usually before the bundle has installed its hook, and does not send them again until they
+change. On a real phone that left every inset at 0 for the whole session, with the header under
+the clock. So `MainActivity` records each payload before pushing it, and the page pulls the
+latest one once at boot (`XrncalNative.windowInsets()`). The same applies horizontally - a punch-hole that sits in the status
 bar in portrait moves to a screen *edge* in landscape. The soft keyboard is handled the same way
 (`--xrncal-keyboard`) because the WebView is deliberately not resized on focus.
 
@@ -233,9 +281,9 @@ a down/up pair. Both were completely dead on device. `src/android/ui/touch-drag.
 what those hooks expect - real `DragEvent`s carrying a real `DataTransfer`, and real
 `MouseEvent`s - from a long press, so the shared hooks and their unit-tested geometry are
 untouched and React cannot tell a finger was involved. The gesture has to be long-press-then-drag
-because an immediate drag is indistinguishable from a scroll, and the week grid scrolls in both
-axes. The engine also auto-scrolls near an edge, which is not optional: only three days are
-visible on a phone, so reaching Friday depends on it. Resize is left alone - it already uses
+because an immediate drag is indistinguishable from a scroll. The engine also auto-scrolls near
+a scroller's edge - vertically, to carry an event to an hour that is off screen; the horizontal
+half dates from when a phone showed three week columns and is now idle in the week view. Resize is left alone - it already uses
 pointer events, which touch does fire - but its handles need `touch-action: none` (or the browser
 claims the gesture and cancels the pointer stream) and a grown hit area, both in `mobile.css`.
 Resize handles are excluded from drag arming so resting a finger on one cannot turn a resize into
@@ -249,15 +297,40 @@ DOM, not from React state: `isOverlayOpen` reaches the shell through a ref that 
 it renders, and `App` re-rendering does not re-render the shell around it, so that value can lag.
 Note `EventEditorDialog` renders either a centred modal (`.gc-dialog`) *or* a side panel
 (`.gc-slide-left` / `.gc-slide-right`, chosen by where the drag started) - matching only one of
-them made Back leave the app with the editor still on screen. Also expect the first Back to
-dismiss the soft keyboard rather than the sheet; that is Android, not a bug.
+them made Back leave the app with the editor still on screen. In the phone layout the editor and
+settings are `.gc-fullscreen-sheet` instead, which the selector also lists. The drawer and the
+header's two menus are the shell's own state (`ShellLayer` in `MobileApp.tsx`), not DOM, because
+the drawer stays mounted off-screen. Back inside a settings section steps out to the section list
+first (a `compact`-only branch in App's Escape handler). Also expect the first Back to dismiss the
+soft keyboard rather than the sheet; that is Android, not a bug.
 
 **UI.** `App.tsx` is shared. It grew three optional render props - `renderHeader`,
-`renderSidebar`, `renderBottomBar` - each handed an `AppShellContext`. Desktop passes none and
-behaves exactly as before; `src/android/ui/MobileApp.tsx` passes mobile chrome (bottom nav,
-drawer, compact header). Forking the 1,400-line container was the alternative and it would have
-drifted within a release. Styling differences live in `src/android/ui/mobile.css`, layered over
-the shared stylesheet - the Notion look and the `docs/design-guidelines.md` rules are unchanged.
+`renderSidebar`, `renderBottomBar` - each handed an `AppShellContext`, plus a `compact` prop.
+Desktop passes none and behaves exactly as before. Forking the 1,400-line container was the
+alternative and it would have drifted within a release.
+
+The phone layout follows OneCalendar: a top bar (`MobileHeader`: menu, a two-line period title
+that opens a date picker, then new event / calendar filter / today) and a navigation drawer
+(`NavDrawer`: the five views, search, sync, accounts, settings), with **no bottom bar**. Periods
+change by horizontal swipe (`use-swipe-navigation.ts`). The header's menus are in
+`HeaderPopovers.tsx`; the title text comes from `headerPeriod()` in `src/shared/compact-labels.ts`.
+
+`compact` is how the *shared* components draw for a phone without forking them. `MobileApp`
+passes it, App puts it in `DisplayPreferences`, and the components branch on
+`useDisplayPreferences().compact`:
+
+- `WeekView` / `DayView`: a 26px gutter so all seven days fit (~55px columns), "Mo 28" headers
+  with today in the today colour, the clock on the now-line, no week-number corner.
+- `HourGutter` prints bare hours (`compactHourLabel`); `TimedEventBlock` and `EventPill` drop the
+  time caption, padding and most of the radius.
+- `FormRow` stacks the label over the field (`inline` keeps a toggle on its label's row).
+- `EventEditorDialog` and `SettingsPanel` become full-screen `.gc-fullscreen-sheet`s under a
+  coloured `.gc-app-bar` (the editor's is the calendar's colour; save is its check mark).
+
+It is display-only and never persisted, so it is not in `settings-contract.ts`. The rest of the
+Android styling - insets, app bars, filled editor fields, popover placement - is in
+`src/android/ui/mobile.css`, layered over the shared stylesheet. The palette and type are still
+the desktop's; `docs/design-guidelines.md` describes the desktop layout.
 
 Two traps worth knowing before changing the mobile shell:
 
@@ -267,10 +340,10 @@ Two traps worth knowing before changing the mobile shell:
   the app *almost* looked right while `min-h-0` and `h-screen` were simply missing, so the shell's
   flex layout collapsed. `src/renderer/src/styles/index.css` now declares both trees with
   `@source`. Add a new source tree there, not to a config file.
-- **Overlays must be portalled.** App renders the sidebar inside its content row, which carries
-  `z-10` and is a flex item, so it opens a stacking context; anything inside it paints below the
-  bottom nav's `z-30` no matter how large its own z-index. `CalendarDrawer` renders through
-  `createPortal` to `document.body` for that reason.
+- **Overlays must be portalled.** App renders the sidebar slot inside its content row, which
+  carries `z-10` and is a flex item, so it opens a stacking context; anything inside it paints
+  below the header no matter how large its own z-index. `NavDrawer` and the header popovers
+  render through `createPortal` to `document.body` for that reason.
 
 **OAuth differs by necessity.** Android flows are public PKCE clients and never send a client
 secret; a secret inside an APK is readable by anyone who unzips it. `vite.android.config.ts`
@@ -364,11 +437,13 @@ The whole calendar is drivable without a mouse, and the maths for that is pure a
 
 - Main-process tests run in plain Node. `vitest.config.ts` aliases `electron` → `tests/stubs/electron.ts`, so tests do not need the Electron binary. Extend that stub if a test needs another Electron API.
 - DB tests call `initDatabase(':memory:')`. No network in unit tests — mock provider HTTP.
-- A test that imports renderer code (`src/renderer/**`) must be added to `tsconfig.web.json`'s `include` **and** `tsconfig.node.json`'s `exclude` (see how `drop-target` / `resize-math` / `ui-components` tests are wired), or `npm run typecheck` fails.
+- `tsconfig.node.json` includes `tests/**/*` by default. A test that imports renderer code (`src/renderer/**`) must be added to `tsconfig.web.json`'s `include` **and** `tsconfig.node.json`'s `exclude` (see how `drop-target` / `resize-math` / `ui-components` tests are wired), or `npm run typecheck` fails. A test that imports `src/android/**` follows the same pattern with `tsconfig.android.json`'s `include` instead (see `android-sqlite-bridge`, `android-native-fetch`).
+- The Kotlin side has its own JVM tests (`./gradlew :app:testDebugUnitTest`), which CI does **not** run, and CI never builds the APK either, so Android-only breakage surfaces only through `typecheck:android` there.
 
 ## Gotchas
 
-- **Path aliases (`@main`, `@preload`, `@renderer`, `@shared`) are declared twice** — in `electron.vite.config.ts` (per-bundle, for the build) and in each `tsconfig.*.json` + `vitest.config.ts` (for typecheck/tests); `vite.android.config.ts` declares its own set again. Adding an alias means updating all of them.
+- **Path aliases (`@main`, `@preload`, `@renderer`, `@shared`) are declared twice** — in `electron.vite.config.ts` (per-bundle, for the build) and in each `tsconfig.*.json` + `vitest.config.ts` (for typecheck/tests); `vite.android.config.ts` declares its own set again, plus `@android`. Adding an alias means updating all of them.
+- `site/` is the public homepage and privacy policy that Google's OAuth consent screen requires, not app code. `.github/workflows/pages.yml` publishes it to GitHub Pages on pushes to `main` that touch it. `docs/` is internal and is never published.
 - **Electron binary install can silently fail** — if `node_modules/electron/dist/` contains only `locales/`, `npm run dev` and packaging break (tests still pass via the stub). Recover with:
   ```bash
   cd node_modules/electron/dist && unzip -q ~/.cache/electron/*/electron-v*-linux-x64.zip && printf electron > ../path.txt
