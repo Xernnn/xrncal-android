@@ -3,6 +3,7 @@ import React, { useState, useRef, useEffect, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { ChevronDown, Check, Search } from 'lucide-react'
 import { nextEnabledIndex, firstEnabledIndex } from '../../lib/roving-index'
+import { useDisplayPreferences } from '../../context/DisplayPreferencesContext'
 
 export interface SelectOption {
   value: string
@@ -44,6 +45,7 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
   align = 'left'
 }) => {
   const { t } = useTranslation()
+  const { compact } = useDisplayPreferences()
   const [isOpen, setIsOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [coords, setCoords] = useState<{ top: number; left: number; width: number } | null>(null)
@@ -289,7 +291,11 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
                       ref={isActive ? activeItemRef : undefined}
                       onClick={() => handleSelect(opt)}
                       onMouseEnter={() => !opt.disabled && setActiveIndex(idx)}
-                      className={`flex w-full items-center justify-between gap-2 px-2 py-1.5 text-xs text-left transition-colors cursor-pointer ${
+                      // 28px rows are a mouse target; a phone gets 40px, as the
+                      // time picker's list does.
+                      className={`flex w-full items-center justify-between gap-2 px-2 text-left transition-colors cursor-pointer ${
+                        compact ? 'min-h-[40px] text-sm' : 'py-1.5 text-xs'
+                      } ${
                         isSelected
                           ? 'bg-hover text-primary font-medium'
                           : 'text-primary hover:bg-hover'

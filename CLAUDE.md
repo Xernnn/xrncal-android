@@ -347,6 +347,8 @@ before assuming a desktop interaction carries over:
 - A tap on a month day opens that day; on desktop a click there creates an event.
 - Opening an *existing* event does not focus the title, so the keyboard stays down.
 - The editor's date fields have no clear button, and the time column is wider for 16px text.
+- `TimePicker` opens only its list (`readOnly` + `inputMode="none"`): a focused text input raised
+  a QWERTY keyboard over the list. `TimePicker` and `CustomSelect` rows are 40px, not 28px.
 - `confirm()` goes through `askConfirm()` (`components/ui/confirm.tsx`): native on desktop, an
   in-app sheet on a phone, where the WebView's confirm() is an unthemed AlertDialog that blocks
   JS. Do not call `window.confirm` directly.
