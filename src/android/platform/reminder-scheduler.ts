@@ -1,10 +1,13 @@
 import { LocalNotifications } from '@capacitor/local-notifications'
+import { App as CapacitorApp } from '@capacitor/app'
+import type { PluginListenerHandle } from '@capacitor/core'
 import { DateTime } from 'luxon'
 import type { ISqliteDatabase } from './sqlite-driver'
 import { EventsRepo } from '@main/db/repos/events-repo'
 import { CalendarsRepo } from '@main/db/repos/calendars-repo'
 import { mt } from '@main/i18n-main'
 import i18n from '@renderer/i18n'
+import { planReminderQueue, reminderSignature, type WantedReminder } from './reminder-queue'
 
 /**
  * Android replacement for `src/main/notifications/reminder-scheduler.ts`.
@@ -56,6 +59,7 @@ export class ReminderScheduler {
    *  schedules, which would leave stale alarms behind. */
   private rebuilding = false
   private localeListener: (() => void) | null = null
+  private pauseListener: Promise<PluginListenerHandle> | null = null
 
   constructor(db: ISqliteDatabase) {
     this.eventsRepo = new EventsRepo(db)
@@ -67,8 +71,13 @@ export class ReminderScheduler {
    * but it means something different here: it is how often the *queue is
    * rebuilt* while the app happens to be in the foreground, not how often
    * reminders are checked. Delivery is the OS's job.
+   *
+   * Nothing tells the scheduler an event was created, edited or synced, so the
+   * rebuild has to come round often: at 15 minutes an event made to start in
+   * 12 got no alarm in time. A rebuild that finds nothing changed touches no
+   * alarm (planReminderQueue), so a minute costs one query, as on desktop.
    */
-  start(intervalMs = 15 * 60 * 1000): void {
+  start(intervalMs = 60 * 1000): void {
     if (this.timer) clearInterval(this.timer)
 
     void this.ensurePermission().then(() => this.checkReminders())
@@ -76,6 +85,13 @@ export class ReminderScheduler {
     this.timer = setInterval(() => {
       this.checkReminders()
     }, intervalMs)
+
+    // The interval stops when the app is backgrounded, which is exactly when
+    // the queue matters - an event added just before leaving would otherwise
+    // wait for the next time the app is opened. Rebuild on the way out.
+    if (!this.pauseListener) {
+      this.pauseListener = CapacitorApp.addListener('pause', () => this.checkReminders())
+    }
 
     // Reminder text is rendered when the alarm is *queued*, not when it fires -
     // the app is usually not running at that point. Desktop formats at fire
@@ -92,6 +108,10 @@ export class ReminderScheduler {
     if (this.timer) {
       clearInterval(this.timer)
       this.timer = null
+    }
+    if (this.pauseListener) {
+      void this.pauseListener.then((h) => h.remove())
+      this.pauseListener = null
     }
     if (this.localeListener) {
       i18n.off('languageChanged', this.localeListener)
@@ -133,7 +153,7 @@ export class ReminderScheduler {
       const calendars = this.calendarsRepo.listCalendars()
       const activeCalIds = calendars.filter((c) => c.isVisible).map((c) => c.id)
 
-      const wanted = new Map<number, { title: string; body: string; at: Date }>()
+      const wanted: WantedReminder[] = []
 
       if (activeCalIds.length > 0) {
         const occurrences = this.eventsRepo.queryEventsByRange(
@@ -160,36 +180,37 @@ export class ReminderScheduler {
         for (const { occ, fireAt } of candidates) {
           const localStart = DateTime.fromISO(occ.startUtc, { zone: 'utc' }).setZone('local')
           const timeStr = localStart.toFormat('HH:mm')
-          wanted.set(occurrenceNotificationId(occ.id), {
+          wanted.push({
+            id: occurrenceNotificationId(occ.id),
             title: mt('notify.reminder', { title: occ.title }),
             body: `${timeStr}${occ.location ? ` @ ${occ.location}` : ''} — ${mt('notify.startsSoon')}`,
-            at: fireAt.toJSDate()
+            at: fireAt.toJSDate(),
+            startUtc: occ.startUtc
           })
         }
       }
 
       // Reconcile against what is already queued rather than cancelling
       // everything and re-adding: a blanket cancel/re-add races with delivery,
-      // and an alarm due in the next few seconds can be lost in the gap.
+      // and an alarm due in the next few seconds can be lost in the gap. Only
+      // alarms that are gone or whose text or time changed are touched.
       const pending = await LocalNotifications.getPending()
-      const pendingIds = new Set(pending.notifications.map((n) => n.id))
+      const plan = planReminderQueue(wanted, pending.notifications)
 
-      const stale = [...pendingIds].filter((id) => !wanted.has(id))
-      if (stale.length > 0) {
-        await LocalNotifications.cancel({ notifications: stale.map((id) => ({ id })) })
+      if (plan.cancel.length > 0) {
+        await LocalNotifications.cancel({ notifications: plan.cancel.map((id) => ({ id })) })
       }
 
-      const toSchedule = [...wanted.entries()]
-        .filter(([id]) => !pendingIds.has(id))
-        .map(([id, n]) => ({
-          id,
-          title: n.title,
-          body: n.body,
-          schedule: { at: n.at, allowWhileIdle: true },
-          smallIcon: 'ic_stat_xrncal',
-          // Tapping a reminder should land on the day it is about.
-          extra: { notificationId: id }
-        }))
+      const toSchedule = plan.schedule.map((n) => ({
+        id: n.id,
+        title: n.title,
+        body: n.body,
+        schedule: { at: n.at, allowWhileIdle: true },
+        smallIcon: 'ic_stat_xrncal',
+        // `sig` is what the next rebuild compares; `startUtc` is what a tap
+        // opens (use-reminder-taps.ts).
+        extra: { notificationId: n.id, startUtc: n.startUtc, sig: reminderSignature(n) }
+      }))
 
       if (toSchedule.length > 0) {
         await LocalNotifications.schedule({ notifications: toSchedule })

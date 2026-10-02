@@ -66,7 +66,8 @@
     "src/preload/**/*",
     "tests/android-sqlite-bridge.test.ts",
     "tests/android-native-fetch.test.ts",
-    "tests/android-window-insets.test.ts"
+    "tests/android-window-insets.test.ts",
+    "tests/android-reminder-queue.test.ts"
   ],
   "exclude": [
     "src/main/index.ts",
