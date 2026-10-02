@@ -64,7 +64,14 @@ export function dismissTopLayer(state: {
 }): boolean {
   const overlayOnScreen = Boolean(document.querySelector(OVERLAY_SELECTOR))
   if (state.isOverlayOpen || overlayOnScreen) {
-    document.dispatchEvent(
+    // Dispatched where a real key press would land - the focused element -
+    // so it bubbles through element-level handlers on its way to document and
+    // window. Fired at document it skipped them: the search palette closes on
+    // its input's onKeyDown, so Back could not close it, and App leaves
+    // Escape to the palette while it is open, so every dialog opened after it
+    // stacked behind it with Back dead.
+    const target = document.activeElement instanceof HTMLElement ? document.activeElement : document
+    target.dispatchEvent(
       new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })
     )
     return true
