@@ -9,6 +9,7 @@ import NavDrawer from './NavDrawer'
 import { CalendarFilterMenu, DatePickerMenu } from './HeaderPopovers'
 import { useSwipeNavigation } from './use-swipe-navigation'
 import { useAndroidBackButton, dismissTopLayer } from './use-back-button'
+import { useReminderTaps } from './use-reminder-taps'
 
 /** The one piece of shell chrome that can be open over the calendar. */
 type ShellLayer = 'drawer' | 'filter' | 'datePicker' | null
@@ -39,6 +40,7 @@ const MobileApp: React.FC = () => {
   const toggleLayer = (next: Exclude<ShellLayer, null>) => setLayer((open) => (open === next ? null : next))
 
   useSwipeNavigation(shellRef)
+  useReminderTaps(shellRef)
   useAndroidBackButton(() => {
     const dismissed = dismissTopLayer({
       isOverlayOpen: Boolean(shellRef.current?.isOverlayOpen),
