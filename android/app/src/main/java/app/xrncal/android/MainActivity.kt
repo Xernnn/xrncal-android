@@ -20,6 +20,15 @@ import org.json.JSONObject
  */
 class MainActivity : BridgeActivity() {
 
+    /**
+     * The last insets payload pushed to the page. XrncalNative.windowInsets()
+     * hands it over when the page asks, because the first push usually lands
+     * before the page has installed its hook - see publishWindowInsets().
+     */
+    @Volatile
+    var latestInsets: String? = null
+        private set
+
     override fun onCreate(savedInstanceState: Bundle?) {
         // App-local plugins are not discovered from capacitor.plugins.json;
         // they have to be registered before super.onCreate() builds the Bridge.
@@ -52,8 +61,12 @@ class MainActivity : BridgeActivity() {
                 .put("left", bars.left / density)
                 .put("right", bars.right / density)
 
-            // The page may not have installed the hook yet on a cold start;
-            // the optional call keeps that from throwing into the console.
+            // On a cold start this first dispatch happens on the first layout,
+            // while the bundle is still loading, so the hook usually is not
+            // there yet and the call is dropped - and nothing re-dispatches
+            // until the insets change (a rotation). Recording the payload
+            // *before* pushing it lets the page pull it once the hook exists.
+            latestInsets = payload.toString()
             bridge.webView.evaluateJavascript(
                 "window.__xrncalInsets && window.__xrncalInsets($payload)",
                 null
