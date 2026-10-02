@@ -25,6 +25,9 @@
 
 /** Hold before a drag arms. Long enough not to fire while scrolling. */
 const LONG_PRESS_MS = 320
+
+/** Dispatched on document when a long press turns a touch into a drag. */
+export const TOUCH_DRAG_START_EVENT = 'gc-touch-drag-start'
 /** Moving further than this before the hold completes means "scroll". */
 const MOVE_SLOP_PX = 12
 /** Distance from a scrollable edge at which auto-scroll kicks in. */
@@ -184,6 +187,9 @@ function beginSession(kind: SessionKind, source: HTMLElement, x: number, y: numb
 
   buzz(12)
   startAutoScroll()
+  // The gesture belongs to the drag from here on; use-swipe-navigation drops
+  // it rather than also reading the release as a period flick.
+  document.dispatchEvent(new Event(TOUCH_DRAG_START_EVENT))
 }
 
 function startAutoScroll(): void {

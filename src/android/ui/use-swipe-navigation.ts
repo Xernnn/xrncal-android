@@ -1,5 +1,6 @@
 import { useEffect, type RefObject } from 'react'
 import type { AppShellContext } from '@renderer/App'
+import { TOUCH_DRAG_START_EVENT } from './touch-drag'
 
 /** Minimum horizontal travel before a touch counts as a period swipe. */
 const SWIPE_THRESHOLD_PX = 60
@@ -11,14 +12,16 @@ const MAX_DURATION_MS = 600
 /**
  * Swipe left/right to move a period, replacing the desktop header arrows.
  *
- * Deliberately *not* active in every view. Week view scrolls horizontally on a
- * phone (seven columns do not fit), so a horizontal swipe already means
- * something there. Everywhere else - day, month, list and now year, which lays
- * a whole year out on one page instead of scrolling through months - there is
- * no competing horizontal gesture and the swipe is unambiguous.
+ * Active in every view. Week view used to be left out because it scrolled
+ * sideways through three columns on a phone; it now shows all seven, so the
+ * swipe was its only way to the next week and leaving it out stranded it.
  *
- * Touches that begin inside an event block are ignored so that starting a
- * drag never also flips the period.
+ * A swipe may start on an event block. A quick flick never becomes a drag -
+ * touch-drag cancels its long press as soon as the finger moves - and when a
+ * held press does arm one, touch-drag says so and the gesture is dropped
+ * here, so a drag never also flips the period. Sheets, dialogs and the
+ * header's menus are excluded: a swipe there must not change the calendar
+ * behind them.
  */
 export function useSwipeNavigation(shellRef: RefObject<AppShellContext | null>): void {
   useEffect(() => {
@@ -30,13 +33,16 @@ export function useSwipeNavigation(shellRef: RefObject<AppShellContext | null>):
     const onTouchStart = (e: TouchEvent): void => {
       const shell = shellRef.current
       if (!shell) return
-      if (shell.currentView === 'week') return
       if (e.touches.length !== 1) return
 
       const target = e.target as HTMLElement | null
-      // Never hijack a gesture that starts on a draggable event, inside the
-      // drawer, or in a dialog.
-      if (target?.closest('[draggable="true"], .gc-drawer, [role="dialog"]')) return
+      if (
+        target?.closest(
+          '.gc-drawer, .gc-header-popover, .gc-fullscreen-sheet, .gc-dialog, .gc-overlay, [role="dialog"]'
+        )
+      ) {
+        return
+      }
 
       startX = e.touches[0].clientX
       startY = e.touches[0].clientY
@@ -72,6 +78,7 @@ export function useSwipeNavigation(shellRef: RefObject<AppShellContext | null>):
     }
 
     document.addEventListener('touchstart', onTouchStart, { passive: true })
+    document.addEventListener(TOUCH_DRAG_START_EVENT, onTouchCancel)
     document.addEventListener('touchend', onTouchEnd, { passive: true })
     document.addEventListener('touchcancel', onTouchCancel, { passive: true })
 
@@ -79,6 +86,7 @@ export function useSwipeNavigation(shellRef: RefObject<AppShellContext | null>):
       document.removeEventListener('touchstart', onTouchStart)
       document.removeEventListener('touchend', onTouchEnd)
       document.removeEventListener('touchcancel', onTouchCancel)
+      document.removeEventListener(TOUCH_DRAG_START_EVENT, onTouchCancel)
     }
   }, [shellRef])
 }
