@@ -376,6 +376,16 @@ class XrncalNative(private val activity: Activity) {
     }
 
     /**
+     * The latest system-bar insets as `{top,bottom,left,right}` in CSS pixels,
+     * or null before Android has dispatched any. Pulled once by
+     * window-insets.ts at boot to recover the push it was too early for.
+     */
+    @JavascriptInterface
+    fun windowInsets(): String = envelope {
+        (activity as? MainActivity)?.latestInsets?.let { JSONObject(it) }
+    }
+
+    /**
      * Hands a file to the system share sheet. Stands in for
      * `shell.showItemInFolder`, which has no Android equivalent - an
      * app-private file the user cannot browse to is not useful on its own.

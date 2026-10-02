@@ -63,6 +63,9 @@ export interface XrncalNativeBridge {
   // --- Host metadata ------------------------------------------------------
   appVersion(): string
 
+  /** Latest system-bar insets (`HostInsets` JSON, CSS px), or null before the first dispatch. */
+  windowInsets(): string
+
   /** Hand a file to Android's share sheet (the `shell.showItemInFolder` analogue). */
   shareFile(path: string, mimeType: string, title: string): string
 }
