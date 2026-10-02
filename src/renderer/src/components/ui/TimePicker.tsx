@@ -132,7 +132,7 @@ export const TimePicker: React.FC<TimePickerProps> = ({
   className = '',
   align = 'left'
 }) => {
-  const { timeFormat, dragSnapMinutes } = useDisplayPreferences()
+  const { timeFormat, dragSnapMinutes, compact } = useDisplayPreferences()
   // Same grid the calendar snaps to unless a caller insists otherwise, so the
   // times offered here match the ones a drag can produce.
   const step = stepMinutes ?? dragSnapMinutes
@@ -349,7 +349,9 @@ export const TimePicker: React.FC<TimePickerProps> = ({
                     ref={isActive || (activeIndex < 0 && isSelected) ? activeItemRef : undefined}
                     onClick={() => handleSelectSlot(slot)}
                     onMouseEnter={() => setActiveIndex(idx)}
-                    className={`flex w-full items-center justify-between px-2.5 py-1.5 text-xs font-mono tabular-nums transition-colors cursor-pointer ${
+                    className={`flex w-full items-center justify-between px-2.5 font-mono tabular-nums transition-colors cursor-pointer ${
+                      compact ? 'min-h-[40px] text-sm' : 'py-1.5 text-xs'
+                    } ${
                       isSelected
                         ? 'bg-accent text-white font-bold'
                         : 'text-primary hover:bg-hover'
@@ -409,6 +411,11 @@ export const TimePicker: React.FC<TimePickerProps> = ({
             }}
             onBlur={commitInput}
             onKeyDown={handleInputKeyDown}
+            // On a phone the field opens the list and nothing else: focusing a
+            // text input raised a full QWERTY keyboard - the wrong one for a
+            // time - over most of the list it was meant to pick from.
+            inputMode={compact ? 'none' : undefined}
+            readOnly={compact}
             className="w-full bg-transparent text-xs font-mono font-medium text-primary placeholder:text-muted border-none outline-none focus:outline-none focus:ring-0 focus-visible:outline-none min-w-0 tabular-nums p-0"
           />
         </div>
