@@ -186,6 +186,11 @@ every import route is covered. `MODULE_SWAPS` in that config is the authoritativ
 | `db/backup.ts` | `android/platform/backup.ts` | still `VACUUM INTO`, then the share sheet |
 | `notifications/reminder-scheduler.ts` | `android/platform/reminder-scheduler.ts` | polling -> OS-scheduled alarms |
 
+The Android reminder queue is rebuilt every minute in the foreground and on `pause` - nothing
+signals an edit or a sync, so the cadence is what keeps it current. Alarm ids hash the occurrence
+id and survive edits, so `planReminderQueue` (`reminder-queue.ts`) compares a signature of each
+alarm's time and text, stored in its `extra.sig`, and replaces the ones that differ.
+
 Everything else is shimmed at the module level: `electron` resolves to
 `src/android/shims/electron.ts`, which reimplements `ipcMain`/`ipcRenderer` as one in-process
 map. That is what lets `src/main/ipc/*.ts` **and `src/preload/index.ts` run unchanged** - `invoke`
@@ -312,7 +317,9 @@ alternative and it would have drifted within a release.
 The phone layout follows OneCalendar: a top bar (`MobileHeader`: menu, a two-line period title
 that opens a date picker, then new event / calendar filter / today) and a navigation drawer
 (`NavDrawer`: the five views, search, sync, accounts, settings), with **no bottom bar**. Periods
-change by horizontal swipe (`use-swipe-navigation.ts`). The header's menus are in
+change by horizontal swipe (`use-swipe-navigation.ts`) in every view - it is the week view's only
+way to the next week, so do not exclude it again. A swipe may start on an event; one that a long
+press turned into a drag is dropped when touch-drag dispatches `TOUCH_DRAG_START_EVENT`. The header's menus are in
 `HeaderPopovers.tsx`; the title text comes from `headerPeriod()` in `src/shared/compact-labels.ts`.
 
 `compact` is how the *shared* components draw for a phone without forking them. `MobileApp`
