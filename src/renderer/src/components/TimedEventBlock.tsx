@@ -105,18 +105,18 @@ export const TimedEventBlock: React.FC<TimedEventBlockProps> = ({
         left: `calc(${layout.leftPercent}% + ${compact ? 1 : layout.isNested ? 2 : 1.5}px)`,
         width: `calc(${layout.widthPercent}% - ${compact ? 2 : layout.isNested ? 4 : 3}px)`,
         backgroundColor: layout.effectiveColor,
-        borderRadius: compact ? 2 : 6
+        // The desktop chip, with the corner held to the 4px the guidelines
+        // allow - 6px eats a visible share of a 55px column.
+        borderRadius: compact ? 4 : 6
       }}
       className={`gc-event absolute cursor-grab overflow-hidden text-xs text-white active:cursor-grabbing min-w-0 ${
-        compact ? 'px-[3px] py-0.5' : 'p-1.5 hover:shadow-md'
+        compact ? 'px-1 py-0.5' : 'p-1.5 hover:shadow-md'
       } ${
         layout.isNested
           ? compact
-            ? 'z-30 border border-black/40'
+            ? 'z-30 shadow-sm border border-white/70'
             : 'z-30 shadow-md border-2 border-white/70 hover:z-40'
-          : compact
-            ? 'z-10'
-            : 'z-10 shadow-xs border border-white/20 hover:z-20'
+          : 'z-10 shadow-xs border border-white/20 hover:z-20'
       } ${isDragging ? 'is-dragging' : ''} ${isSelected ? 'is-key-selected' : ''} ${
         isResizing ? 'z-50' : ''
       }`}
@@ -128,16 +128,23 @@ export const TimedEventBlock: React.FC<TimedEventBlockProps> = ({
         <div className="flex items-start justify-between gap-1 min-w-0">
           <span
             className={`min-w-0 flex-1 whitespace-normal break-words leading-tight ${
-              compact ? 'text-[11px] font-normal [overflow-wrap:anywhere]' : 'text-xs font-semibold'
+              compact ? 'text-[11px] font-semibold [overflow-wrap:anywhere]' : 'text-xs font-semibold'
             }`}
           >
             {occ.title}
           </span>
           {occ.isRecurring && !compact && <Repeat className="h-2.5 w-2.5 opacity-80 shrink-0" />}
         </div>
-        {/* A ~55px phone column fits the title and nothing else; the block's
-            own height already says when it runs. */}
-        {!compact && (
+        {/* A ~55px phone column has room for the start time but not the
+            desktop's range, and only on a block tall enough to hold it under
+            the title. */}
+        {compact ? (
+          layout.height >= 44 && segment.isFirst && (
+            <div className="mt-0.5 font-mono text-[9.5px] leading-none opacity-85">
+              {formatClockTime(startDt, timeFormat)}
+            </div>
+          )
+        ) : (
           <div className="font-mono text-[10px] whitespace-normal break-words opacity-90 mt-0.5">
             {timeCaption(segment, startDt, endDt, timeFormat)}
           </div>

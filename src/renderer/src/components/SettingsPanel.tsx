@@ -123,7 +123,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = (props) => {
     : t(`settings.tab${props.section![0].toUpperCase()}${props.section!.slice(1)}`)
   // Taller, larger rows on a phone: 48dp targets, as Android's own settings.
   const rowClass = compact
-    ? 'flex w-full items-center gap-5 px-4 py-3.5 text-left text-[15px] text-primary transition-colors active:bg-hover'
+    ? 'flex min-h-[48px] w-full items-center gap-3 rounded-[3px] px-3 text-left text-[14px] text-primary transition-colors active:bg-hover'
     : 'flex w-full items-center gap-2.5 rounded-[3px] px-2.5 py-2.5 text-left text-sm text-primary transition-colors hover:bg-hover'
 
   return (
@@ -141,16 +141,16 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = (props) => {
         {compact ? (
           // Phone: an app bar with one back arrow - out of a section, then out
           // of settings - the way Android screens stack.
-          <header className="gc-app-bar flex shrink-0 items-center gap-1 bg-[var(--color-accent-mark)] px-1 text-white">
+          <header className="gc-app-bar flex shrink-0 items-center gap-1 border-b border-hairline bg-dialog px-1">
             <button
               type="button"
-              className="gc-app-bar-btn"
+              className="gc-app-bar-btn text-muted"
               onClick={() => (atRoot ? props.onClose() : props.onSectionChange(null))}
               aria-label={t('common.back')}
             >
-              <ArrowLeft className="h-6 w-6" />
+              <ArrowLeft className="h-5 w-5" />
             </button>
-            <h3 className="min-w-0 flex-1 truncate px-2 text-[20px] font-medium">{sectionTitle}</h3>
+            <h3 className="min-w-0 flex-1 truncate px-1 text-[16px] font-semibold text-primary">{sectionTitle}</h3>
           </header>
         ) : (
         <header className="flex shrink-0 items-center gap-1 border-b border-hairline px-2 py-2.5">
@@ -175,7 +175,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = (props) => {
 
         <div className="min-h-0 flex-1 overflow-y-auto">
           {atRoot ? (
-            <div className={compact ? 'py-1' : 'p-2'}>
+            <div className="p-2">
               {props.conflictCount ? (
                 <button
                   type="button"
@@ -199,11 +199,11 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = (props) => {
                   onClick={() => props.onSectionChange(id)}
                   className={rowClass}
                 >
-                  <Icon className={`shrink-0 text-muted ${compact ? 'h-5 w-5' : 'h-4 w-4'}`} />
+                  <Icon className={`shrink-0 text-muted ${compact ? 'h-[18px] w-[18px]' : 'h-4 w-4'}`} />
                   <span className="flex-1 truncate">
                     {t(`settings.tab${id[0].toUpperCase()}${id.slice(1)}`)}
                   </span>
-                  {!compact && <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted" />}
+                  <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted" />
                 </button>
               ))}
 
@@ -247,17 +247,21 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = (props) => {
                 </span>
               </button>
 
-              <button
-                type="button"
-                className="flex w-full items-center gap-2.5 rounded-[3px] px-2.5 py-2.5 text-left text-sm text-primary transition-colors hover:bg-hover"
-                onClick={() => {
-                  props.onOpenShortcuts()
-                  props.onClose()
-                }}
-              >
-                <Keyboard className="h-4 w-4 shrink-0 text-muted" />
-                <span className="flex-1 truncate">{t('actions.keyboard')}</span>
-              </button>
+              {/* Settings that only mean something with a mouse and keyboard are
+                  left out of the phone layout rather than shown inert. */}
+              {!compact && (
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-2.5 rounded-[3px] px-2.5 py-2.5 text-left text-sm text-primary transition-colors hover:bg-hover"
+                  onClick={() => {
+                    props.onOpenShortcuts()
+                    props.onClose()
+                  }}
+                >
+                  <Keyboard className="h-4 w-4 shrink-0 text-muted" />
+                  <span className="flex-1 truncate">{t('actions.keyboard')}</span>
+                </button>
+              )}
 
               <button
                 type="button"
@@ -306,9 +310,12 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = (props) => {
                   <Row label={t('settings.weekNumbers')}>
                     <Toggle on={props.showWeekNumbers} onChange={props.onToggleWeekNumbers} />
                   </Row>
-                  <Row label={t('settings.showMiniCalendar')}>
-                    <Toggle on={props.showMiniCalendar} onChange={props.onToggleMiniCalendar} />
-                  </Row>
+                  {/* The phone drawer always carries the mini calendar. */}
+                  {!compact && (
+                    <Row label={t('settings.showMiniCalendar')}>
+                      <Toggle on={props.showMiniCalendar} onChange={props.onToggleMiniCalendar} />
+                    </Row>
+                  )}
                 </div>
               )}
 
@@ -363,16 +370,22 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = (props) => {
                       ))}
                     </div>
                   </Row>
-                  <Row label={t('settings.autoHideHeader')}>
-                    <Toggle on={props.autoHideHeader} onChange={props.onToggleAutoHideHeader} />
-                  </Row>
+                  {/* Pointer-driven: the header hides until the cursor nears it. */}
+                  {!compact && (
+                    <Row label={t('settings.autoHideHeader')}>
+                      <Toggle on={props.autoHideHeader} onChange={props.onToggleAutoHideHeader} />
+                    </Row>
+                  )}
                   <Row label={t('settings.suggestionShowCalendarName')}>
                     <Toggle
                       on={props.suggestionShowCalendarName}
                       onChange={props.onToggleSuggestionShowCalendarName}
                     />
                   </Row>
-                  {/* Full width: a searchable zone list needs the room. */}
+                  {/* Full width: a searchable zone list needs the room. The phone's
+                      26px hour gutter has no room to show a second zone, so the
+                      setting would do nothing there. */}
+                  {!compact && (
                   <div className="border-b border-hairline py-3 last:border-b-0">
                     <div className="text-sm text-primary">{t('settings.secondaryTimezone')}</div>
                     <div className="mt-0.5 mb-2 text-xs leading-snug text-muted">
@@ -392,6 +405,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = (props) => {
                       ]}
                     />
                   </div>
+                  )}
                 </div>
               )}
 
@@ -405,7 +419,9 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = (props) => {
                       props.calendars.map((cal) => (
                         <div
                           key={cal.id}
-                          className="relative flex items-center gap-2 rounded-[3px] px-1 py-1.5 text-xs text-primary transition-colors hover:bg-hover"
+                          className={`relative flex items-center gap-2 rounded-[3px] px-1 text-primary transition-colors hover:bg-hover ${
+                            compact ? 'min-h-[44px] text-sm' : 'py-1.5 text-xs'
+                          }`}
                         >
                           <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-2">
                             <input
@@ -423,7 +439,11 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = (props) => {
                                   props.colorPickerCalId === cal.id ? null : cal.id
                                 )
                               }}
-                              className="h-2.5 w-2.5 shrink-0 cursor-pointer rounded-full ring-offset-1 transition-all hover:ring-2 hover:ring-hairline"
+                              // A 10px dot is a mouse target. On a phone the dot
+                              // grows and sits in a 36px tap area.
+                              className={`shrink-0 cursor-pointer rounded-full ring-offset-1 transition-all hover:ring-2 hover:ring-hairline ${
+                                compact ? 'box-content h-5 w-5 bg-clip-content p-2' : 'h-2.5 w-2.5'
+                              }`}
                               style={{ backgroundColor: cal.color }}
                             />
                             <span className="flex-1 truncate font-medium">{cal.name}</span>

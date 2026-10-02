@@ -314,30 +314,49 @@ soft keyboard rather than the sheet; that is Android, not a bug.
 Desktop passes none and behaves exactly as before. Forking the 1,400-line container was the
 alternative and it would have drifted within a release.
 
-The phone layout follows OneCalendar: a top bar (`MobileHeader`: menu, a two-line period title
-that opens a date picker, then new event / calendar filter / today) and a navigation drawer
-(`NavDrawer`: the five views, search, sync, accounts, settings), with **no bottom bar**. Periods
-change by horizontal swipe (`use-swipe-navigation.ts`) in every view - it is the week view's only
-way to the next week, so do not exclude it again. A swipe may start on an event; one that a long
-press turned into a drag is dropped when touch-drag dispatches `TOUCH_DRAG_START_EVENT`. The header's menus are in
-`HeaderPopovers.tsx`; the title text comes from `headerPeriod()` in `src/shared/compact-labels.ts`.
+The phone layout is the desktop's, rearranged for a hand - **keep it looking like xrncal**: the
+desktop tokens, hairlines and <5px radii of `docs/design-guidelines.md`, neutral chrome, the
+calendar's colour as a dot rather than a painted bar. A pass that copied OneCalendar (solid
+coloured app bars, Material drawer, filled grey fields, bare hour numbers) was reverted for that
+reason. The shell is a top bar (`MobileHeader`: menu, a two-line period title that opens a month
+picker, then new event / search / today) and a drawer (`NavDrawer`: the desktop view-menu rows,
+the mini calendar, the calendar list with visibility checkboxes, then sync / accounts /
+settings), with **no bottom bar**. Periods change by horizontal swipe (`use-swipe-navigation.ts`)
+in every view - it is the week view's only way to the next week, so do not exclude it again. A
+swipe may start on an event; one that a long press turned into a drag is dropped when touch-drag
+dispatches `TOUCH_DRAG_START_EVENT`. The month picker is `HeaderPopovers.tsx`; the title text
+comes from `headerPeriod()` in `src/shared/compact-labels.ts`.
 
 `compact` is how the *shared* components draw for a phone without forking them. `MobileApp`
 passes it, App puts it in `DisplayPreferences`, and the components branch on
 `useDisplayPreferences().compact`:
 
-- `WeekView` / `DayView`: a 26px gutter so all seven days fit (~55px columns), "Mo 28" headers
-  with today in the today colour, the clock on the now-line, no week-number corner.
-- `HourGutter` prints bare hours (`compactHourLabel`); `TimedEventBlock` and `EventPill` drop the
-  time caption, padding and most of the radius.
+- `WeekView` / `DayView`: a 26px gutter so all seven days fit (~55px columns); week headers
+  stack a small weekday over the day number with the desktop's today pill, and tapping one opens
+  that day (`onOpenDay`); the clock rides on the now-line.
+- `HourGutter` prints two-digit mono hours (`compactHourLabel`); `TimedEventBlock` keeps the
+  desktop chip at a 4px radius with the start time once the block is tall enough; `EventPill`
+  and `MonthView` drop the time and the per-day count badge.
 - `FormRow` stacks the label over the field (`inline` keeps a toggle on its label's row).
-- `EventEditorDialog` and `SettingsPanel` become full-screen `.gc-fullscreen-sheet`s under a
-  coloured `.gc-app-bar` (the editor's is the calendar's colour; save is its check mark).
+- `EventEditorDialog`, `SettingsPanel`, `SearchPaletteModal` and `AccountManagerModal` become
+  full-screen `.gc-fullscreen-sheet`s under a neutral `.gc-app-bar`.
+
+Behaviour that is right with a mouse and wrong with a finger also branches on it - check these
+before assuming a desktop interaction carries over:
+
+- A tap on a month day opens that day; on desktop a click there creates an event.
+- Opening an *existing* event does not focus the title, so the keyboard stays down.
+- The editor's date fields have no clear button, and the time column is wider for 16px text.
+- `confirm()` goes through `askConfirm()` (`components/ui/confirm.tsx`): native on desktop, an
+  in-app sheet on a phone, where the WebView's confirm() is an unthemed AlertDialog that blocks
+  JS. Do not call `window.confirm` directly.
+- Settings hides what only means something with a mouse and keyboard: keyboard shortcuts,
+  auto-hide header, the sidebar mini-calendar toggle, and the second timezone (the 26px gutter
+  cannot show it).
 
 It is display-only and never persisted, so it is not in `settings-contract.ts`. The rest of the
-Android styling - insets, app bars, filled editor fields, popover placement - is in
-`src/android/ui/mobile.css`, layered over the shared stylesheet. The palette and type are still
-the desktop's; `docs/design-guidelines.md` describes the desktop layout.
+Android styling - insets, app bars, boxed editor fields, popover and toast placement - is in
+`src/android/ui/mobile.css`, layered over the shared stylesheet.
 
 Two traps worth knowing before changing the mobile shell:
 

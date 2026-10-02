@@ -38,6 +38,8 @@ interface WeekViewProps {
   onDeleteOccurrence?: (occ: ExpandedOccurrence) => void
   onSelectSlot?: (start: DateTime, end: DateTime, meta?: { clientX?: number; allDay?: boolean }) => void
   onGoToday?: () => void
+  /** Phone layout: tapping a day's header opens that day. */
+  onOpenDay?: (day: DateTime) => void
   onPrevWeek?: () => void
   onNextWeek?: () => void
   onDragStart?: (e: React.DragEvent, occ: ExpandedOccurrence, segment?: TimedSegment) => void
@@ -78,6 +80,7 @@ export const WeekView: React.FC<WeekViewProps> = ({
   onDeleteOccurrence,
   onSelectSlot,
   onGoToday,
+  onOpenDay,
   onPrevWeek,
   onNextWeek,
   onDragStart,
@@ -232,19 +235,29 @@ export const WeekView: React.FC<WeekViewProps> = ({
               const monthChanged = day.day === 1
               const isDraftAllDay = isDraftAllDayOn(day)
               if (compact) {
-                // "Mo 28" on one line, today in the today colour rather than a
-                // filled pill - a pill does not fit a 55px column.
+                // The desktop header stacked for a ~55px column: a small
+                // weekday (desktop has room to leave it out; a phone showing
+                // seven days needs it), then the day number with the same
+                // today pill, then the lunar date.
                 return (
                   <div
                     key={day.toISO()}
-                    className="flex min-w-0 flex-col items-center overflow-hidden px-0.5 py-1.5 text-center"
+                    role={onOpenDay ? 'button' : undefined}
+                    onClick={onOpenDay ? () => onOpenDay(day) : undefined}
+                    className={`flex min-w-0 flex-col items-center overflow-hidden px-0.5 pt-1 pb-1.5 text-center ${
+                      onOpenDay ? 'cursor-pointer active:bg-hover' : ''
+                    }`}
                     style={isDraftAllDay ? { backgroundColor: `${previewSlot!.color}1f` } : undefined}
                   >
+                    <span className="text-[10.5px] leading-tight font-medium text-muted">
+                      {compactWeekday(day, i18n.language)}
+                    </span>
                     <span
-                      className={`truncate text-[13px] leading-tight ${isToday ? 'font-semibold' : 'font-medium text-primary/80'}`}
-                      style={isToday ? { color: TODAY_COLOR } : undefined}
+                      className={`mt-0.5 rounded-full px-1.5 text-[15px] leading-[22px] font-bold tabular-nums ${
+                        isToday ? 'bg-today text-white' : 'text-primary'
+                      }`}
                     >
-                      {compactWeekday(day, i18n.language)} {day.day}
+                      {day.day}
                     </span>
                     {showLunar && (
                       <LunarLabel
@@ -469,9 +482,10 @@ export const WeekView: React.FC<WeekViewProps> = ({
                       className="pointer-events-none absolute right-0 left-0 z-20 flex items-center"
                       style={{ top: `${((today.hour * 60 + today.minute) / 60) * HOUR_HEIGHT}px` }}
                     >
-                      {!compact && (
-                        <div className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: TODAY_COLOR }} />
-                      )}
+                      <div
+                        className={`shrink-0 rounded-full ${compact ? 'h-2 w-2' : 'h-2.5 w-2.5'}`}
+                        style={{ backgroundColor: TODAY_COLOR }}
+                      />
                       <div className="h-0.5 flex-1" style={{ backgroundColor: TODAY_COLOR }} />
                       {/* The phone gutter has no room for a moving clock, so the
                           time rides on the line itself. */}

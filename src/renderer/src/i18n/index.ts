@@ -7,6 +7,7 @@ export const resources = {
       appName: 'xrncal',
       common: {
         cancel: 'Cancel',
+        ok: 'OK',
         copy: 'Copy',
         close: 'Close',
         back: 'Back',
@@ -29,7 +30,7 @@ export const resources = {
         menu: 'Menu',
         weekNumber: 'week {{n}}',
         pickDate: 'Pick a date',
-        filterCalendars: 'Show calendars',
+        calendars: 'Calendars',
         newEvent: 'New event',
         sync: 'Sync',
         accounts: 'Accounts',
@@ -407,6 +408,7 @@ export const resources = {
       appName: 'xrncal',
       common: {
         cancel: 'Hủy',
+        ok: 'Đồng ý',
         copy: 'Sao chép',
         close: 'Đóng',
         back: 'Quay lại',
@@ -429,7 +431,7 @@ export const resources = {
         menu: 'Menu',
         weekNumber: 'tuần {{n}}',
         pickDate: 'Chọn ngày',
-        filterCalendars: 'Hiện lịch',
+        calendars: 'Lịch',
         newEvent: 'Sự kiện mới',
         sync: 'Đồng bộ',
         accounts: 'Tài khoản',

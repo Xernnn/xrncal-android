@@ -35,7 +35,7 @@ import AppHeader from './components/shell/AppHeader'
 import AppSidebar from './components/shell/AppSidebar'
 import { useEventDnD } from './dnd/use-event-dnd'
 import { singleDayRange } from './dnd/drop-target'
-import { NotionToaster, toast, showFriendlyError, isStaleEventError } from './components/ui'
+import { NotionToaster, ConfirmHost, askConfirm, toast, showFriendlyError, isStaleEventError } from './components/ui'
 import { DisplayPreferencesProvider, type DisplayPreferences } from './context/DisplayPreferencesContext'
 
 export type { CalendarViewType }
@@ -389,6 +389,12 @@ export const App: React.FC<AppProps> = ({ renderHeader, renderSidebar, renderBot
     [handleDropOnDate]
   )
 
+  /** Show one day - what a phone means by tapping a day in month view or a week header. */
+  const openDay = useCallback((date: DateTime) => {
+    setAnchorDate(date)
+    setCurrentView('day')
+  }, [])
+
   const openEditorForDate = useCallback(
     (date: DateTime) => {
       if (wasJustDragging()) return
@@ -660,7 +666,12 @@ export const App: React.FC<AppProps> = ({ renderHeader, renderSidebar, renderBot
       return
     }
 
-    if (shouldPrompt && !confirm(t('toast.confirmDelete'))) return
+    if (
+      shouldPrompt &&
+      !(await askConfirm(t('toast.confirmDelete'), { destructive: true, confirmLabel: t('common.delete') }))
+    ) {
+      return
+    }
 
     try {
       await window.xrncal.events.delete(eventId)
@@ -1250,7 +1261,11 @@ export const App: React.FC<AppProps> = ({ renderHeader, renderSidebar, renderBot
               occurrences={occurrences}
               showLunar={showLunar}
               showWeekNumbers={showWeekNumbers}
-              onSelectDate={openEditorForDate}
+              // A click on a day creates an event there on desktop. On a phone a
+              // tap on a day means "show me that day"; creating has the + button,
+              // and a tap that drops straight into the editor with the keyboard up
+              // was the wrong answer to it.
+              onSelectDate={compact ? openDay : openEditorForDate}
               onSelectOccurrence={handleSelectOccurrence}
               onPrevMonth={handlePrev}
               onNextMonth={handleNext}
@@ -1267,6 +1282,7 @@ export const App: React.FC<AppProps> = ({ renderHeader, renderSidebar, renderBot
           {currentView === 'week' && (
             <WeekView
               anchorDate={anchorDate}
+              onOpenDay={compact ? openDay : undefined}
               occurrences={occurrences}
               showLunar={showLunar}
               showWeekNumbers={showWeekNumbers}
@@ -1468,6 +1484,7 @@ export const App: React.FC<AppProps> = ({ renderHeader, renderSidebar, renderBot
       {renderBottomBar?.(shell)}
 
       <NotionToaster />
+      <ConfirmHost />
     </div>
     </DisplayPreferencesProvider>
   )
