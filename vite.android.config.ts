@@ -80,8 +80,9 @@ export default defineConfig(({ mode }) => {
       // (ipcMain/ipcRenderer, app, dialog, shell, Notification) in-process.
       electron: resolve(SRC, 'android/shims/electron.ts'),
       // Node builtins reached by main-process code. Only the handful of calls
-      // xrncal makes are implemented; anything else throws loudly rather than
-      // silently returning undefined.
+      // xrncal makes are implemented. The fs/path shims export nothing more
+      // (tsconfig.android.json maps them, so the typecheck catches a new
+      // call); the crypto/http ones throw for the desktop-only calls they stub.
       'node:fs/promises': resolve(SRC, 'android/shims/node-fs-promises.ts'),
       'node:fs': resolve(SRC, 'android/shims/node-fs.ts'),
       'node:path': resolve(SRC, 'android/shims/node-path.ts'),

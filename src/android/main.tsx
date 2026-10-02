@@ -20,6 +20,7 @@ import { app as hostApp } from './shims/electron'
 import { waitForNativeBridge } from './native/bridge'
 import { installWindowInsets } from './platform/window-insets'
 import { installKeyboardInset } from './platform/keyboard-inset'
+import { installNativeFetch } from './platform/native-fetch'
 import { installTouchDrag } from './ui/touch-drag'
 
 import ErrorBoundary from '@renderer/components/ErrorBoundary'
@@ -54,6 +55,11 @@ async function boot(): Promise<void> {
       </React.StrictMode>
     )
   }
+
+  // Before registerIpcHandlers() starts the sync worker, so no provider
+  // request ever goes out through CapacitorHttp's fetch for a method it
+  // cannot make. See native-fetch.ts.
+  installNativeFetch()
 
   // Before anything renders, so the first paint already has the right
   // padding rather than visibly reflowing once the host reports insets.

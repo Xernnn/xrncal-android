@@ -97,7 +97,12 @@ dependencies {
     implementation "androidx.core:core:$androidxCoreVersion"
     implementation project(':capacitor-android')
     implementation "com.github.requery:sqlite-android:$requerySqliteVersion"
+    // NativeHttp: CalDAV needs PROPFIND/REPORT, which HttpURLConnection (and
+    // therefore CapacitorHttp) refuses. 4.x depends on kotlin-stdlib 1.8; 5.x
+    // pulls in 2.1, ahead of this project's Kotlin 2.0 compiler.
+    implementation "com.squareup.okhttp3:okhttp:$okhttpVersion"
     testImplementation "junit:junit:$junitVersion"
+    testImplementation "com.squareup.okhttp3:mockwebserver:$okhttpVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
     implementation project(':capacitor-cordova-android-plugins')

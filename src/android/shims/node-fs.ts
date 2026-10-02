@@ -4,9 +4,10 @@ import { toBase64, fromBase64 } from './buffer-polyfill'
 /**
  * Synchronous `node:fs` over the Android bridge.
  *
- * Only the calls xrncal's main-process code makes are implemented. Anything
- * else throws by name rather than being left undefined, so an unported code
- * path fails at the call site instead of somewhere downstream.
+ * Only the calls xrncal's main-process code makes are implemented, and
+ * nothing else is exported. `node:fs` maps to this file in
+ * tsconfig.android.json, so a new call to an unported function fails
+ * `typecheck:android` instead of turning up on a device.
  */
 
 export function existsSync(path: string): boolean {
