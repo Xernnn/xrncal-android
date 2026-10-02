@@ -82,6 +82,8 @@ export interface AppShellContext {
   openConflicts: () => void
   toggleCalendarVisibility: (calendar: Calendar) => void | Promise<void>
   refresh: () => void
+  /** Push and pull every connected account now, as the desktop refresh button does. */
+  syncNow: () => Promise<void>
 }
 
 export interface AppProps {
@@ -90,11 +92,13 @@ export interface AppProps {
   renderHeader?: (shell: AppShellContext) => React.ReactNode
   /** Replaces AppSidebar. Receives the same context; may render nothing. */
   renderSidebar?: (shell: AppShellContext) => React.ReactNode
-  /** Rendered last, above the toaster. Used for the Android bottom nav. */
+  /** Rendered last, above the toaster. */
   renderBottomBar?: (shell: AppShellContext) => React.ReactNode
+  /** Phone layout for the shared views; see DisplayPreferences.compact. */
+  compact?: boolean
 }
 
-export const App: React.FC<AppProps> = ({ renderHeader, renderSidebar, renderBottomBar }) => {
+export const App: React.FC<AppProps> = ({ renderHeader, renderSidebar, renderBottomBar, compact = false }) => {
   const { t, i18n } = useTranslation()
   const { mode, themeConfig, setThemeConfig, persistMode, loadFromSettings } = useTheme()
   const [currentView, setCurrentView] = useState<CalendarViewType>('week')
@@ -929,6 +933,9 @@ export const App: React.FC<AppProps> = ({ renderHeader, renderSidebar, renderBot
         else if (isShortcutsModalOpen) setIsShortcutsModalOpen(false)
         else if (isConflictsModalOpen) setIsConflictsModalOpen(false)
         else if (isAccountModalOpen) setIsAccountModalOpen(false)
+        // A phone's Back steps out of a settings section before it closes
+        // settings, as the app bar's arrow does; desktop closes in one go.
+        else if (isSettingsOpen && compact && settingsSection) setSettingsSection(null)
         else if (isSettingsOpen) setIsSettingsOpen(false)
         else setSelection(null)
         return
@@ -1078,6 +1085,7 @@ export const App: React.FC<AppProps> = ({ renderHeader, renderSidebar, renderBot
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [
     anchorDate,
+    compact,
     currentView,
     deleteSelected,
     dragSnapMinutes,
@@ -1096,6 +1104,7 @@ export const App: React.FC<AppProps> = ({ renderHeader, renderSidebar, renderBot
     ownsEscape,
     pendingRecurringScope,
     selectedOccurrence,
+    settingsSection,
     showMiniCalendar,
     syncNow,
     toggleMiniCalendar
@@ -1125,7 +1134,8 @@ export const App: React.FC<AppProps> = ({ renderHeader, renderSidebar, renderBot
     openAccounts: () => setIsAccountModalOpen(true),
     openConflicts: () => setIsConflictsModalOpen(true),
     toggleCalendarVisibility,
-    refresh: loadCalendarsAndEvents
+    refresh: loadCalendarsAndEvents,
+    syncNow
   }
 
   return (
@@ -1135,7 +1145,8 @@ export const App: React.FC<AppProps> = ({ renderHeader, renderSidebar, renderBot
         dayStartHour,
         secondaryTimezone,
         suggestionShowCalendarName,
-        dragSnapMinutes
+        dragSnapMinutes,
+        compact
       }}>
     <div
       className="relative flex h-screen w-screen flex-col overflow-hidden bg-app font-sans text-primary select-none"

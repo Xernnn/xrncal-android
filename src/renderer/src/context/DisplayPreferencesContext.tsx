@@ -11,6 +11,13 @@ export interface DisplayPreferences {
   suggestionShowCalendarName: boolean
   /** Minutes that drag, drop and resize snap to. */
   dragSnapMinutes: AppSettings['dragSnapMinutes']
+  /**
+   * Phone layout. Not a user setting: the Android shell turns it on, and the
+   * shared views, editor and settings switch to denser, phone-shaped markup -
+   * seven week columns instead of three, bare hour numbers, title-only event
+   * blocks, stacked form labels, full-screen sheets. Desktop never sets it.
+   */
+  compact: boolean
 }
 
 export const DEFAULT_DISPLAY_PREFERENCES: DisplayPreferences = {
@@ -19,7 +26,8 @@ export const DEFAULT_DISPLAY_PREFERENCES: DisplayPreferences = {
   dayStartHour: 7,
   secondaryTimezone: '',
   suggestionShowCalendarName: true,
-  dragSnapMinutes: 15
+  dragSnapMinutes: 15,
+  compact: false
 }
 
 /** Row height (px) of one hour in the Day/Week timed grid, per hourBlockSize setting. */

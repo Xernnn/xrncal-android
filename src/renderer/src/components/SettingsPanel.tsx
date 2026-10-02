@@ -1,6 +1,7 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
 import {
+  ArrowLeft,
   X,
   Users,
   ChevronLeft,
@@ -19,7 +20,7 @@ import {
 } from 'lucide-react'
 import type { Calendar } from '@shared/event-model'
 import type { ThemeConfig, ThemeMode } from '@shared/theme-mode'
-import type { DisplayPreferences } from '../context/DisplayPreferencesContext'
+import { useDisplayPreferences, type DisplayPreferences } from '../context/DisplayPreferencesContext'
 import { NumberInput, CustomSelect, toast } from './ui'
 import { SNAP_STEP_OPTIONS } from '../dnd/resize-math'
 import AppearanceSettings from './AppearanceSettings'
@@ -113,18 +114,45 @@ const Toggle: React.FC<{ on: boolean; onChange: (next: boolean) => void }> = ({ 
 
 export const SettingsPanel: React.FC<SettingsPanelProps> = (props) => {
   const { t } = useTranslation()
+  const { compact } = useDisplayPreferences()
   if (!props.isOpen) return null
 
   const atRoot = props.section === null
+  const sectionTitle = atRoot
+    ? t('settings.title')
+    : t(`settings.tab${props.section![0].toUpperCase()}${props.section!.slice(1)}`)
+  // Taller, larger rows on a phone: 48dp targets, as Android's own settings.
+  const rowClass = compact
+    ? 'flex w-full items-center gap-5 px-4 py-3.5 text-left text-[15px] text-primary transition-colors active:bg-hover'
+    : 'flex w-full items-center gap-2.5 rounded-[3px] px-2.5 py-2.5 text-left text-sm text-primary transition-colors hover:bg-hover'
 
   return (
     // Same presentation as the event editor's side panel: a light scrim with the
     // sheet sliding in from the right, rather than a centred modal.
     <div className="fixed inset-0 z-50 select-none bg-black/30" onMouseDown={props.onClose}>
       <div
-        className="gc-slide-right absolute top-0 right-0 flex h-full w-full max-w-[400px] flex-col overflow-hidden border-l border-hairline bg-dialog text-primary shadow-xl"
+        className={
+          compact
+            ? 'gc-fullscreen-sheet absolute inset-0 flex flex-col overflow-hidden bg-dialog text-primary'
+            : 'gc-slide-right absolute top-0 right-0 flex h-full w-full max-w-[400px] flex-col overflow-hidden border-l border-hairline bg-dialog text-primary shadow-xl'
+        }
         onMouseDown={(e) => e.stopPropagation()}
       >
+        {compact ? (
+          // Phone: an app bar with one back arrow - out of a section, then out
+          // of settings - the way Android screens stack.
+          <header className="gc-app-bar flex shrink-0 items-center gap-1 bg-[var(--color-accent-mark)] px-1 text-white">
+            <button
+              type="button"
+              className="gc-app-bar-btn"
+              onClick={() => (atRoot ? props.onClose() : props.onSectionChange(null))}
+              aria-label={t('common.back')}
+            >
+              <ArrowLeft className="h-6 w-6" />
+            </button>
+            <h3 className="min-w-0 flex-1 truncate px-2 text-[20px] font-medium">{sectionTitle}</h3>
+          </header>
+        ) : (
         <header className="flex shrink-0 items-center gap-1 border-b border-hairline px-2 py-2.5">
           {!atRoot && (
             <button
@@ -137,22 +165,21 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = (props) => {
             </button>
           )}
           <h3 className={`flex-1 truncate text-sm font-semibold ${atRoot ? 'px-2' : ''}`}>
-            {atRoot
-              ? t('settings.title')
-              : t(`settings.tab${props.section![0].toUpperCase()}${props.section!.slice(1)}`)}
+            {sectionTitle}
           </h3>
           <button type="button" onClick={props.onClose} className="gc-icon-btn">
             <X className="h-4 w-4" />
           </button>
         </header>
+        )}
 
         <div className="min-h-0 flex-1 overflow-y-auto">
           {atRoot ? (
-            <div className="p-2">
+            <div className={compact ? 'py-1' : 'p-2'}>
               {props.conflictCount ? (
                 <button
                   type="button"
-                  className="mb-1 flex w-full items-center gap-2.5 rounded-[3px] px-2.5 py-2.5 text-left text-sm text-primary transition-colors hover:bg-hover"
+                  className={`mb-1 ${rowClass}`}
                   onClick={() => {
                     props.onOpenConflicts?.()
                     props.onClose()
@@ -170,13 +197,13 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = (props) => {
                   key={id}
                   type="button"
                   onClick={() => props.onSectionChange(id)}
-                  className="flex w-full items-center gap-2.5 rounded-[3px] px-2.5 py-2.5 text-left text-sm text-primary transition-colors hover:bg-hover"
+                  className={rowClass}
                 >
-                  <Icon className="h-4 w-4 shrink-0 text-muted" />
+                  <Icon className={`shrink-0 text-muted ${compact ? 'h-5 w-5' : 'h-4 w-4'}`} />
                   <span className="flex-1 truncate">
                     {t(`settings.tab${id[0].toUpperCase()}${id.slice(1)}`)}
                   </span>
-                  <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted" />
+                  {!compact && <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted" />}
                 </button>
               ))}
 

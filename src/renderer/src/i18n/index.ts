@@ -25,6 +25,16 @@ export const resources = {
         year: 'Year',
         list: 'List'
       },
+      mobile: {
+        menu: 'Menu',
+        weekNumber: 'week {{n}}',
+        pickDate: 'Pick a date',
+        filterCalendars: 'Show calendars',
+        newEvent: 'New event',
+        sync: 'Sync',
+        accounts: 'Accounts',
+        conflicts: 'Sync conflicts'
+      },
       nav: {
         today: 'Today',
         prev: 'Previous',
@@ -413,6 +423,16 @@ export const resources = {
         month: 'Tháng',
         year: 'Năm',
         list: 'Danh sách'
+      },
+      mobile: {
+        menu: 'Menu',
+        weekNumber: 'tuần {{n}}',
+        pickDate: 'Chọn ngày',
+        filterCalendars: 'Hiện lịch',
+        newEvent: 'Sự kiện mới',
+        sync: 'Đồng bộ',
+        accounts: 'Tài khoản',
+        conflicts: 'Xung đột đồng bộ'
       },
       nav: {
         today: 'Hôm nay',

@@ -2,10 +2,13 @@
  * Android skin.
  *
  * Loaded after the shared renderer stylesheet, so it only has to state the
- * differences. Nothing here changes colour, radius or type - the Notion look
- * and the hard rules in docs/design-guidelines.md (corner radius < 5px, soft
- * pastel event colours) carry over untouched. What changes is reach, target
- * size and how panels present themselves.
+ * differences. The phone layout follows the OneCalendar pattern: a top bar
+ * and a navigation drawer instead of a bottom bar, all seven week days on
+ * screen, title-only event blocks, and full-screen editor and settings sheets
+ * under a coloured app bar. Most of that is markup the shared components draw
+ * when DisplayPreferences.compact is on; this file carries the insets, sizes
+ * and the few styles that only exist on Android. The palette and type are
+ * still the desktop's (docs/design-guidelines.md).
  */
 
 /* --- Platform baseline ---------------------------------------------------- */
@@ -38,6 +41,9 @@ body {
      black bar. */
   padding-left: var(--xrncal-inset-left, 0px);
   padding-right: var(--xrncal-inset-right, 0px);
+  /* With no bottom bar the calendar runs to the bottom edge; stop it above
+     the gesture pill so the last row stays tappable. */
+  padding-bottom: var(--xrncal-inset-bottom, env(safe-area-inset-bottom, 0px));
 }
 
 /* --- Safe areas -----------------------------------------------------------
@@ -50,12 +56,8 @@ body {
  */
 
 .gc-mobile-header {
-  min-height: calc(48px + var(--xrncal-inset-top, env(safe-area-inset-top, 0px)));
+  min-height: calc(56px + var(--xrncal-inset-top, env(safe-area-inset-top, 0px)));
   padding-top: var(--xrncal-inset-top, env(safe-area-inset-top, 0px));
-}
-
-.gc-bottom-nav {
-  padding-bottom: var(--xrncal-inset-bottom, env(safe-area-inset-bottom, 0px));
 }
 
 .gc-drawer {
@@ -78,27 +80,6 @@ body {
 /* --- Phone layout --------------------------------------------------------- */
 
 @media (max-width: 767px) {
-  /* Week view: seven columns will not fit legibly on a phone. Each column
-     gets a floor of ~30vw so three sit on screen at once and the rest are a
-     swipe away. Both grids carry .gc-week-grid, and use-week-scroll-sync.ts
-     keeps their scroll offsets together. */
-  .gc-week-grid {
-    grid-template-columns: 44px repeat(7, minmax(30vw, 1fr)) !important;
-  }
-
-  .gc-week-header,
-  .gc-week-scroll {
-    overflow-x: auto !important;
-    scrollbar-width: none;
-    /* Snap so a flick lands on a day boundary rather than mid-column. */
-    scroll-snap-type: x proximity;
-  }
-
-  .gc-week-header::-webkit-scrollbar,
-  .gc-week-scroll::-webkit-scrollbar {
-    display: none;
-  }
-
   /* Dialogs become sheets. A centred 512px card on a 390px screen is just a
      cramped card; full-bleed is what the platform does. */
   .gc-dialog {
@@ -169,6 +150,58 @@ body {
   }
 }
 
+/* --- Phone chrome ----------------------------------------------------------
+ *
+ * The pieces the compact layout adds: app bars on the full-screen editor and
+ * settings sheets, the menus that drop from the header, and the drawer's
+ * selected row.
+ */
+
+/* The editor and settings, full screen. The sheet's app bar paints under the
+   status bar in its own colour, so the sheet itself only clears the gesture
+   pill, the keyboard and, in landscape, a side cutout. */
+.gc-fullscreen-sheet {
+  padding-bottom: calc(
+    var(--xrncal-inset-bottom, env(safe-area-inset-bottom, 0px)) + var(--xrncal-keyboard, 0px)
+  );
+}
+
+.gc-app-bar {
+  min-height: calc(56px + var(--xrncal-inset-top, env(safe-area-inset-top, 0px)));
+  padding-top: var(--xrncal-inset-top, env(safe-area-inset-top, 0px));
+  padding-left: calc(4px + var(--xrncal-inset-left, 0px));
+  padding-right: calc(4px + var(--xrncal-inset-right, 0px));
+}
+
+.gc-app-bar-btn {
+  display: flex;
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 3px;
+}
+
+.gc-app-bar-btn:active {
+  background-color: rgb(255 255 255 / 15%);
+}
+
+/* Drops from just under the header, and never past the gesture pill. */
+.gc-header-popover {
+  top: calc(var(--xrncal-inset-top, env(safe-area-inset-top, 0px)) + 52px);
+  max-height: calc(
+    100dvh - var(--xrncal-inset-top, env(safe-area-inset-top, 0px)) -
+      var(--xrncal-inset-bottom, env(safe-area-inset-bottom, 0px)) - 68px
+  );
+  border-radius: 4px;
+}
+
+.gc-drawer-active {
+  background-color: color-mix(in srgb, var(--color-accent-mark) 18%, transparent);
+  color: var(--color-accent-mark);
+}
+
 /* --- Touch drag ------------------------------------------------------------
  *
  * Driven by src/android/ui/touch-drag.ts. A desktop drag starts on mousedown;
@@ -234,4 +267,47 @@ body {
   [draggable='true'] {
     touch-action: pan-x pan-y;
   }
+}
+
+/* --- Week grid -------------------------------------------------------------
+ *
+ * The shared week view reserves a stable scrollbar gutter so its header and
+ * hour grid stay aligned under a desktop scrollbar. Android's overlay
+ * scrollbar takes no width, so the reservation is just a dead strip down the
+ * right edge of a grid that has none to spare.
+ */
+.gc-week-header,
+.gc-week-scroll {
+  scrollbar-gutter: auto !important;
+  scrollbar-width: none;
+}
+
+/* --- Editor fields ---------------------------------------------------------
+ *
+ * The desktop editor's fields are "ghost" controls that only show an outline
+ * on hover - and a touch screen has no hover, so on a phone they read as
+ * plain text. In the full-screen sheet every field is a filled, thumb-sized
+ * box instead. `.gc-field` marks text inputs and text areas; the date, time
+ * and select triggers already share `.gc-focus-ring`.
+ */
+.gc-fullscreen-sheet form .gc-field,
+.gc-fullscreen-sheet form .gc-focus-ring {
+  min-height: 48px;
+  align-items: center;
+  padding-left: 14px !important;
+  padding-right: 12px !important;
+  border-color: transparent !important;
+  border-radius: 4px !important;
+  background-color: rgb(127 127 127 / 13%) !important;
+}
+
+.gc-fullscreen-sheet form .gc-field:focus-within,
+.gc-fullscreen-sheet form .gc-focus-ring:focus-visible {
+  border-color: var(--color-accent-mark) !important;
+}
+
+/* The editor's rows sit flush in the sheet, with the fields giving the
+   rhythm, so the hairline between every row is noise at this size. */
+.gc-fullscreen-sheet form .border-b {
+  border-bottom-color: transparent;
 }

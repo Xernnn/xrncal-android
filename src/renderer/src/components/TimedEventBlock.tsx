@@ -61,7 +61,7 @@ export const TimedEventBlock: React.FC<TimedEventBlockProps> = ({
   onDragEnd,
   onResizeStart
 }) => {
-  const { timeFormat } = useDisplayPreferences()
+  const { timeFormat, compact } = useDisplayPreferences()
   const { occ } = layout
   const startDt = DateTime.fromISO(occ.startUtc, { zone: 'utc' }).setZone('local')
   const endDt = DateTime.fromISO(occ.endUtc, { zone: 'utc' }).setZone('local')
@@ -102,15 +102,21 @@ export const TimedEventBlock: React.FC<TimedEventBlockProps> = ({
         // Side-by-side (non-nested) columns inset a touch less than a nested card
         // does against its host, so two plain overlapping events sit 1px closer
         // together than before while the nested look is untouched.
-        left: `calc(${layout.leftPercent}% + ${layout.isNested ? 2 : 1.5}px)`,
-        width: `calc(${layout.widthPercent}% - ${layout.isNested ? 4 : 3}px)`,
+        left: `calc(${layout.leftPercent}% + ${compact ? 1 : layout.isNested ? 2 : 1.5}px)`,
+        width: `calc(${layout.widthPercent}% - ${compact ? 2 : layout.isNested ? 4 : 3}px)`,
         backgroundColor: layout.effectiveColor,
-        borderRadius: 6
+        borderRadius: compact ? 2 : 6
       }}
-      className={`gc-event absolute cursor-grab overflow-hidden p-1.5 text-xs text-white active:cursor-grabbing min-w-0 hover:shadow-md ${
+      className={`gc-event absolute cursor-grab overflow-hidden text-xs text-white active:cursor-grabbing min-w-0 ${
+        compact ? 'px-[3px] py-0.5' : 'p-1.5 hover:shadow-md'
+      } ${
         layout.isNested
-          ? 'z-30 shadow-md border-2 border-white/70 hover:z-40'
-          : 'z-10 shadow-xs border border-white/20 hover:z-20'
+          ? compact
+            ? 'z-30 border border-black/40'
+            : 'z-30 shadow-md border-2 border-white/70 hover:z-40'
+          : compact
+            ? 'z-10'
+            : 'z-10 shadow-xs border border-white/20 hover:z-20'
       } ${isDragging ? 'is-dragging' : ''} ${isSelected ? 'is-key-selected' : ''} ${
         isResizing ? 'z-50' : ''
       }`}
@@ -120,15 +126,23 @@ export const TimedEventBlock: React.FC<TimedEventBlockProps> = ({
         style={layout.contentWidthPercent < 100 ? { maxWidth: `${layout.contentWidthPercent}%` } : undefined}
       >
         <div className="flex items-start justify-between gap-1 min-w-0">
-          <span className="min-w-0 flex-1 whitespace-normal break-words text-xs font-semibold leading-tight">
+          <span
+            className={`min-w-0 flex-1 whitespace-normal break-words leading-tight ${
+              compact ? 'text-[11px] font-normal [overflow-wrap:anywhere]' : 'text-xs font-semibold'
+            }`}
+          >
             {occ.title}
           </span>
-          {occ.isRecurring && <Repeat className="h-2.5 w-2.5 opacity-80 shrink-0" />}
+          {occ.isRecurring && !compact && <Repeat className="h-2.5 w-2.5 opacity-80 shrink-0" />}
         </div>
-        <div className="font-mono text-[10px] whitespace-normal break-words opacity-90 mt-0.5">
-          {timeCaption(segment, startDt, endDt, timeFormat)}
-        </div>
-        {durationMin >= 40 && occ.location && segment.isFirst && (
+        {/* A ~55px phone column fits the title and nothing else; the block's
+            own height already says when it runs. */}
+        {!compact && (
+          <div className="font-mono text-[10px] whitespace-normal break-words opacity-90 mt-0.5">
+            {timeCaption(segment, startDt, endDt, timeFormat)}
+          </div>
+        )}
+        {!compact && durationMin >= 40 && occ.location && segment.isFirst && (
           <div className="flex items-center gap-1 text-[10px] opacity-85 truncate mt-0.5">
             <MapPin className="h-2.5 w-2.5 shrink-0" />
             <span className="truncate">{occ.location}</span>

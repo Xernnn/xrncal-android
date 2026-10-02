@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { DateTime } from 'luxon'
-import { Trash2, X, Share2, MapPin, Link as LinkIcon, Users } from 'lucide-react'
+import { Trash2, X, Check, Share2, MapPin, Link as LinkIcon, Users } from 'lucide-react'
 import type {
   Calendar,
   CalendarEvent,
@@ -28,6 +28,7 @@ import {
   showFriendlyError
 } from '../components/ui'
 import { TitleSuggestInput } from './TitleSuggestInput'
+import { useDisplayPreferences } from '../context/DisplayPreferencesContext'
 
 export interface EventEditorInitialData {
   occurrence?: ExpandedOccurrence
@@ -107,6 +108,7 @@ export const EventEditorDialog: React.FC<EventEditorDialogProps> = ({
   onDraftChange
 }) => {
   const { t } = useTranslation()
+  const { compact } = useDisplayPreferences()
   const isEditing = Boolean(data?.occurrence || data?.event)
   // Lunar anniversaries have no per-instance RRULE semantics — edits always apply
   // to the whole series, so they skip the recurring-scope prompt.
@@ -695,28 +697,59 @@ export const EventEditorDialog: React.FC<EventEditorDialogProps> = ({
 
   const selectedCalendar = (calendars || []).find((c) => c.id === calendarId)
 
+  // Phone layout: always a full-screen sheet under an app bar in the calendar's
+  // colour, with save as the bar's check mark - the side panel and the centred
+  // dialog are both desktop shapes.
+  const calendarColor = selectedCalendar?.color || '#4A90E2'
+
   // New events created by clicking a slot dock as a side panel, on the side opposite
   // the click, so the panel never covers the spot the event was just created at.
-  const isSidePanel = !isEditing && typeof data?.initialClientX === 'number'
+  const isSidePanel = !compact && !isEditing && typeof data?.initialClientX === 'number'
   const panelSide: 'left' | 'right' =
     isSidePanel && data!.initialClientX! < window.innerWidth / 2 ? 'right' : 'left'
 
   return (
     <div
-      className={isSidePanel ? 'fixed inset-0 z-50 select-none bg-black/30' : 'gc-overlay select-none'}
+      className={
+        compact
+          ? 'fixed inset-0 z-50 select-none'
+          : isSidePanel
+            ? 'fixed inset-0 z-50 select-none bg-black/30'
+            : 'gc-overlay select-none'
+      }
       onClick={(e) => {
         if (e.target === e.currentTarget) handleCloseAttempt()
       }}
     >
       <div
         className={
-          isSidePanel
-            ? `absolute top-0 flex h-full w-full max-w-[420px] flex-col overflow-hidden bg-dialog text-primary shadow-xl ${
-                panelSide === 'right' ? 'right-0 border-l border-hairline gc-slide-right' : 'left-0 border-r border-hairline gc-slide-left'
-              }`
-            : 'gc-dialog w-full max-w-lg'
+          compact
+            ? 'gc-fullscreen-sheet absolute inset-0 flex flex-col overflow-hidden bg-dialog text-primary'
+            : isSidePanel
+              ? `absolute top-0 flex h-full w-full max-w-[420px] flex-col overflow-hidden bg-dialog text-primary shadow-xl ${
+                  panelSide === 'right' ? 'right-0 border-l border-hairline gc-slide-right' : 'left-0 border-r border-hairline gc-slide-left'
+                }`
+              : 'gc-dialog w-full max-w-lg'
         }
       >
+        {compact ? (
+          <div className="gc-app-bar flex shrink-0 items-center gap-1 px-1 text-white" style={{ backgroundColor: calendarColor }}>
+            <button type="button" onClick={handleCloseAttempt} aria-label={t('common.cancel')} className="gc-app-bar-btn">
+              <X className="h-6 w-6" />
+            </button>
+            <h3 className="min-w-0 flex-1 truncate px-2 text-[20px] font-medium">
+              {isEditing ? t('editor.editEvent') : t('editor.newEvent')}
+            </h3>
+            <button
+              type="button"
+              onClick={handleSubmit}
+              aria-label={isEditing ? t('editor.saveChanges') : t('editor.create')}
+              className="gc-app-bar-btn"
+            >
+              <Check className="h-6 w-6" />
+            </button>
+          </div>
+        ) : (
         <div className="flex shrink-0 items-center justify-between border-b border-hairline px-5 py-3">
           <div className="flex items-center gap-2.5">
             <div
@@ -732,6 +765,7 @@ export const EventEditorDialog: React.FC<EventEditorDialogProps> = ({
             <X className="h-4 w-4" />
           </button>
         </div>
+        )}
 
         <form
           onSubmit={handleSubmit}
@@ -762,7 +796,7 @@ export const EventEditorDialog: React.FC<EventEditorDialogProps> = ({
               />
             </FormRow>
 
-            <FormRow label={t('editor.allDay')} divider>
+            <FormRow label={t('editor.allDay')} divider inline>
               <div className="px-2.5 py-1 flex items-center">
                 <ToggleSwitch
                   checked={allDay || isLunarYearly}
@@ -1065,6 +1099,9 @@ export const EventEditorDialog: React.FC<EventEditorDialogProps> = ({
           </div>
         </form>
 
+        {/* On a phone the app bar carries cancel and save, so the footer is
+            only there for an existing event's share and delete. */}
+        {(!compact || isEditing) && (
         <div className="px-5 py-3 border-t border-hairline flex items-center justify-between shrink-0">
           <div className="flex items-center gap-1">
             {isEditing && (
@@ -1092,6 +1129,7 @@ export const EventEditorDialog: React.FC<EventEditorDialogProps> = ({
             )}
           </div>
 
+          {!compact && (
           <div className="flex items-center gap-2">
             <button
               type="button"
@@ -1110,7 +1148,9 @@ export const EventEditorDialog: React.FC<EventEditorDialogProps> = ({
               {isEditing ? t('editor.saveChanges') : t('editor.create')}
             </button>
           </div>
+          )}
         </div>
+        )}
 
         {showDiscardConfirm && (
           <div className="absolute inset-0 bg-black/70 flex items-center justify-center p-6 z-60">

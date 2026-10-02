@@ -37,7 +37,7 @@ export const TextArea: React.FC<TextAreaProps> = ({
       )}
 
       <div
-        className={`flex items-start px-2.5 py-1.5 transition-colors duration-100 ${
+        className={`gc-field flex items-start px-2.5 py-1.5 transition-colors duration-100 ${
           isGhost
             ? 'bg-transparent border border-transparent hover:border-hairline hover:bg-hover/30 focus-within:border-accent/40 focus-within:bg-transparent'
             : 'bg-surface border border-hairline focus-within:border-accent'

@@ -73,7 +73,7 @@ function isInert(target: Element): boolean {
   return Boolean(
     target.closest(
       'input, textarea, select, button, a, [role="dialog"], .gc-dialog, .gc-overlay, ' +
-        '.gc-drawer, .gc-bottom-nav, .gc-mobile-header, [data-no-touch-drag], ' +
+        '.gc-drawer, .gc-header-popover, .gc-fullscreen-sheet, .gc-mobile-header, [data-no-touch-drag], ' +
         '[class*="cursor-ns-resize"], [class*="cursor-n-resize"], [class*="cursor-s-resize"]'
     )
   )

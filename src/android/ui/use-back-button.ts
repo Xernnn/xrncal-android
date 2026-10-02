@@ -45,19 +45,22 @@ export function useAndroidBackButton(onBack: () => void): void {
  * `.gc-overlay` is deliberately absent: it is the backdrop that wraps
  * `.gc-dialog`, so matching the dialog alone avoids counting the same layer
  * twice. The drawer is always present in the DOM (parked off-screen with a
- * transform), which is why it is tracked by state rather than by selector.
+ * transform), which is why it - and the header's menus with it - is tracked by
+ * the shell's own state rather than by selector.
  */
 const OVERLAY_SELECTOR =
   // EventEditorDialog renders either a centred modal (.gc-dialog) or a side
   // panel, and the panel picks its side at open time - hence both slide
   // classes. Missing one of them made Back leave the app while the editor was
-  // still on screen.
-  '.gc-dialog, .gc-slide-right, .gc-slide-left, .gc-dnd-overlay'
+  // still on screen. In the phone layout the editor and settings are
+  // full-screen sheets instead.
+  '.gc-dialog, .gc-slide-right, .gc-slide-left, .gc-fullscreen-sheet, .gc-dnd-overlay'
 
 export function dismissTopLayer(state: {
   isOverlayOpen: boolean
-  drawerOpen: boolean
-  closeDrawer: () => void
+  /** The drawer or one of the header's menus. */
+  shellLayerOpen: boolean
+  closeShellLayer: () => void
 }): boolean {
   const overlayOnScreen = Boolean(document.querySelector(OVERLAY_SELECTOR))
   if (state.isOverlayOpen || overlayOnScreen) {
@@ -66,8 +69,8 @@ export function dismissTopLayer(state: {
     )
     return true
   }
-  if (state.drawerOpen) {
-    state.closeDrawer()
+  if (state.shellLayerOpen) {
+    state.closeShellLayer()
     return true
   }
   return false

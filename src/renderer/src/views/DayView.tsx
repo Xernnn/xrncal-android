@@ -77,9 +77,10 @@ export const DayView: React.FC<DayViewProps> = ({
   })
 
   const { t, i18n } = useTranslation()
-  const { hourBlockSize, dayStartHour, dragSnapMinutes } = useDisplayPreferences()
+  const { hourBlockSize, dayStartHour, dragSnapMinutes, compact } = useDisplayPreferences()
   const HOUR_HEIGHT = HOUR_HEIGHT_BY_SIZE[hourBlockSize]
-  const gridColsClass = 'grid-cols-[68px_minmax(0,1fr)]'
+  // Phone layout: the same narrow gutter as the week grid.
+  const gridColsClass = compact ? 'grid-cols-[26px_minmax(0,1fr)]' : 'grid-cols-[68px_minmax(0,1fr)]'
 
   const today = DateTime.local()
   const isToday = anchorDate.hasSame(today, 'day')
@@ -205,7 +206,7 @@ export const DayView: React.FC<DayViewProps> = ({
         className={`grid ${gridColsClass} shrink-0 items-start border-b border-hairline bg-app/40`}
       >
         <div className="py-2 pr-3 text-right text-[11px] font-medium text-muted select-none">
-          {t('list.allDay')}
+          {!compact && t('list.allDay')}
         </div>
         {/* Capped and scrollable: a day carrying a dozen all-day entries used to
             wrap them into a block deep enough to push the hour grid off screen.
