@@ -1,7 +1,7 @@
 import { ipcMain } from 'electron'
 import { IPC_CHANNELS, type ConnectCalDavInput } from '@shared/ipc-contract'
 import { getDatabase } from '../db/database'
-import { credentialsFilePath, isConfigured } from '../load-credentials'
+import { isConfigured, notConfiguredMessage } from '../load-credentials'
 import { GoogleOAuthManager } from '../oauth/google-oauth'
 import { MicrosoftOAuthManager } from '../oauth/microsoft-oauth'
 import { SecureStore } from '../secure-store'
@@ -70,13 +70,7 @@ export function registerAuthSyncIpcHandlers(): void {
       const activeClientId = process.env.GOOGLE_OAUTH_CLIENT_ID
       const activeClientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET
       if (!isConfigured(activeClientId)) {
-        return {
-          success: false,
-          message:
-            `Google sign-in isn't configured. Create a Google OAuth "Desktop app" client at ` +
-            `console.cloud.google.com/apis/credentials, then add GOOGLE_OAUTH_CLIENT_ID and ` +
-            `GOOGLE_OAUTH_CLIENT_SECRET to:\n${credentialsFilePath()}\nand restart the app.`
-        }
+        return { success: false, message: notConfiguredMessage('google') }
       }
 
       const result = await googleOAuth.startAuthFlow(activeClientId!, activeClientSecret)
@@ -104,13 +98,7 @@ export function registerAuthSyncIpcHandlers(): void {
       const activeClientId = process.env.MICROSOFT_CLIENT_ID
       const activeClientSecret = process.env.MICROSOFT_CLIENT_SECRET
       if (!isConfigured(activeClientId)) {
-        return {
-          success: false,
-          message:
-            `Microsoft sign-in isn't configured. Register an app at ` +
-            `portal.azure.com (Azure AD → App registrations), then add MICROSOFT_CLIENT_ID ` +
-            `(and MICROSOFT_CLIENT_SECRET if required) to:\n${credentialsFilePath()}\nand restart the app.`
-        }
+        return { success: false, message: notConfiguredMessage('microsoft') }
       }
 
       const result = await msOAuth.startAuthFlow(activeClientId!, activeClientSecret)

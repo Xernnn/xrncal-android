@@ -58,3 +58,23 @@ const DUMMY_VALUES = new Set([
 export function isConfigured(clientId: string | undefined): boolean {
   return Boolean(clientId) && !DUMMY_VALUES.has(clientId as string)
 }
+
+/**
+ * What to tell someone who pressed Connect on a provider with no client id.
+ * Lives here, beside the loader, because the remedy is about where credentials
+ * come from - which is exactly what differs on Android (load-credentials there).
+ */
+export function notConfiguredMessage(provider: 'google' | 'microsoft'): string {
+  if (provider === 'google') {
+    return (
+      `Google sign-in isn't configured. Create a Google OAuth "Desktop app" client at ` +
+      `console.cloud.google.com/apis/credentials, then add GOOGLE_OAUTH_CLIENT_ID and ` +
+      `GOOGLE_OAUTH_CLIENT_SECRET to:\n${credentialsFilePath()}\nand restart the app.`
+    )
+  }
+  return (
+    `Microsoft sign-in isn't configured. Register an app at ` +
+    `portal.azure.com (Azure AD → App registrations), then add MICROSOFT_CLIENT_ID ` +
+    `(and MICROSOFT_CLIENT_SECRET if required) to:\n${credentialsFilePath()}\nand restart the app.`
+  )
+}

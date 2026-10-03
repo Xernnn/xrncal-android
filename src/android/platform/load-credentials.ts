@@ -75,3 +75,26 @@ const DUMMY_VALUES = new Set([
 export function isConfigured(clientId: string | undefined): boolean {
   return Boolean(clientId) && !DUMMY_VALUES.has(clientId as string)
 }
+
+/**
+ * The desktop remedy - a "Desktop app" client and a file in the profile - is
+ * wrong twice over on a phone: a Desktop client may only redirect to
+ * 127.0.0.1, while this flow redirects to the app's own scheme, and nobody can
+ * write into /data/user/0 on an unrooted phone. The client id is compiled into
+ * the APK, so the fix is at build time.
+ */
+export function notConfiguredMessage(provider: 'google' | 'microsoft'): string {
+  if (provider === 'google') {
+    return (
+      "Google sign-in isn't set up in this build. The phone needs its own Google OAuth " +
+      'client ID - type iOS, or Android with "Custom URI scheme" enabled - not the desktop ' +
+      'one. Put it in the project .env as GOOGLE_OAUTH_CLIENT_ID, run ' +
+      'npm run android:configure-oauth, and rebuild. CalDAV accounts work without it.'
+    )
+  }
+  return (
+    "Microsoft sign-in isn't set up in this build. Add the redirect URI " +
+    'app.xrncal.android://oauth2callback to your app registration, put its ' +
+    'MICROSOFT_CLIENT_ID in the project .env, and rebuild. CalDAV accounts work without it.'
+  )
+}
