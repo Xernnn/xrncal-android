@@ -265,17 +265,31 @@ body {
   }
 }
 
-/* --- Week grid -------------------------------------------------------------
+/* --- Scrollbars ------------------------------------------------------------
  *
- * The shared week view reserves a stable scrollbar gutter so its header and
- * hour grid stay aligned under a desktop scrollbar. Android's overlay
- * scrollbar takes no width, so the reservation is just a dead strip down the
- * right edge of a grid that has none to spare.
+ * None, anywhere. A phone scrolls by touch and shows no scrollbar, and the
+ * WebView's own is not the overlay kind one would expect: on Chrome 124 it
+ * took 6px of layout width out of the hour grid, so the grid's seven columns
+ * were narrower than the header's above them and drifted out of line - 6px
+ * by Sunday. `scrollbar-width: none` alone did not remove it (that WebView
+ * does not honour the property); `::-webkit-scrollbar` does, on every
+ * Chromium WebView. The gutter reservation the shared views make for a desktop
+ * scrollbar goes with it, so header and grid are the same width again.
  */
-.gc-week-header,
-.gc-week-scroll {
-  scrollbar-gutter: auto !important;
+* {
   scrollbar-width: none;
+}
+
+*::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.gc-week-header,
+.gc-week-scroll,
+[class*='scrollbar-gutter'] {
+  scrollbar-gutter: auto !important;
 }
 
 /* --- Editor fields ---------------------------------------------------------

@@ -349,6 +349,9 @@ before assuming a desktop interaction carries over:
 - The editor's date fields have no clear button, and the time column is wider for 16px text.
 - `TimePicker` opens only its list (`readOnly` + `inputMode="none"`): a focused text input raised
   a QWERTY keyboard over the list. `TimePicker` and `CustomSelect` rows are 40px, not 28px.
+- No scrollbars anywhere (`mobile.css`). The WebView's took 6px of layout width out of the hour
+  grid and pushed its columns out of line with the header; `scrollbar-width` did not remove it,
+  `::-webkit-scrollbar` does.
 - `confirm()` goes through `askConfirm()` (`components/ui/confirm.tsx`): native on desktop, an
   in-app sheet on a phone, where the WebView's confirm() is an unthemed AlertDialog that blocks
   JS. Do not call `window.confirm` directly.
@@ -381,6 +384,14 @@ the reversed client id, so it is per-install: `npm run android:configure-oauth` 
 writes `googleRedirectScheme` into `android/gradle.properties`, where the manifest placeholder
 picks it up. Microsoft's is the fixed `app.xrncal.android://oauth2callback`. Both are declared as
 intent filters in `AndroidManifest.xml` - change the scheme in TS and you must change it there.
+
+The phone **cannot reuse the desktop's Google client**. That one is a "Desktop app" client, which
+Google only lets redirect to `127.0.0.1`; the Android flow redirects to the app's own scheme, so it
+needs a client of type iOS, or Android with "Custom URI scheme" enabled. It goes in the project
+`.env` (the desktop's lives in `~/.config/xrncal/xrncal.env`, which the APK never sees), followed by
+`npm run android:configure-oauth` and a rebuild. With no id the Connect buttons explain this:
+`notConfiguredMessage()` lives in each platform's `load-credentials` so the remedy matches the
+platform.
 
 ### Renaming and the user profile
 
