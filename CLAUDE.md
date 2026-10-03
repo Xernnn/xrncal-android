@@ -2,6 +2,19 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## This is the Android fork
+
+The desktop app is `xrncal` (GitHub: `Xernnn/xrncal-desktop`, remote `upstream` here). In October
+2026 it moved Android out (its commit `02134a2`) and this repository took the port, with the full
+shared history. The phone build still compiles the desktop's `src/main` and renderer, so desktop
+fixes are wanted here: `git fetch upstream && git merge upstream/main`. The split is already recorded
+as merged (`46dc257`, a `-s ours` merge), so that merge brings only later desktop work. **If a merge
+from upstream ever wants to delete `android/` or `src/android/`, abort it** - it means the desktop's
+history was rewritten after the split, and the removal is being replayed. Expect conflicts where the
+desktop edits a component that grew a `compact` branch here.
+
+Parked, not abandoned: OneCalendar on the phone covers day-to-day use for now.
+
 ## Commands
 
 ```bash
