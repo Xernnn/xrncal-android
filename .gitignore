@@ -17,6 +17,10 @@ pnpm-debug.log*
 .env.local
 .env.*.local
 
+# Planning notes and journals: kept locally, not published
+plans/
+docs/journals/
+
 # Editor directories
 .vscode/*
 !.vscode/extensions.json
