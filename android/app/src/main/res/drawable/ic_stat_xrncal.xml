@@ -1,18 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-  Status-bar icon for event reminders.
-
-  Android masks notification icons to a single colour and discards everything
-  but the alpha channel, so this is a flat white silhouette rather than the
-  launcher icon - a multi-colour icon would render as a solid blob.
--->
+<!-- Status-bar icon for event reminders. Android keeps only the alpha, so this is a flat white silhouette of the launcher glyph. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
-    android:viewportWidth="24"
-    android:viewportHeight="24"
+    android:viewportWidth="62.7"
+    android:viewportHeight="62.7"
     android:tint="#FFFFFF">
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M7,2h2v2h6V2h2v2h2c1.1,0 2,0.9 2,2v14c0,1.1 -0.9,2 -2,2H5c-1.1,0 -2,-0.9 -2,-2V6c0,-1.1 0.9,-2 2,-2h2V2zM5,9v11h14V9H5zM7,11h4v4H7v-4z" />
+    <group android:translateX="-18.65" android:translateY="-16.15">
+        <path
+            android:pathData="M39,20 H39 A4,4 0 0 1 43,24 V30 A4,4 0 0 1 39,34 H39 A4,4 0 0 1 35,30 V24 A4,4 0 0 1 39,20 Z"
+            android:fillColor="#FFFFFF" />
+        <path
+            android:pathData="M61,20 H61 A4,4 0 0 1 65,24 V30 A4,4 0 0 1 61,34 H61 A4,4 0 0 1 57,30 V24 A4,4 0 0 1 61,20 Z"
+            android:fillColor="#FFFFFF" />
+        <path
+            android:pathData="M26,39 V37 A9,9 0 0 1 35,28 H65 A9,9 0 0 1 74,37 V39 Z"
+            android:fillColor="#FFFFFF" />
+        <path
+            android:pathData="M26,45 H74 V66 A9,9 0 0 1 65,75 H35 A9,9 0 0 1 26,66 Z M52,53 h12 v12 h-12 Z"
+            android:fillColor="#FFFFFF"
+            android:fillType="evenOdd" />
+    </group>
 </vector>

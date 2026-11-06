@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Launcher icon foreground: the calendar, centred in the visible tile. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group android:translateX="18" android:translateY="18"
+        android:scaleX="0.72" android:scaleY="0.72">
+        <group android:translateX="-2.5" android:translateY="-2.5"
+            android:scaleX="1.05" android:scaleY="1.05">
+            <path
+                android:pathData="M39,20 H39 A4,4 0 0 1 43,24 V30 A4,4 0 0 1 39,34 H39 A4,4 0 0 1 35,30 V24 A4,4 0 0 1 39,20 Z"
+                android:fillColor="#FFFFFF" />
+            <path
+                android:pathData="M61,20 H61 A4,4 0 0 1 65,24 V30 A4,4 0 0 1 61,34 H61 A4,4 0 0 1 57,30 V24 A4,4 0 0 1 61,20 Z"
+                android:fillColor="#FFFFFF" />
+            <path
+                android:pathData="M26,39 V37 A9,9 0 0 1 35,28 H65 A9,9 0 0 1 74,37 V39 Z"
+                android:fillColor="#FFFFFF" />
+            <path
+                android:pathData="M26,45 H74 V66 A9,9 0 0 1 65,75 H35 A9,9 0 0 1 26,66 Z M52,53 h12 v12 h-12 Z"
+                android:fillColor="#FFFFFF"
+                android:fillType="evenOdd" />
+        </group>
+    </group>
+</vector>
