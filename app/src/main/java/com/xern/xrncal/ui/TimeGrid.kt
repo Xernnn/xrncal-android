@@ -25,6 +25,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -55,6 +57,26 @@ private val ALL_DAY_LANE = 22.dp
  * title and then its time range; a line marks the current time. Tapping an empty hour starts an
  * event there.
  */
+/**
+ * The day and week grids' scroll, opened at [targetPx] (the day's start, 08:00, as One Calendar).
+ * Placed again each time the grid's range changes while the layout settles, until the owner
+ * scrolls it (DayLayout.openAt).
+ */
+@Composable
+fun rememberDayStartScroll(targetPx: Int): ScrollState {
+    val scroll = rememberScrollState()
+    LaunchedEffect(targetPx) {
+        var placed: Int? = null
+        snapshotFlow { scroll.maxValue }.collect { max ->
+            com.xern.xrncal.domain.DayLayout.openAt(max, scroll.value, placed, targetPx)?.let {
+                scroll.scrollTo(it)
+                placed = scroll.value
+            }
+        }
+    }
+    return scroll
+}
+
 @Composable
 fun TimeGridPage(
     days: List<LocalDate>,

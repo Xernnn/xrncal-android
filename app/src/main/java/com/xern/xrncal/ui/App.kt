@@ -15,7 +15,6 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Menu
@@ -272,9 +271,8 @@ fun App(graph: Graph) {
                             title = Format.month(YearMonth.from(start.plusDays(3)), today)
                             subtitle = "week ${WeekStart.isoWeekOfRow(start)}"
                             todayAction = { scope.launch { pager.animateScrollToPage(MID + ChronoUnit.WEEKS.between(weeks, WeekStart.startOfWeek(today, firstDay)).toInt()) } }
-                            val scroll = rememberScrollState()
                             // Opened at the day's start (08:00), as One Calendar.
-                            LaunchedEffect(scroll.maxValue > 0) { if (scroll.value == 0) scroll.scrollTo(with(density) { (hourHeight * settings.dayStart).roundToPx() }) }
+                            val scroll = rememberDayStartScroll(with(density) { (hourHeight * settings.dayStart).roundToPx() })
                             HorizontalPager(pager, beyondViewportPageCount = 1) { page ->
                                 val d0 = weeks.plusWeeks((page - MID).toLong())
                                 val week = (0L until 7L).map { d0.plusDays(it) }
@@ -303,9 +301,8 @@ fun App(graph: Graph) {
                             title = Format.dayTitle(shown, today)
                             subtitle = Format.month(YearMonth.from(shown), today)
                             todayAction = { scope.launch { pager.animateScrollToPage(MID + ChronoUnit.DAYS.between(days, today).toInt()) } }
-                            val scroll = rememberScrollState()
                             // Opened at the day's start (08:00), as One Calendar.
-                            LaunchedEffect(scroll.maxValue > 0) { if (scroll.value == 0) scroll.scrollTo(with(density) { (hourHeight * settings.dayStart).roundToPx() }) }
+                            val scroll = rememberDayStartScroll(with(density) { (hourHeight * settings.dayStart).roundToPx() })
                             HorizontalPager(pager, beyondViewportPageCount = 1) { page ->
                                 val d = days.plusDays((page - MID).toLong())
                                 TimeGridPage(listOf(d), occurrences(graph, d, d, revision, settings.holidays), look, now, ::open, { day, h -> add(day, h) }, scroll, hourHeight)

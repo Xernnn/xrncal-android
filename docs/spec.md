@@ -327,9 +327,11 @@ and the time line; One Calendar's red by default).
 
 ### 3. Month view like One Calendar's
 
-- Each cell holds as many **one-line chips** as fit its height (about five on the owner's phone),
-  and **"+N" beside the day number** counts the ones left out ("26+1"). No line is kept back for
-  it any more.
+- Each cell holds as many chips as fit its height (five on the owner's phone), and **"+N" beside
+  the day number** counts the ones left out ("26+1"). No line is kept back for it any more.
+- A chip is **two lines of small text tall**, as One Calendar's: a long title wraps onto its
+  second line instead of being cut to a few letters ("Quarterly / review" rather than 0.2.0's
+  "Quarterl"). The day number is smaller (13 sp, a 16 dp row) to leave room for five.
 - The lunar day stays at the right of the number (xrncal's own); today's number is in the signal
   colour and its cell tinted.
 - A chip shows the title only, as One Calendar's month does. Options, Views can lead timed chips
@@ -341,7 +343,8 @@ and the time line; One Calendar's red by default).
 ### 4. Week and day views like One Calendar's and the laptop's
 
 - **The day starts at 08:00**: the grid opens scrolled to the "Start time of day" (Options,
-  Views), and **hour size** Small, Medium (the default: 08:00 to 23:00 fill the owner's screen,
+  Views). The scroll is placed again while the layout settles, until the owner scrolls: 0.2.0
+  placed it once at the first layout, whose range was still short, and opened at 04:00, and **hour size** Small, Medium (the default: 08:00 to 23:00 fill the owner's screen,
   as One Calendar shows them) or Large sets the hour's height. Pinch zoom of the grid is left out:
   it fights the pager's swipe, and the setting does the job.
 - **The second time zone** (laptop): under each hour in the gutter, that hour in the second zone,

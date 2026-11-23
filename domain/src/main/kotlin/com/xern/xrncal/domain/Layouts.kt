@@ -107,6 +107,20 @@ object Agenda {
 
 /** The time grid of the day and week views: where each timed event sits and how wide. */
 object DayLayout {
+    /**
+     * Where the grid's scroll goes when its range becomes [max]: to [target] (the day's start,
+     * 08:00), held within the range, as long as nothing moved it since it was last [placed] there
+     * (null: never yet). Null leaves it where it is.
+     *
+     * The range isn't final at the first layout: placing it once then stopped the grid wherever
+     * that early, shorter range ended (04:00 on the owner's phone), and nothing put it back.
+     */
+    fun openAt(max: Int, value: Int, placed: Int?, target: Int): Int? = when {
+        max <= 0 -> null
+        placed == null || value == placed -> target.coerceIn(0, max)
+        else -> null
+    }
+
     /** An event on one day's grid: minutes from the top by the clock face, and its column of [columns]. */
     data class Placed(val occurrence: Occurrence, val startMin: Int, val endMin: Int, val column: Int, val columns: Int)
 
