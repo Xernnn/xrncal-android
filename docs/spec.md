@@ -118,7 +118,8 @@ the lunar date, the repeat rule, the reminders, the calendar, the location and t
 
 A new event starts at the next whole hour, as long as Settings says (an hour unless changed),
 in the default calendar, with the default reminder. One Calendar's PEOPLE tab (guests) is out.
-Saving an edit to a repeating event asks "This event" or "All events" first.
+Editing or deleting a date of a repeating event asks "This event" or "All events" first, so the
+editor opens on that date's fields or the series'. One date of a series stays in its calendar.
 
 **Look.** One Calendar's default light theme (#F5F5F5 bars, white page) and dark theme (#202125
 page, #36373B bars); calendar colours drawn as solid fills with white text (dark text on a light
