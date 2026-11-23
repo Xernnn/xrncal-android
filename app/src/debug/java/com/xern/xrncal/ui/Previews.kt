@@ -221,6 +221,15 @@ fun AddPreview() = Themed(dark = true) {
     EditorScreen(EditorState(newDraft(TODAY, null, NOW, ZONE, 60), "home"), true, CALENDARS.filter { !it.readOnly }, look(), Reminders.Defaults(10, null), {}, {})
 }
 
+@Preview(name = "Year", widthDp = 400, heightDp = 860)
+@Composable
+fun YearPreview() = Themed(dark = true) {
+    Column(Modifier.fillMaxSize()) {
+        Bar("2026")
+        YearPage(2026, DayOfWeek.MONDAY, between(LocalDate.of(2026, 1, 1), LocalDate.of(2026, 12, 31)), look()) {}
+    }
+}
+
 @Preview(name = "Filter", widthDp = 400, heightDp = 860)
 @Composable
 fun FilterPreview() = Themed(dark = true) {

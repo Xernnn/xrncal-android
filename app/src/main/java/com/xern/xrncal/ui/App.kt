@@ -252,7 +252,21 @@ fun App(graph: Graph) {
                                 TimeGridPage(week, occurrences(graph, week.first(), week.last(), revision, settings.holidays), look, now, ::open, { d, h -> add(d, h) }, scroll, hourHeight)
                             }
                         }
-                        View.YEAR -> Unit
+                        View.YEAR -> {
+                            val pager = rememberPagerState(initialPage = MID + (anchor.year - today.year)) { 2 * MID }
+                            Follow(pager) { p -> anchor = (today.year + p - MID).let { y -> if (y == today.year) today else LocalDate.of(y, 1, 1) } }
+                            title = "${today.year + pager.currentPage - MID}"
+                            subtitle = null
+                            todayAction = { scope.launch { pager.animateScrollToPage(MID) } }
+                            HorizontalPager(pager, beyondViewportPageCount = 0) { page ->
+                                val y = today.year + page - MID
+                                val list = occurrences(graph, LocalDate.of(y, 1, 1), LocalDate.of(y, 12, 31), revision, settings.holidays)
+                                YearPage(y, firstDay, list, look) { d ->
+                                    anchor = d
+                                    view = View.DAY
+                                }
+                            }
+                        }
                         View.DAY -> {
                             val pager = rememberPagerState(initialPage = MID + ChronoUnit.DAYS.between(days, anchor).toInt()) { 2 * MID }
                             Follow(pager) { p -> anchor = days.plusDays((p - MID).toLong()) }
