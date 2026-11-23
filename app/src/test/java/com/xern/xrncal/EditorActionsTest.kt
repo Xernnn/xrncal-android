@@ -111,4 +111,26 @@ class EditorActionsTest {
         assertEquals("12 Made-up Street", state.location)
         assertEquals(LocalTime.parse("10:00"), state.endTime)
     }
+
+    @Test
+    fun aDateOfASeriesOpenedOnItsOwnFieldsSavesForAllDatesWithoutMovingThem() = runBlocking {
+        calendar()
+        events.create("cal", draft("Standup", "FREQ=WEEKLY;COUNT=4"))
+        // The third date, opened as tapping it opens it; "All events" picked on save.
+        val third = day("2026-12-08").single()
+        val state = EditorState(events.draft(third, Scope.THIS)!!, third.calendarId)
+        state.title = "Standup (new room)"
+        state.startTime = LocalTime.parse("09:30")
+        state.endTime = LocalTime.parse("10:30")
+        events.update(third, state.draft(), Scope.ALL)
+        val all = events.occurrences(LocalDate.parse("2026-11-01"), LocalDate.parse("2027-01-31")).filter { it.calendarId == "cal" }
+        assertEquals(listOf("2026-11-24", "2026-12-01", "2026-12-08", "2026-12-15"), all.map { it.firstDay.toString() })
+        assertTrue(all.all { it.title == "Standup (new room)" && it.start.atZone(zone).toLocalTime() == LocalTime.parse("09:30") })
+        // "This event" changes that date alone.
+        val second = day("2026-12-01").single()
+        val one = EditorState(events.draft(second, Scope.THIS)!!, second.calendarId)
+        one.title = "Standup (moved)"
+        events.update(second, one.draft(), Scope.THIS)
+        assertEquals(listOf("Standup (new room)", "Standup (moved)", "Standup (new room)", "Standup (new room)"), events.occurrences(LocalDate.parse("2026-11-01"), LocalDate.parse("2027-01-31")).filter { it.calendarId == "cal" }.map { it.title })
+    }
 }
