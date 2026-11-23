@@ -108,6 +108,8 @@ fun App(graph: Graph) {
         secondZone = settings.secondZone?.let { runCatching { ZoneId.of(it) }.getOrNull() }?.takeIf { it.rules != zone.rules },
     )
     val scope = rememberCoroutineScope()
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val hourHeight = settings.hourSize.dp.dp
     val stack = remember { mutableStateListOf<Screen>() }
     var view by rememberSaveable { mutableStateOf(settings.defaultView) }
     var anchor by remember { mutableStateOf(today) }
@@ -234,11 +236,12 @@ fun App(graph: Graph) {
                             title = Format.month(YearMonth.from(start.plusDays(3)), today)
                             todayAction = { scope.launch { pager.animateScrollToPage(MID + ChronoUnit.WEEKS.between(weeks, WeekStart.startOfWeek(today, firstDay)).toInt()) } }
                             val scroll = rememberScrollState()
-                            LaunchedEffect(scroll.maxValue > 0) { if (scroll.value == 0) scroll.scrollTo((scroll.maxValue * 7 / 17f).toInt()) }
+                            // Opened at the day's start (08:00), as One Calendar.
+                            LaunchedEffect(scroll.maxValue > 0) { if (scroll.value == 0) scroll.scrollTo(with(density) { (hourHeight * settings.dayStart).roundToPx() }) }
                             HorizontalPager(pager, beyondViewportPageCount = 1) { page ->
                                 val d0 = weeks.plusWeeks((page - MID).toLong())
                                 val week = (0L until 7L).map { d0.plusDays(it) }
-                                TimeGridPage(week, occurrences(graph, week.first(), week.last(), revision, settings.holidays), look, now, ::open, { d, h -> add(d, h) }, scroll)
+                                TimeGridPage(week, occurrences(graph, week.first(), week.last(), revision, settings.holidays), look, now, ::open, { d, h -> add(d, h) }, scroll, hourHeight)
                             }
                         }
                         View.YEAR -> Unit
@@ -248,10 +251,11 @@ fun App(graph: Graph) {
                             title = Format.month(YearMonth.from(days.plusDays((pager.currentPage - MID).toLong())), today)
                             todayAction = { scope.launch { pager.animateScrollToPage(MID + ChronoUnit.DAYS.between(days, today).toInt()) } }
                             val scroll = rememberScrollState()
-                            LaunchedEffect(scroll.maxValue > 0) { if (scroll.value == 0) scroll.scrollTo((scroll.maxValue * 7 / 17f).toInt()) }
+                            // Opened at the day's start (08:00), as One Calendar.
+                            LaunchedEffect(scroll.maxValue > 0) { if (scroll.value == 0) scroll.scrollTo(with(density) { (hourHeight * settings.dayStart).roundToPx() }) }
                             HorizontalPager(pager, beyondViewportPageCount = 1) { page ->
                                 val d = days.plusDays((page - MID).toLong())
-                                TimeGridPage(listOf(d), occurrences(graph, d, d, revision, settings.holidays), look, now, ::open, { day, h -> add(day, h) }, scroll)
+                                TimeGridPage(listOf(d), occurrences(graph, d, d, revision, settings.holidays), look, now, ::open, { day, h -> add(day, h) }, scroll, hourHeight)
                             }
                         }
                     }

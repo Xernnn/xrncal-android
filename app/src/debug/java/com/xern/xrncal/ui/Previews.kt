@@ -59,7 +59,8 @@ private val CALENDARS = listOf(
     CalendarInfo(HolidayCalendar.INTERNATIONAL.id, HolidayCalendar.INTERNATIONAL.title, HolidayCalendar.INTERNATIONAL.color, true, false, EventRepository.HOLIDAY_GROUP),
 )
 
-private fun look(lunar: Boolean = true) = Look(CALENDARS.associate { it.id to it.color }, TODAY, h24 = true, lunar = lunar, weekNumbers = true, zone = ZONE)
+// The owner's phone is in Sydney and the second zone is Ho Chi Minh City's, as on the laptop.
+private fun look(lunar: Boolean = true) = Look(CALENDARS.associate { it.id to it.color }, TODAY, h24 = true, lunar = lunar, weekNumbers = true, zone = ZONE, secondZone = ZoneId.of("Australia/Sydney"))
 
 private var n = 0
 
@@ -180,11 +181,11 @@ fun ListDarkPreview() = ListScreen(true)
 
 @Preview(name = "Week", widthDp = 400, heightDp = 860)
 @Composable
-fun WeekPreview() = Themed(dark = false) {
+fun WeekPreview() = Themed(dark = true) {
     val week = (0L until 7L).map { LocalDate.of(2026, 11, 23).plusDays(it) }
     Column(Modifier.fillMaxSize()) {
         Bar("November")
-        TimeGridPage(week, between(week.first(), week.last()), look(), NOW, {}, { _, _ -> }, androidx.compose.foundation.rememberScrollState(400 * 3))
+        TimeGridPage(week, between(week.first(), week.last()), look(), NOW, {}, { _, _ -> }, androidx.compose.foundation.rememberScrollState(840), 40.dp)
     }
 }
 
@@ -193,7 +194,7 @@ fun WeekPreview() = Themed(dark = false) {
 fun DayPreview() = Themed(dark = true) {
     Column(Modifier.fillMaxSize()) {
         Bar("November")
-        TimeGridPage(listOf(TODAY), between(TODAY, TODAY), look(), NOW, {}, { _, _ -> }, androidx.compose.foundation.rememberScrollState(60 * 3 * 8))
+        TimeGridPage(listOf(TODAY), between(TODAY, TODAY), look(), NOW, {}, { _, _ -> }, androidx.compose.foundation.rememberScrollState(840), 40.dp)
     }
 }
 
