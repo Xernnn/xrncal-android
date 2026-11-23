@@ -1,36 +1,39 @@
-# Dependencies
-node_modules/
+# Gradle / Kotlin build output and caches
+.gradle/
+build/
+.kotlin/
+.externalNativeBuild/
+.cxx/
+captures/
 
-# Build outputs
-out/
-dist/
-*.tsbuildinfo
+# Machine-specific: Android SDK location
+local.properties
 
-# Logs
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
+# Built apps and signing keys
+*.apk
+*.aab
+*.jks
+*.keystore
 
-# Environment
+# Secrets, logs, heap dumps
 .env
-.env.local
-.env.*.local
+.env.*
+*.log
+*.hprof
 
-# Planning notes and journals: kept locally, not published
-plans/
-docs/journals/
+# A calendar export holds someone's real events: never in the repo
+*.ics
+!app/src/test/resources/**/*.ics
+!domain/src/test/resources/**/*.ics
 
-# Editor directories
-.vscode/*
-!.vscode/extensions.json
-.idea
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
-
-# OS metadata
+# IDE / editor / OS
+.idea/
+*.iml
+.vscode/
+*.swp
 .DS_Store
 Thumbs.db
+
+# Python (the throwaway Radicale the sync tests may start)
+__pycache__/
+.venv/

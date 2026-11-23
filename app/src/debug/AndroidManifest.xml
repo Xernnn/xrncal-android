@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Lets an emulator or a test reach a CalDAV server on this computer. Not in release builds. -->
+    <application android:networkSecurityConfig="@xml/local_server" />
+</manifest>

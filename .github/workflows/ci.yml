@@ -5,35 +5,48 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
-  verify:
+  check:
     runs-on: ubuntu-latest
-    env:
-      # Unit tests stub the `electron` module (see tests/stubs/electron.ts) and
-      # nothing here packages the app, so skip the ~100 MB binary download.
-      ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      # The sync tests run the phone's engine against a real Radicale 3.8.1, the version the
+      # owner's server runs; without it they would be skipped, so CI installs it first.
+      - uses: actions/setup-python@v7
         with:
-          # 22.5 added node:sqlite behind a flag; it's unflagged from 23.4 on. The DB
-          # tests require() it directly (src/main/db/sqlite-driver.ts), and the repo
-          # doesn't declare better-sqlite3 as a fallback dependency, so CI's Node must
-          # actually have it built in, not just be "recent enough" to build the app.
-          node-version: 24
-          cache: npm
+          python-version: "3.12"
 
-      - run: npm ci
+      - name: Radicale for the sync tests
+        run: |
+          pip install --quiet radicale==3.8.1
+          echo "XRNCAL_RADICALE=$(command -v radicale)" >> "$GITHUB_ENV"
 
-      - name: Lint
-        run: npm run lint
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "17"
 
-      - name: Typecheck (main + renderer)
-        run: npm run typecheck
+      - uses: gradle/actions/setup-gradle@v6
 
-      - name: Unit tests
-        run: npm run test
+      # The domain's tests (the laptop app's vectors), the app's (sync against Radicale, reminders,
+      # the manifest), and a debug build.
+      - name: Tests and debug build
+        run: ./gradlew --console=plain :domain:test :app:testDebugUnitTest :app:assembleDebug
 
-      - name: Production build
-        run: npm run build
+      - name: The sync tests ran, not skipped
+        run: |
+          grep -q 'skipped="0"' app/build/test-results/testDebugUnitTest/TEST-com.xern.xrncal.RadicaleTest.xml
+
+      - name: Keep the reports of a failed run
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: reports
+          path: |
+            domain/build/reports/
+            app/build/reports/
