@@ -49,17 +49,20 @@ import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.YearMonth
 
-private val LANE = 18.dp
-private val LANE_GAP = 2.dp
-private val DAY_ROW = 22.dp
+// One Calendar's month: a line holds two lines of small text, so a long title wraps instead of
+// being cut to a few letters, and a smaller day number leaves room for five lines in a cell.
+private val LANE = 20.dp
+private val LANE_GAP = 1.dp
+private val DAY_ROW = 16.dp
 private val WEEK_NUMBERS = 24.dp
 
 /**
  * One month, One Calendar's way: the weekday row; week numbers on the left; six rows sharing the
  * height; in each cell the day number at the top-left (today's in the signal colour, the cell
  * tinted), the lunar date at the top-right, "+N" beside the number counting what doesn't fit, and
- * as many one-line chips as the cell holds, in their colour, a timed one led by its start time as
- * on the laptop; events over several days as one bar.
+ * as many chips as the cell holds, in their colour, each title on up to two lines as One Calendar
+ * wraps it (a timed one led by its start time when Options asks, as on the laptop); events over
+ * several days as one bar.
  */
 @Composable
 fun MonthPage(
@@ -130,12 +133,11 @@ private fun WeekRow(days: List<LocalDate>, month: YearMonth, occurrences: List<O
                         val time = look.chipTime(o, days[bar.from])
                         Text(
                             buildAnnotatedString {
-                                if (time != null) withStyle(SpanStyle(fontSize = 9.sp, fontWeight = FontWeight.Normal)) { append(time + " ") }
+                                if (time != null) withStyle(SpanStyle(fontSize = 8.5.sp, fontWeight = FontWeight.Normal)) { append(time + " ") }
                                 append(o.title.ifBlank { "(no title)" })
                             },
-                            style = type(11, FontWeight.Medium, onColor(bg), lineHeight = 13.sp),
-                            maxLines = 1,
-                            softWrap = false,
+                            style = type(10, FontWeight.Medium, onColor(bg), lineHeight = 10.sp).copy(fontSize = 9.5.sp),
+                            maxLines = 2,
                             overflow = TextOverflow.Clip,
                         )
                     }
@@ -152,19 +154,19 @@ private fun DayCell(d: LocalDate, inMonth: Boolean, today: Boolean, more: Int, l
         Row(Modifier.fillMaxWidth().height(DAY_ROW).padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(
                 "${d.dayOfMonth}",
-                style = type(15, if (today) FontWeight.Bold else FontWeight.Normal, when {
+                style = type(13, if (today) FontWeight.Bold else FontWeight.Normal, when {
                     today -> ink.today
                     inMonth -> ink.text
                     else -> ink.faint
                 }),
             )
-            if (more > 0) Text("+$more", style = type(12, FontWeight.Medium, if (inMonth) ink.text else ink.faint), maxLines = 1, modifier = Modifier.semantics { contentDescription = "$more more" })
+            if (more > 0) Text("+$more", style = type(11, FontWeight.Medium, if (inMonth) ink.text else ink.faint), maxLines = 1, modifier = Modifier.semantics { contentDescription = "$more more" })
             Spacer(Modifier.weight(1f))
             if (look.lunar) {
                 val l = Lunar.label(Lunar.ofSolar(d))
                 Text(
                     l.label,
-                    style = type(10, if (l.isFirstDay || l.isFullMoon) FontWeight.SemiBold else FontWeight.Normal, if (l.isFirstDay || l.isFullMoon) ink.muted else ink.lunar),
+                    style = type(9, if (l.isFirstDay || l.isFullMoon) FontWeight.SemiBold else FontWeight.Normal, if (l.isFirstDay || l.isFullMoon) ink.muted else ink.lunar),
                     maxLines = 1,
                 )
             }
