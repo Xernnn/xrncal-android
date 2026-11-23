@@ -30,6 +30,8 @@ data class EventDraft(
     val reminders: List<EventReminder>? = null,
     val location: String = "",
     val notes: String = "",
+    /** Its own colour (RFC 7986 COLOR), or null for its calendar's. */
+    val color: Int? = null,
 ) {
     val start: LocalDateTime get() = LocalDateTime.of(startDate, if (allDay) LocalTime.MIDNIGHT else startTime)
     val end: LocalDateTime get() = LocalDateTime.of(endDate, if (allDay) LocalTime.MIDNIGHT else endTime)
@@ -82,7 +84,7 @@ object Edits {
             startDate = start.toLocalDate(), startTime = start.toLocalTime(),
             endDate = end.toLocalDate(), endTime = end.toLocalTime(),
             zone = eventZone, rrule = master?.rrule, reminders = v.reminders,
-            location = v.location, notes = v.notes,
+            location = v.location, notes = v.notes, color = v.color,
         )
     }
 
@@ -102,7 +104,7 @@ object Edits {
             title = m.title, allDay = s.isDate,
             startDate = start.toLocalDate(), startTime = start.toLocalTime(),
             endDate = end.toLocalDate(), endTime = end.toLocalTime(),
-            zone = eventZone, rrule = m.rrule, reminders = m.reminders, location = m.location, notes = m.notes,
+            zone = eventZone, rrule = m.rrule, reminders = m.reminders, location = m.location, notes = m.notes, color = m.color,
         )
     }
 
@@ -244,6 +246,11 @@ object Edits {
         ev.set("DTEND", end.value(), end.params())
         ev.setText("LOCATION", draft.location.trim().takeIf { it.isNotEmpty() })
         ev.setText("DESCRIPTION", draft.notes.takeIf { it.isNotBlank() })
+        when {
+            draft.color != null -> ev.set("COLOR", Palette.hexOf(draft.color))
+            // A colour this app can't read (a CSS name from another program) is left as it was.
+            ev.prop("COLOR")?.value?.let(EventView::hexColor) != null -> ev.remove("COLOR")
+        }
         if (series) {
             val rule = draft.rrule?.let { RepeatRules.fitUntil(it, draft.allDay, draft.zone) }
             if (rule == null) {

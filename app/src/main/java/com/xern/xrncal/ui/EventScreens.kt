@@ -67,6 +67,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
@@ -230,8 +232,9 @@ class EditorState(draft: EventDraft, calendarId: String) {
     var reminders by mutableStateOf(draft.reminders)
     var location by mutableStateOf(draft.location)
     var notes by mutableStateOf(draft.notes)
+    var color by mutableStateOf(draft.color)
 
-    fun draft() = EventDraft(title, allDay, startDate, startTime, endDate, endTime, zone, rule?.let { RepeatRules.fitUntil(it, allDay, zone) }, reminders, location, notes)
+    fun draft() = EventDraft(title, allDay, startDate, startTime, endDate, endTime, zone, rule?.let { RepeatRules.fitUntil(it, allDay, zone) }, reminders, location, notes, color)
 
     /** A new start moves the end with it, so the event keeps its length. */
     fun moveStart(date: LocalDate, time: LocalTime) {
@@ -278,7 +281,24 @@ fun EditorScreen(
             Label("Subject")
             Field(state.title, { state.title = it }, Modifier.padding(horizontal = 16.dp))
             Label("Calendar")
-            CalendarPicker(calendars, state.calendarId) { state.calendarId = it }
+            var colorOpen by remember { mutableStateOf(false) }
+            Row(Modifier.padding(end = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.weight(1f)) { CalendarPicker(calendars, state.calendarId) { state.calendarId = it } }
+                Row(
+                    Modifier.height(52.dp).clip(RoundedCornerShape(4.dp)).background(ink.field).clickable { colorOpen = true }
+                        .semantics { contentDescription = "Event colour" }.padding(start = 12.dp, end = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Swatch(Color(state.color ?: cal?.color ?: 0), 22.dp)
+                    Icon(Icons.Filled.ArrowDropDown, contentDescription = null, tint = ink.muted)
+                }
+            }
+            if (colorOpen) {
+                ColorPickerDialog("Colour", state.color, cal?.color ?: 0, onPick = {
+                    state.color = it
+                    colorOpen = false
+                }, onDismiss = { colorOpen = false })
+            }
             Divider()
             SwitchRow("All day", state.allDay) { on ->
                 state.allDay = on

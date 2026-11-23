@@ -37,6 +37,8 @@ data class Settings(
     val defaultCalendar: String? = null,
     /** The holiday calendars shown. */
     val holidays: Set<String> = setOf(HolidayCalendar.VIETNAM.id),
+    /** Colours picked for the holiday calendars (kept here: they live only on the phone). */
+    val holidayColors: Map<String, Int> = emptyMap(),
 )
 
 /** What changes when settings saved by an older version are read. */
@@ -100,6 +102,10 @@ class PrefsSettings(private val prefs: SharedPreferences) : SettingsStore() {
             lunar = prefs.getBoolean("lunar", d.lunar),
             defaultCalendar = prefs.getString("defaultCalendar", null),
             holidays = prefs.getStringSet("holidays", null)?.toSet() ?: d.holidays,
+            holidayColors = prefs.getString("holidayColors", null).orEmpty().split(';').mapNotNull { e ->
+                val (k, v) = e.split('=').takeIf { it.size == 2 } ?: return@mapNotNull null
+                v.toLongOrNull()?.let { k to it.toInt() }
+            }.toMap(),
         )
         if (from < SettingsMigration.VERSION) save(state.value)
     }
@@ -117,6 +123,7 @@ class PrefsSettings(private val prefs: SharedPreferences) : SettingsStore() {
             .putBoolean("lunar", s.lunar)
             .putString("defaultCalendar", s.defaultCalendar)
             .putStringSet("holidays", s.holidays)
+            .putString("holidayColors", s.holidayColors.entries.joinToString(";") { "${it.key}=${it.value.toLong() and 0xFFFFFFFF}" })
             .apply()
     }
 }

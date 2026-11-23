@@ -35,6 +35,29 @@ class EditsTest {
     }
 
     @Test
+    fun anEventsOwnColourIsWrittenAsTheLaptopWritesItAndCanBeTakenOff() {
+        val text = Edits.create(draft("Dentist", "2026-11-26", "09:00", "10:00").copy(color = 0xFFD50000.toInt()), "c-1", now)
+        assertTrue(text, text.contains("COLOR:#d50000\r\n"))
+        val o = expand(text, "2026-11-26", "2026-11-26", hcm).single()
+        assertEquals(0xFFD50000.toInt(), o.color)
+        val res = ParsedResource.parse(text, hcm)
+        val d = Edits.draftOf(res, o, hcm)
+        assertEquals(0xFFD50000.toInt(), d.color)
+        val plain = Edits.update(text, o, d.copy(color = null), Scope.ALL, now)
+        assertTrue(plain, !plain.contains("COLOR"))
+        assertNull(expand(plain, "2026-11-26", "2026-11-26", hcm).single().color)
+    }
+
+    @Test
+    fun aColourNameAnotherProgramWroteIsKept() {
+        val named = ics(vevent("UID:n", "SUMMARY:Call", "COLOR:turquoise", "DTSTART;TZID=Asia/Ho_Chi_Minh:20261126T090000", "DTEND;TZID=Asia/Ho_Chi_Minh:20261126T100000"))
+        val o = expand(named, "2026-11-26", "2026-11-26", hcm).single()
+        assertNull(o.color)
+        val text = Edits.update(named, o, Edits.draftOf(ParsedResource.parse(named, hcm), o, hcm).copy(title = "Call back"), Scope.ALL, now)
+        assertTrue(text, text.contains("COLOR:turquoise"))
+    }
+
+    @Test
     fun anAllDayEventEndsTheDayAfterItsLast() {
         val trip = EventDraft("Trip", true, LocalDate.parse("2026-11-28"), LocalTime.MIDNIGHT, LocalDate.parse("2026-11-30"), LocalTime.MIDNIGHT, hcm)
         val text = Edits.create(trip, "t", now)

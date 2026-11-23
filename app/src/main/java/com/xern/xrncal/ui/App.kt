@@ -327,7 +327,7 @@ fun App(graph: Graph) {
             val problems by produceState(emptyList<Problem>(), revision) { value = graph.events.problems() }
             val account = AccountView(graph.account.address, graph.account.user, graph.account.connected, status, calendars.count { it.group == EventRepository.SERVER_GROUP })
             SettingsScreen(
-                settings, account, problems, calendars.filter { HolidayCalendar.of(it.id) == null }, look, connecting, error,
+                settings, account, problems, calendars, look, connecting, error,
                 onBack = { stack.removeAt(stack.lastIndex) },
                 onChange = { change ->
                     graph.settings.update(change)
@@ -351,6 +351,7 @@ fun App(graph: Graph) {
                 },
                 onKeepMine = { id -> scope.launch { graph.events.keepMine(id) } },
                 onKeepTheirs = { id -> scope.launch { runCatching { graph.engine.keepTheirs(id) } } },
+                onColor = { id, color -> scope.launch { graph.events.setColor(id, color, graph.settings) } },
             )
         }
         null -> Unit

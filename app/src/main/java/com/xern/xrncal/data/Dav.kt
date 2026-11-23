@@ -61,6 +61,12 @@ interface CalDav {
     fun put(href: String, ics: String, etag: String?, create: Boolean): Pair<Int, String?>
 
     fun delete(href: String, etag: String?): Int
+
+    /**
+     * Sets the calendar's colour (Apple's `calendar-color`) with PROPPATCH; returns the property's
+     * status: 200 when it was taken, else what the server answered (403, 409, 424...).
+     */
+    fun setColor(calendar: String, color: String): Int
 }
 
 /**
@@ -242,6 +248,18 @@ class OkCalDav(address: String, private val user: String, private val password: 
 
     override fun delete(href: String, etag: String?): Int = call("DELETE", href, null, if (etag != null) mapOf("If-Match" to etag) else emptyMap()).status
 
+    override fun setColor(calendar: String, color: String): Int {
+        val r = call("PROPPATCH", calendar, PROPPATCH_COLOR.format(escape(color)).toRequestBody(xml))
+        if (r.status >= 500) throw DavFailure(r.status, r.body.take(200))
+        if (r.status != 207) return r.status
+        // The property's own status: a multistatus can refuse it while the request went through.
+        val doc = parse(r.body) ?: return 500
+        val status = doc.byName("propstat").firstOrNull { ps -> ps.byName("calendar-color").isNotEmpty() }
+            ?.byName("status")?.firstOrNull()?.textContent?.trim()
+            ?: return 200
+        return Regex(""" (\d{3})( |$)""").find(status)?.groupValues?.get(1)?.toInt() ?: 500
+    }
+
     private fun items(r: Reply): List<DavItem>? {
         val doc = parse(r.body) ?: return null
         return doc.byName("response").mapNotNull { resp ->
@@ -313,6 +331,15 @@ class OkCalDav(address: String, private val user: String, private val password: 
   </D:prop>
 %s
 </C:calendar-multiget>"""
+
+        private const val PROPPATCH_COLOR = """<?xml version="1.0" encoding="utf-8" ?>
+<D:propertyupdate xmlns:D="DAV:" xmlns:I="http://apple.com/ns/ical/">
+  <D:set>
+    <D:prop>
+      <I:calendar-color>%s</I:calendar-color>
+    </D:prop>
+  </D:set>
+</D:propertyupdate>"""
 
         fun escape(text: String) = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
     }

@@ -20,6 +20,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.ViewList
 import androidx.compose.material.icons.outlined.CalendarMonth
@@ -161,6 +162,7 @@ fun SettingsScreen(
     onSignOut: () -> Unit,
     onKeepMine: (String) -> Unit,
     onKeepTheirs: (String) -> Unit,
+    onColor: (String, Int) -> Unit = { _, _ -> },
 ) {
     val ink = LocalInk.current
     Column(Modifier.fillMaxSize().background(ink.page)) {
@@ -212,6 +214,9 @@ fun SettingsScreen(
                     }
                 }
             }
+
+            Section("Calendar colours")
+            CalendarColors(calendars, onColor)
 
             Section("Calendar")
             val weekStarts = listOf(null to "Phone", DayOfWeek.MONDAY to "Monday", DayOfWeek.SUNDAY to "Sunday", DayOfWeek.SATURDAY to "Saturday")
@@ -271,5 +276,33 @@ private fun Toggle(label: String, on: Boolean, onChange: (Boolean) -> Unit) {
     Row(Modifier.fillMaxWidth().clickable { onChange(!on) }.padding(horizontal = 20.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(label, style = type(16, color = ink.text), modifier = Modifier.weight(1f))
         Switch(checked = on, onCheckedChange = onChange, colors = SwitchDefaults.colors(checkedTrackColor = ink.accent))
+    }
+}
+
+/**
+ * One Calendar's Calendar colors page: every calendar as a bar in its colour, by account, the
+ * holiday calendars last; tapping one opens the colour picker.
+ */
+@Composable
+fun CalendarColors(calendars: List<CalendarInfo>, onColor: (String, Int) -> Unit) {
+    val ink = LocalInk.current
+    var picking by remember { mutableStateOf<CalendarInfo?>(null) }
+    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(6.dp)) {
+        for (c in calendars) {
+            val bg = Color(c.color)
+            Row(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(4.dp)).background(bg).clickable { picking = c }.padding(horizontal = 12.dp, vertical = 9.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(c.name, style = type(16, FontWeight.Medium, onColor(bg)), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                Icon(Icons.Filled.ArrowDropDown, contentDescription = "Change colour of ${c.name}", tint = onColor(bg))
+            }
+        }
+    }
+    picking?.let { c ->
+        ColorPickerDialog(c.name, c.color, null, onPick = { picked ->
+            if (picked != null) onColor(c.id, picked)
+            picking = null
+        }, onDismiss = { picking = null })
     }
 }

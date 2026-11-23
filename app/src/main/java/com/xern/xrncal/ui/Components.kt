@@ -7,12 +7,14 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -31,6 +33,8 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -138,5 +142,51 @@ fun EventRow(o: Occurrence, look: Look, onClick: () -> Unit, day: LocalDate? = n
             }
             Text(listOf(time, o.location).filter { it.isNotBlank() }.joinToString("  "), style = type(13, color = ink.muted), maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
+    }
+}
+
+/**
+ * One Calendar's colour choices (Google's palette) as a grid of round swatches; the current one is
+ * ticked. With [calendarColor] an event's picker leads with its calendar's colour, which picks
+ * none of its own (null).
+ */
+@Composable
+fun ColorPickerDialog(title: String, current: Int?, calendarColor: Int?, onPick: (Int?) -> Unit, onDismiss: () -> Unit) {
+    val ink = LocalInk.current
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(ink.sheet).padding(vertical = 16.dp, horizontal = 12.dp)) {
+            Text(title, style = type(18, FontWeight.SemiBold, ink.text), modifier = Modifier.padding(start = 8.dp, bottom = 12.dp))
+            if (calendarColor != null) {
+                Row(
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).clickable { onPick(null) }.padding(horizontal = 8.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    ColorDot(Color(calendarColor), current == null, "Calendar colour")
+                    Spacer(Modifier.width(14.dp))
+                    Text("Calendar colour", style = type(16, color = ink.text))
+                }
+            }
+            val swatches = com.xern.xrncal.domain.Palette.ALL
+            for (row in swatches.chunked(6)) {
+                Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceEvenly) {
+                    for (sw in row) {
+                        Box(Modifier.clip(androidx.compose.foundation.shape.CircleShape).clickable { onPick(sw.argb) }.padding(4.dp)) {
+                            ColorDot(Color(sw.argb), current != null && (current or 0xFF000000.toInt()) == sw.argb, sw.name)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ColorDot(color: Color, selected: Boolean, name: String) {
+    Box(
+        Modifier.size(38.dp).clip(androidx.compose.foundation.shape.CircleShape).background(color)
+            .semantics { contentDescription = name },
+        contentAlignment = Alignment.Center,
+    ) {
+        if (selected) Icon(androidx.compose.material.icons.Icons.Filled.Check, contentDescription = null, tint = onColor(color))
     }
 }

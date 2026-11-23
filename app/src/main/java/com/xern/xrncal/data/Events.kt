@@ -52,8 +52,22 @@ class EventRepository(
         val stored = store.calendars().map { c ->
             CalendarInfo(c.id, c.name, c.color, c.readOnly, c.shown, if (c.local) LOCAL_GROUP else SERVER_GROUP)
         }
-        val holidays = HolidayCalendar.entries.map { CalendarInfo(it.id, it.title, it.color, true, it.id in s.holidays, HOLIDAY_GROUP) }
+        val holidays = HolidayCalendar.entries.map { CalendarInfo(it.id, it.title, s.holidayColors[it.id] ?: it.color, true, it.id in s.holidays, HOLIDAY_GROUP) }
         return stored + holidays
+    }
+
+    /**
+     * A calendar's colour, picked here: a server calendar's is written to the server at the next
+     * sync (CalDAV PROPPATCH), the phone's own and the holiday calendars' stay here.
+     */
+    suspend fun setColor(id: String, color: Int, settingsStore: SettingsStore) {
+        if (HolidayCalendar.of(id) != null) {
+            settingsStore.update { it.copy(holidayColors = it.holidayColors + (id to color)) }
+        } else {
+            val c = store.calendar(id) ?: return
+            store.putCalendar(c.copy(color = color, colorState = if (c.local) CalendarEntity.COLOR_SERVER else CalendarEntity.COLOR_TO_SEND, lastError = null))
+        }
+        changed()
     }
 
     suspend fun setShown(id: String, shown: Boolean, settingsStore: SettingsStore) {
@@ -86,7 +100,7 @@ class EventRepository(
         val s = settings()
         for (h in HolidayCalendar.entries) {
             if (onlyShown && h.id !in s.holidays) continue
-            for (d in Holidays.between(h, from, to)) out += holiday(h, d, z)
+            for (d in Holidays.between(h, from, to)) out += holiday(h, d, z).let { o -> s.holidayColors[h.id]?.let { o.copy(color = it) } ?: o }
         }
         out.sortWith(compareBy<Occurrence>({ it.firstDay }, { !it.allDay }, { it.start }, { it.title }))
         out

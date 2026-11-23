@@ -389,6 +389,49 @@ class RadicaleTest {
         assertEquals("Bring the made-up voucher", o.notes)
     }
 
+    private fun propfindColor(url: String): String =
+        request("PROPFIND", url, """<?xml version="1.0"?><D:propfind xmlns:D="DAV:" xmlns:I="http://apple.com/ns/ical/"><D:prop><I:calendar-color/></D:prop></D:propfind>""", "application/xml", mapOf("Depth" to "0")).second
+
+    @Test
+    fun aCalendarColourPickedOnThePhoneIsWrittenToTheServerAndReadByASecondDevice() {
+        val phone = Phone()
+        phone.sync()
+        val blueberry = 0xFF3F51B5.toInt()
+        runBlocking { phone.events.setColor(work, blueberry, com.xern.xrncal.data.MemorySettings()) }
+        assertEquals(CalendarEntity.COLOR_TO_SEND, runBlocking { phone.store.calendar(work) }!!.colorState)
+        phone.sync()
+        val after = runBlocking { phone.store.calendar(work) }!!
+        assertEquals(blueberry, after.color)
+        assertEquals(CalendarEntity.COLOR_SERVER, after.colorState)
+        assertTrue(propfindColor(work), propfindColor(work).contains("#3F51B5FF"))
+        // Another device (the laptop, a second phone) reads it back.
+        val other = Phone()
+        other.sync()
+        assertEquals(blueberry, runBlocking { other.store.calendar(work) }!!.color)
+        // And a colour changed elsewhere later is the server's again here.
+        val body = """<?xml version="1.0"?><D:propertyupdate xmlns:D="DAV:" xmlns:I="http://apple.com/ns/ical/"><D:set><D:prop><I:calendar-color>#795548FF</I:calendar-color></D:prop></D:set></D:propertyupdate>"""
+        assertEquals(207, request("PROPPATCH", work, body, "application/xml").first)
+        phone.sync()
+        assertEquals(0xFF795548.toInt(), runBlocking { phone.store.calendar(work) }!!.color)
+    }
+
+    @Test
+    fun anEventsOwnColourGoesToTheServerAndComesBack() {
+        val phone = Phone()
+        phone.sync()
+        val id = runBlocking { phone.events.create(home, draft("Dentist", "2026-11-26", "09:00", "10:00").copy(color = 0xFFD50000.toInt())) }
+        phone.sync()
+        val href = runBlocking { phone.store.resource(id) }!!.href!!
+        assertTrue(laptopGet(href)!!.contains("COLOR:#d50000"))
+        val other = Phone()
+        other.sync()
+        assertEquals(0xFFD50000.toInt(), other.one("Dentist").color)
+        // The laptop picks another; the phone shows it.
+        laptopPut(work + "call-1.ics", ics(ev("UID:call-1", "SUMMARY:Call", "COLOR:#039be5", "DTSTART;TZID=Asia/Ho_Chi_Minh:20261127T090000", "DTEND;TZID=Asia/Ho_Chi_Minh:20261127T093000")))
+        phone.sync()
+        assertEquals(0xFF039BE5.toInt(), phone.one("Call").color)
+    }
+
     @Test
     fun aNewEventsDefaultReminderReachesTheServerAsItsOwnAlarm() {
         val phone = Phone()
