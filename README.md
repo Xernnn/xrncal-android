@@ -19,7 +19,11 @@ holds, what is left for later, and which of One Calendar's layouts it copies.
   One Calendar's day pop-up. Week and day open at the day's start, at the hour size chosen, with
   a **second time zone** in the gutter. The year tints each day in its busiest calendar's colour.
 - The **lunar date** (âm lịch) on each day of the month, in the headers, the year and the
-  editor, worked out on the phone by the same method as the laptop app.
+  editor, worked out on the phone by the same method as the laptop app; mùng 1 and rằm carry the
+  laptop's moon chips (○ 1/10, ● 15/10).
+- **xrncal's own look** over One Calendar's layout: the laptop's accent and today red, its week
+  header (the weekday over the date, today's on a filled circle, the weekend named in red), and
+  the hours as numbers only (08, 09 … 23).
 - **Events** open straight into One Calendar's editor: emoji, title and place suggestions and
   dates typed into a new event's title (all as the laptop does), calendar and **event colour**,
   all-day, start and end in any time zone, One Calendar's compact repeat form, reminders,
