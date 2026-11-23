@@ -128,7 +128,8 @@ editor opens on that date's fields or the series'. One date of a series stays in
 **Look.** One Calendar's default light theme (#F5F5F5 bars, white page) and dark theme (#202125
 page, #36373B bars); calendar colours drawn as solid fills with white text (dark text on a light
 colour). On top of that, the xrn family's: MiSans VF for every text, xrncal's tile as the app
-icon, its blue (#308FFE) as the accent, light and dark following the phone. Figures and short
+icon, light and dark following the phone, and (since xrncal's touches, below) the laptop
+xrncal's accent and today red. Figures and short
 labels only: no hints, explanations, empty-state sentences or legends.
 
 ## Data model
@@ -290,7 +291,7 @@ them), plus "No image" (the plain One Calendar themes of phase 1) and **Import f
 through Android's photo picker, which needs no permission: the picture is scaled down to 1600 px
 and kept in the app's own files. Settings, Theme: wallpaper, overlay darkness (0 to 0.8), blur
 (0 to 20), app theme (System, Light, Dark; Dark by default) and the signal colour (today's date
-and the time line; One Calendar's red by default).
+and the time line; One Calendar's red by default until xrncal's touches made it the laptop's).
 
 ### 2. Colours
 
@@ -333,7 +334,7 @@ and the time line; One Calendar's red by default).
   second line instead of being cut to a few letters ("Quarterly / review" rather than 0.2.0's
   "Quarterl"). The day number is smaller (13 sp, a 16 dp row) to leave room for five.
 - The lunar day stays at the right of the number (xrncal's own); today's number is in the signal
-  colour and its cell tinted.
+  colour and its cell tinted (white on a circle of it since xrncal's touches, below).
 - A chip shows the title only, as One Calendar's month does. Options, Views can lead timed chips
   with their start time, as the laptop's wider month does ("10:30 Dentist"); off by default,
   because on a phone the time left 3 or 4 letters of the title.
@@ -350,10 +351,14 @@ and the time line; One Calendar's red by default).
 - **Hour size** Small (30 dp), Medium (45 dp, the default: One Calendar's hour on the owner's
   phone, so 08:00 to midnight about fills the screen as it does there) or Large (56 dp). Pinch zoom of the grid is left out:
   it fights the pager's swipe, and the setting does the job.
+- **The gutter writes the hour as a number only** (the owner's choice): `08`, `09` … `23`, or
+  One Calendar's `8a` on the 12-hour clock.
 - **The second time zone** (laptop): under each hour in the gutter, that hour in the second zone,
-  smaller, when it differs from the phone's.
+  smaller, when it differs from the phone's, written the same way (`04`); a zone off the whole
+  hour keeps its minutes (`02:30`).
 - Event blocks: the title, then the time range (when the block has room).
-- Week header: One Calendar's "Mo 23" with the lunar day under it; today's in the signal colour.
+- Week header: One Calendar's "Mo 23" with the lunar day under it; today's in the signal colour
+  (the laptop's stacked header since xrncal's touches, below).
 
 ### 5. Top bar like One Calendar's
 
@@ -490,6 +495,42 @@ TalkBack names it and tests can find it.
   round trip; a new event's default reminder reaching the server as a VALARM.
 - Previews of every new screen from made-up calendars, rendered to PNGs.
 - `ManifestTest`: the widgets' receivers and the share provider (Snooze is an explicit broadcast to the reminder receiver, which needs no filter).
+
+## xrncal's touches: the laptop's look over One Calendar's layout
+
+One Calendar's layout stays (top bar, drawer, month cells, list, editor); these carry the laptop
+xrncal's signature touches over it.
+
+- **Colours.** The accent is the laptop's: #2383e2 in the light theme, the blurple #5865f2 in the
+  dark, in place of One Calendar's light blue. It colours the Options bars, an editor bar with no
+  calendar colour to take, switches, the selected drawer item, the `+` menu, links and buttons; an
+  editor's bar in its calendar's colour stays so. The default signal colour (today) is the
+  laptop's red, #eb5757 light and #f0616d dark. Settings saved before (version 2 or older) with One
+  Calendar's red (#f44336), the old default, move to the new one, since every save wrote it
+  whether or not it was picked; any other colour stays, and so does One Calendar's red picked
+  after the update.
+- **Moon markers.** Mùng 1 (the new moon) and rằm (the full moon), the lunar days people keep,
+  are marked as the laptop's LunarLabel marks them, in place of the plain lunar date: a small chip
+  tinted in the moon's colour (15% of it for the ground) holding a ring ○ for the new moon or a
+  dot ● for the full moon, and the date with its month ("1/10", "15/10", "15/7*" in a leap month).
+  The shapes differ, so the colour is not the only sign. The colours are the laptop's, never
+  today's red: teal #4fd1c1 and gold #f2c14e in the dark theme, #0b7166 and #8a5a00 in the light.
+  Tết is marked as a mùng 1, with the laptop's "Tết" for its text. The week header's lunar line,
+  the day header (the chip, then the year's name), the month cell (the glyph and the coloured
+  date without the chip's ground, which a seventh of a phone can't hold; a "+N" beside the number
+  gives way to it) and the list's day headers carry them. Other days keep the plain lunar date.
+- **The laptop's week header**, in place of One Calendar's "Mo 23" on one line: the weekday in
+  small capitals on top ("MO"), the date big under it, the lunar date (or the moon's chip) small
+  under that. Today's weekday is in the today colour and its date white on a filled circle of it;
+  Saturday's and Sunday's names are in the today colour a little faded, as the laptop's. The day
+  view's header is the same stack in the gutter's width, with the lunar date and the week level
+  with the date beside it. The header is taller than One Calendar's line; the grid's room below
+  midnight still lets it open at the day's start.
+- **Today on a filled circle** everywhere a date is drawn in a grid, as the laptop draws it: the
+  week and day headers, the month cell's number (a circle a little taller than the 16 dp number
+  row, so the cell keeps its five lines of chips) and the year's today, tinted day or not.
+- **Weekend names in the today colour**: Saturday and Sunday in the month's weekday row, as in the
+  week header.
 
 ## Later
 

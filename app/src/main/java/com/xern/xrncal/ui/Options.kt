@@ -46,6 +46,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
@@ -136,7 +137,8 @@ fun ThemeOptions(s: Settings, onChange: ((Settings) -> Settings) -> Unit) {
     Section("Colours")
     val themes = listOf(ThemeMode.SYSTEM to "System", ThemeMode.LIGHT to "Light", ThemeMode.DARK to "Dark")
     Choose("Application theme", themes.first { it.first == s.theme }.second, themes.map { it.second }) { i -> onChange { it.copy(theme = themes[i].first) } }
-    ColorRow("Signal colour", s.signal) { c -> onChange { it.copy(signal = c) } }
+    // The swatch shows the colour as this theme draws it: the default's light or dark shade.
+    ColorRow("Signal colour", ink.today.toArgb()) { c -> onChange { it.copy(signal = c) } }
     Text(
         "Default",
         style = type(14, FontWeight.Medium, ink.accent),

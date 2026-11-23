@@ -49,8 +49,9 @@ private val GUTTER = 44.dp
 private val ALL_DAY_LANE = 22.dp
 
 /**
- * The week and day views, as One Calendar and the laptop draw them: the days' headers (week: "Mo
- * 23" with the lunar day under it, today in the signal colour; day: the lunar date and the week),
+ * The week and day views, as One Calendar and the laptop draw them: the days' headers (the
+ * laptop's: "MO" over the date over the lunar date, today's date on a circle of the signal colour,
+ * Saturday and Sunday named in it; day: the same beside the lunar date, and the week),
  * the all-day row, and the hour grid at the hour size Options sets, opened at the day's start
  * (08:00). The gutter writes each hour, and under it that hour in the second time zone when there
  * is one. Each event sits where its clock times put it, side by side where they overlap, with its
@@ -91,26 +92,25 @@ fun TimeGridPage(
 ) {
     val ink = LocalInk.current
     Column(Modifier.fillMaxSize().background(ink.page)) {
-        // Headers.
+        // Headers: the laptop's, each day's weekday over its date over its lunar date.
         if (days.size == 1) {
             val d = days.single()
-            Row(Modifier.fillMaxWidth().background(ink.bar).padding(start = 12.dp, end = 12.dp, top = 2.dp, bottom = 4.dp), verticalAlignment = Alignment.Bottom) {
-                if (look.lunar) Text(Format.lunarLong(d), style = type(12, color = ink.muted))
-                Spacer(Modifier.weight(1f))
-                if (look.weekNumbers) Text("week ${WeekStart.isoWeekOfRow(WeekStart.startOfWeek(d, java.time.DayOfWeek.MONDAY))}", style = type(13, color = ink.muted))
+            Row(Modifier.fillMaxWidth().background(ink.bar).padding(end = 12.dp, top = 3.dp, bottom = 4.dp), verticalAlignment = Alignment.Bottom) {
+                DayHead(d, look, Modifier.width(GUTTER))
+                // Level with the date's circle.
+                Row(Modifier.weight(1f).height(28.dp), verticalAlignment = Alignment.CenterVertically) {
+                    if (look.lunar) DayLunar(d, type(12, color = ink.muted))
+                    Spacer(Modifier.weight(1f))
+                    if (look.weekNumbers) Text("week ${WeekStart.isoWeekOfRow(WeekStart.startOfWeek(d, java.time.DayOfWeek.MONDAY))}", style = type(13, color = ink.muted))
+                }
             }
         } else {
-            Row(Modifier.fillMaxWidth().background(ink.bar).padding(top = 2.dp, bottom = 4.dp)) {
+            Row(Modifier.fillMaxWidth().background(ink.bar).padding(top = 3.dp, bottom = 4.dp)) {
                 Spacer(Modifier.width(GUTTER))
                 for (d in days) {
-                    val today = d == look.today
                     Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            Format.weekdayTwo(d.dayOfWeek) + " " + d.dayOfMonth,
-                            style = type(14, if (today) FontWeight.Bold else FontWeight.Normal, if (today) ink.today else ink.text),
-                            maxLines = 1,
-                        )
-                        if (look.lunar) Text(Format.lunar(d), style = type(10, color = if (today) ink.today else ink.lunar), maxLines = 1)
+                        DayHead(d, look)
+                        if (look.lunar) LunarMark(d, Format.lunar(d), type(10, color = ink.lunar), Modifier.padding(top = 1.dp))
                     }
                 }
             }
@@ -200,6 +200,43 @@ fun TimeGridPage(
                 }
             }
         }
+    }
+}
+
+/**
+ * A day's weekday in small capitals ("MO"; today's in the today colour, Saturday's and Sunday's
+ * in it a little faded, as the laptop's) over its date, today's white on the today colour's circle.
+ */
+@Composable
+private fun DayHead(d: LocalDate, look: Look, modifier: Modifier = Modifier) {
+    val ink = LocalInk.current
+    val today = d == look.today
+    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(
+            Format.weekdayCaps(d.dayOfWeek),
+            style = type(10, FontWeight.Medium, when {
+                today -> ink.today
+                Format.weekend(d.dayOfWeek) -> ink.today.copy(alpha = 0.8f)
+                else -> ink.muted
+            }, lineHeight = 12.sp).copy(letterSpacing = 0.6.sp),
+            maxLines = 1,
+        )
+        DayNumber(d.dayOfMonth, today, 17, 28.dp, ink.text, weight = FontWeight.SemiBold)
+    }
+}
+
+/** The day view's lunar date: `16/10 Bính Ngọ`, or on mùng 1 and rằm the moon's chip before the year. */
+@Composable
+private fun DayLunar(d: LocalDate, style: androidx.compose.ui.text.TextStyle) {
+    val lunar = com.xern.xrncal.domain.Lunar.ofSolar(d)
+    val mark = com.xern.xrncal.domain.Lunar.moon(lunar)
+    if (mark == null) {
+        Text(Format.lunarLong(d), style = style, maxLines = 1)
+        return
+    }
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        MoonChip(mark, style)
+        Text(" " + lunar.canChiYear, style = style, maxLines = 1)
     }
 }
 

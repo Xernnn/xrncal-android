@@ -35,7 +35,7 @@ import java.util.Locale
 /**
  * The year, as One Calendar and the laptop draw it: twelve mini months three across, each day with
  * events tinted in the colour of the calendar with the most of them that day, the lunar day small
- * under the date, today in the signal colour. Tapping a day opens it.
+ * under the date, today white on a circle of the signal colour. Tapping a day opens it.
  */
 @Composable
 fun YearPage(year: Int, firstDay: DayOfWeek, occurrences: List<Occurrence>, look: Look, onDay: (LocalDate) -> Unit) {
@@ -102,11 +102,9 @@ private fun MiniYearMonth(
                                     tint != null -> onColor(tint)
                                     else -> ink.text
                                 }
-                                Box(
-                                    Modifier.then(if (today && tint != null) Modifier.background(ink.today, RoundedCornerShape(2.dp)) else Modifier),
-                                ) {
-                                    Text("${d.dayOfMonth}", style = type(10, if (today) FontWeight.Bold else FontWeight.Normal, if (today && tint != null) Color.White else fg, lineHeight = 11.sp), textAlign = TextAlign.Center)
-                                }
+                                // Today white on the today colour's circle, as the laptop's, tinted or not.
+                                if (today) DayNumber(d.dayOfMonth, true, 10, 15.dp, fg)
+                                else Text("${d.dayOfMonth}", style = type(10, color = fg, lineHeight = 11.sp), textAlign = TextAlign.Center)
                                 if (look.lunar) {
                                     val l = Lunar.label(Lunar.ofSolar(d))
                                     Text(l.label, style = type(6, color = fg.copy(alpha = 0.75f), lineHeight = 7.sp), maxLines = 1)

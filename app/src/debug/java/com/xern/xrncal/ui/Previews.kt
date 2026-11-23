@@ -104,6 +104,7 @@ private val EVENTS: List<Occurrence> by lazy {
         timed("Haircut", "phone", "2026-11-14", "10:00", "10:30"),
         timed("Quarterly review", "work", "2026-11-18", "13:00", "15:00"),
         timed("Movie night", "family", "2026-11-21", "20:00", "22:00"),
+        timed("Year-end dinner", "family", "2026-12-23", "18:30", "21:00"),
     ) + Holidays.between(HolidayCalendar.VIETNAM, LocalDate.of(2026, 10, 1), LocalDate.of(2027, 1, 31)).map { h ->
         Occurrence("h${h.date}", HolidayCalendar.VIETNAM.id, "h${h.date}", null, h.title, "", h.notes, true, h.date.atStartOfDay(ZONE).toInstant(), h.date.plusDays(1).atStartOfDay(ZONE).toInstant(), h.date, h.date, false, false, emptyList(), h.color)
     }
@@ -112,7 +113,7 @@ private val EVENTS: List<Occurrence> by lazy {
 /** The app's theme over the default wallpaper (Cyber City, overlay 0.15, blur 2), as on the phone. */
 @Composable
 private fun Themed(dark: Boolean, wallpaper: Boolean = true, content: @Composable () -> Unit) =
-    XrnTheme(dark = dark, wallpaper = wallpaper, signal = androidx.compose.ui.graphics.Color(Settings.SIGNAL_RED)) {
+    XrnTheme(dark = dark, wallpaper = wallpaper, signal = androidx.compose.ui.graphics.Color(Settings().signalFor(dark))) {
         val image = androidx.compose.ui.graphics.ImageBitmap.imageResource(com.xern.xrncal.R.drawable.wallpaper_cyber_city)
         androidx.compose.runtime.CompositionLocalProvider(LocalBackdrop provides { Backdrop(if (wallpaper) image else null, 0.15f, 2, dark) }) {
             Box(Modifier.fillMaxSize()) {
@@ -182,6 +183,41 @@ fun WeekPreview() = Themed(dark = true) {
     Column(Modifier.fillMaxSize()) {
         Bar("November", "week 48")
         TimeGridPage(week, between(week.first(), week.last()), look(), NOW, {}, { _, _ -> }, androidx.compose.foundation.rememberScrollState(840), 40.dp)
+    }
+}
+
+// The lunar days people keep, in view: mùng 1 of the 11th month is Wednesday 9 December 2026,
+// rằm of the 10th Monday 23 November (the Week above), rằm of the 11th Wednesday 23 December.
+
+@Preview(name = "Week, mùng 1", widthDp = 400, heightDp = 860)
+@Composable
+fun WeekMoonPreview() = Themed(dark = true) {
+    val week = (0L until 7L).map { LocalDate.of(2026, 12, 7).plusDays(it) }
+    Column(Modifier.fillMaxSize()) {
+        Bar("December", "week 50")
+        TimeGridPage(week, between(week.first(), week.last()), look(), NOW, {}, { _, _ -> }, androidx.compose.foundation.rememberScrollState(840), 40.dp)
+    }
+}
+
+@Preview(name = "Day, rằm", widthDp = 400, heightDp = 860)
+@Composable
+fun DayMoonPreview() = Themed(dark = true) {
+    val day = LocalDate.of(2026, 11, 23)
+    Column(Modifier.fillMaxSize()) {
+        Bar("Monday 23", "November")
+        TimeGridPage(listOf(day), between(day, day), look(), NOW, {}, { _, _ -> }, androidx.compose.foundation.rememberScrollState(840), 40.dp)
+    }
+}
+
+@Preview(name = "List, December", widthDp = 400, heightDp = 1400)
+@Composable
+fun ListMoonPreview() = Themed(dark = false) {
+    val ym = YearMonth.of(2026, 12)
+    val grid = MonthLayout.weeks(ym, DayOfWeek.MONDAY, rows = null)
+    val from = LocalDate.of(2026, 12, 8)
+    Column(Modifier.fillMaxSize()) {
+        Bar("December")
+        ListPage(ym, DayOfWeek.MONDAY, between(grid.first().first(), grid.last().last()), between(from, from.plusMonths(1)), from, from.plusMonths(1), look(), {}, {})
     }
 }
 

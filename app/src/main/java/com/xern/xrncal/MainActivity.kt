@@ -42,7 +42,7 @@ class MainActivity : ComponentActivity() {
                 enableEdgeToEdge(if (dark) SystemBarStyle.dark(clear) else SystemBarStyle.light(clear, clear), if (dark) SystemBarStyle.dark(clear) else SystemBarStyle.light(clear, clear))
             }
             val wallpaper = rememberWallpaper(s.wallpaper)
-            XrnTheme(dark = dark, wallpaper = s.wallpaper != Wallpapers.NONE, signal = Color(s.signal)) {
+            XrnTheme(dark = dark, wallpaper = s.wallpaper != Wallpapers.NONE, signal = Color(s.signalFor(dark))) {
                 CompositionLocalProvider(LocalBackdrop provides { Backdrop(wallpaper, s.overlay, s.blur, dark) }) { App(graph) }
             }
         }

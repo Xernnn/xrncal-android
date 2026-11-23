@@ -57,9 +57,10 @@ private val DAY_ROW = 16.dp
 private val WEEK_NUMBERS = 24.dp
 
 /**
- * One month, One Calendar's way: the weekday row; week numbers on the left; six rows sharing the
- * height; in each cell the day number at the top-left (today's in the signal colour, the cell
- * tinted), the lunar date at the top-right, "+N" beside the number counting what doesn't fit, and
+ * One month, One Calendar's way: the weekday row (Saturday and Sunday in the signal colour, as the
+ * laptop's); week numbers on the left; six rows sharing the height; in each cell the day number at
+ * the top-left (today's white on a circle of the signal colour, the cell tinted), the lunar date at
+ * the top-right (mùng 1 and rằm with their moon), "+N" beside the number counting what doesn't fit, and
  * as many chips as the cell holds, in their colour, each title on up to two lines as One Calendar
  * wraps it (a timed one led by its start time when Options asks, as on the laptop); events over
  * several days as one bar.
@@ -80,7 +81,7 @@ fun MonthPage(
         Row(Modifier.fillMaxWidth().background(ink.bar).padding(bottom = 4.dp)) {
             if (look.weekNumbers) Spacer(Modifier.width(WEEK_NUMBERS))
             for (d in WeekStart.order(firstDay)) {
-                Text(Format.weekdayShort(d), style = type(13, color = ink.muted), modifier = Modifier.weight(1f).padding(start = 6.dp))
+                Text(Format.weekdayShort(d), style = type(13, color = if (Format.weekend(d)) ink.today else ink.muted), modifier = Modifier.weight(1f).padding(start = 6.dp))
             }
         }
         BoxWithConstraints(Modifier.fillMaxSize()) {
@@ -151,25 +152,17 @@ private fun WeekRow(days: List<LocalDate>, month: YearMonth, occurrences: List<O
 private fun DayCell(d: LocalDate, inMonth: Boolean, today: Boolean, more: Int, look: Look, modifier: Modifier) {
     val ink = LocalInk.current
     Box(modifier.background(if (today) ink.todayCell else Color.Transparent)) {
-        Row(Modifier.fillMaxWidth().height(DAY_ROW).padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                "${d.dayOfMonth}",
-                style = type(13, if (today) FontWeight.Bold else FontWeight.Normal, when {
-                    today -> ink.today
-                    inMonth -> ink.text
-                    else -> ink.faint
-                }),
-            )
-            if (more > 0) Text("+$more", style = type(11, FontWeight.Medium, if (inMonth) ink.text else ink.faint), maxLines = 1, modifier = Modifier.semantics { contentDescription = "$more more" })
-            Spacer(Modifier.weight(1f))
-            if (look.lunar) {
-                val l = Lunar.label(Lunar.ofSolar(d))
-                Text(
-                    l.label,
-                    style = type(9, if (l.isFirstDay || l.isFullMoon) FontWeight.SemiBold else FontWeight.Normal, if (l.isFirstDay || l.isFullMoon) ink.muted else ink.lunar),
-                    maxLines = 1,
-                )
+        Row(Modifier.fillMaxWidth().height(DAY_ROW).padding(start = 4.dp, end = 3.dp), verticalAlignment = Alignment.CenterVertically) {
+            // Today's number white on the today colour's circle, as the laptop's; the circle is a
+            // little taller than the 16 dp row, so it doesn't cost the cell a line of chips.
+            if (today) DayNumber(d.dayOfMonth, true, 12, 18.dp, ink.today, Modifier.offset(x = (-2).dp))
+            else Text("${d.dayOfMonth}", style = type(13, color = if (inMonth) ink.text else ink.faint))
+            // "+N" takes what the number and the lunar date leave, so that a moon's "15/10" is never cut to "15/1".
+            Box(Modifier.weight(1f)) {
+                if (more > 0) Text("+$more", style = type(11, FontWeight.Medium, if (inMonth) ink.text else ink.faint), maxLines = 1, softWrap = false, modifier = Modifier.semantics { contentDescription = "$more more" })
             }
+            // Mùng 1 and rằm as the moon's glyph and coloured date: a chip doesn't fit a seventh of a phone.
+            if (look.lunar) LunarMark(d, Lunar.label(Lunar.ofSolar(d)).label, type(9, color = ink.lunar), compact = true)
         }
     }
 }

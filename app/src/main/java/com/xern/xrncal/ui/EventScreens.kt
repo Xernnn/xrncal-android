@@ -253,7 +253,8 @@ fun EditorScreen(
     var emojiOpen by remember { mutableStateOf(false) }
     var titleFocus by remember { mutableStateOf(false) }
     var placeFocus by remember { mutableStateOf(false) }
-    val bar = Color(state.color ?: cal?.color ?: 0xFF308FFE.toInt())
+    // The calendar's colour; xrncal's accent when there is none to take.
+    val bar = (state.color ?: cal?.color)?.let { Color(it) } ?: ink.accent
     val fg = onColor(bar)
     val problem = state.draft().problem()
     var picking by remember { mutableStateOf<String?>(null) }
