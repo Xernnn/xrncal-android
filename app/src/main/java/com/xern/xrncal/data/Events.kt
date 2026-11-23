@@ -89,7 +89,9 @@ class EventRepository(
         val cals = store.calendars().filter { !onlyShown || it.shown }.map { it.id }
         val lo = from.atStartOfDay(z).toInstant().toEpochMilli() - DAY
         val hi = to.plusDays(1).atStartOfDay(z).toInstant().toEpochMilli() + DAY
-        val rows = store.inRange(cals, lo, hi)
+        // Options' history: events over before it are not shown (One Calendar keeps three years).
+        val cutoff = settings().historyYears.takeIf { it > 0 }?.let { clock().atZone(z).minusYears(it.toLong()).toInstant().toEpochMilli() } ?: Long.MIN_VALUE
+        val rows = store.inRange(cals, maxOf(lo, cutoff), hi)
         val budgets = HashMap<String, Recurrence.Budget>()
         val out = ArrayList<Occurrence>()
         for (r in rows) {

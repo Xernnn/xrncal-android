@@ -42,7 +42,7 @@ class XrnCalApp : Application() {
         super.onCreate()
         graph = Graph.android(this)
         // The background sync, booked while an account is set; WorkManager keeps it across reboots.
-        if (graph.account.connected) SyncWork.keep(this)
+        if (graph.account.connected) SyncWork.keep(this, graph.settings.value.syncMinutes)
     }
 }
 

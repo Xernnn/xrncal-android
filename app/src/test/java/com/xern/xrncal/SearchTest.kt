@@ -45,4 +45,15 @@ class SearchTest {
         settings = settings.copy(historyYears = 0)
         assertEquals(3, events.search("dent", past = true).size)
     }
+
+    @Test
+    fun eventsOverBeforeTheHistoryAreNotShown() = runBlocking {
+        store.putCalendar(CalendarEntity("cal", CalendarEntity.LOCAL, "Phone", 0))
+        event("Old trip", "2022-11-01")
+        event("Recent trip", "2024-11-01")
+        suspend fun all() = events.occurrences(LocalDate.parse("2022-01-01"), LocalDate.parse("2024-12-31")).filter { it.calendarId == "cal" }.map { it.title }
+        assertEquals(listOf("Recent trip"), all())
+        settings = settings.copy(historyYears = 0)
+        assertEquals(listOf("Old trip", "Recent trip"), all())
+    }
 }

@@ -552,7 +552,7 @@ private fun TimePick(initial: LocalTime, h24: Boolean, onDismiss: () -> Unit, on
 
 /** Every zone the phone knows, found by any part of its name; the preferred ones and the phone's first. */
 @Composable
-private fun ZonePick(current: ZoneId, preferred: List<String>, onDismiss: () -> Unit, onPick: (ZoneId) -> Unit) {
+fun ZonePick(current: ZoneId, preferred: List<String>, onDismiss: () -> Unit, onPick: (ZoneId) -> Unit) {
     val ink = LocalInk.current
     var query by remember { mutableStateOf("") }
     val all = remember { ZoneId.getAvailableZoneIds().filter { it.contains('/') && !it.startsWith("Etc/") && !it.startsWith("SystemV/") }.sorted() + "UTC" }

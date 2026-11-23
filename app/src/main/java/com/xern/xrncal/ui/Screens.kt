@@ -104,97 +104,79 @@ fun SearchScreen(query: String, onQuery: (String) -> Unit, past: Boolean, onPast
 /** The account as Settings shows it. */
 data class AccountView(val address: String, val user: String, val connected: Boolean, val status: SyncStatus, val calendars: Int)
 
+/**
+ * The events that couldn't be sent, each with Keep mine and Keep theirs, and the CalDAV account
+ * (One Calendar's Accounts): address, user, password, Connect, Sync now, Sign out, the last sync.
+ */
 @Composable
-fun SettingsScreen(
-    s: Settings,
+fun AccountsScreen(
     account: AccountView,
     problems: List<Problem>,
-    calendars: List<CalendarInfo>,
     look: Look,
     connecting: Boolean,
     connectError: String?,
     onBack: () -> Unit,
-    onChange: ((Settings) -> Settings) -> Unit,
     onConnect: (String, String, String) -> Unit,
     onSync: () -> Unit,
     onSignOut: () -> Unit,
     onKeepMine: (String) -> Unit,
     onKeepTheirs: (String) -> Unit,
-    onColor: (String, Int) -> Unit = { _, _ -> },
-) {
+) = OptionsFrame("Accounts", onBack) {
+    val ink = LocalInk.current
+    Section("CalDAV")
+    var address by remember(account.address) { mutableStateOf(account.address) }
+    var user by remember(account.user) { mutableStateOf(account.user) }
+    var password by remember { mutableStateOf("") }
+    SmallLabel("Server")
+    Field(address, { address = it }, Modifier.padding(horizontal = 16.dp))
+    SmallLabel("User name")
+    Field(user, { user = it }, Modifier.padding(horizontal = 16.dp))
+    SmallLabel("Password")
+    Field(password, { password = it }, Modifier.padding(horizontal = 16.dp), password = true)
+    Row(Modifier.padding(horizontal = 8.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+        TextButton(onClick = { onConnect(address, user, password) }, enabled = !connecting && address.isNotBlank() && user.isNotBlank()) {
+            Text(if (connecting) "Connecting" else "Connect", style = type(15, FontWeight.SemiBold, ink.accent))
+        }
+        if (account.connected) {
+            TextButton(onClick = onSync, enabled = !account.status.running) { Text("Sync now", style = type(15, FontWeight.SemiBold, ink.accent)) }
+            TextButton(onClick = onSignOut) { Text("Sign out", style = type(15, FontWeight.SemiBold, ink.warn)) }
+        }
+    }
+    val line = when {
+        connectError != null -> connectError
+        !account.connected -> null
+        account.status.running -> "Syncing"
+        account.status.error.isNotEmpty() -> account.status.error
+        account.status.lastSync > 0 -> "Synced " + Format.dayShort(Instant.ofEpochMilli(account.status.lastSync).atZone(look.zone).toLocalDate()) + " " +
+            Format.time(Instant.ofEpochMilli(account.status.lastSync).atZone(look.zone).toLocalTime(), look.h24) + " · ${account.calendars} calendars"
+        else -> null
+    }
+    if (line != null) Text(line, style = type(14, color = if (connectError != null || (account.status.error.isNotEmpty() && !account.status.running)) ink.warn else ink.muted), modifier = Modifier.padding(horizontal = 20.dp))
+    if (problems.isNotEmpty()) {
+        Section("Not sent")
+        for (p in problems) {
+            Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 6.dp)) {
+                Text(p.title, style = type(16, FontWeight.Medium, ink.text))
+                Text(p.calendar + " · " + problemLabel(p.problem), style = type(13, color = ink.warn))
+                Row {
+                    TextButton(onClick = { onKeepMine(p.id) }) { Text("Keep mine", style = type(14, FontWeight.Medium, ink.accent)) }
+                    TextButton(onClick = { onKeepTheirs(p.id) }) { Text("Keep theirs", style = type(14, FontWeight.Medium, ink.accent)) }
+                }
+            }
+        }
+    }
+}
+
+/** An Options page: One Calendar's blue bar with back and the page's name, then its rows. */
+@Composable
+fun OptionsFrame(title: String, onBack: () -> Unit, content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit) {
     val ink = LocalInk.current
     Column(Modifier.fillMaxSize().background(ink.screen)) {
         Row(Modifier.fillMaxWidth().background(ink.accent).statusBarsPadding().height(56.dp), verticalAlignment = Alignment.CenterVertically) {
             BarIcon(Icons.AutoMirrored.Filled.ArrowBack, onBack, Color.White, "Back")
-            Text("Settings", style = type(20, FontWeight.SemiBold, Color.White), modifier = Modifier.padding(start = 8.dp))
+            Text(title, style = type(20, FontWeight.Medium, Color.White), modifier = Modifier.padding(start = 8.dp))
         }
-        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).navigationBarsPadding().padding(bottom = 24.dp)) {
-            Section("CalDAV account")
-            var address by remember(account.address) { mutableStateOf(account.address) }
-            var user by remember(account.user) { mutableStateOf(account.user) }
-            var password by remember { mutableStateOf("") }
-            SmallLabel("Server")
-            Field(address, { address = it }, Modifier.padding(horizontal = 16.dp))
-            SmallLabel("User name")
-            Field(user, { user = it }, Modifier.padding(horizontal = 16.dp))
-            SmallLabel("Password")
-            Field(password, { password = it }, Modifier.padding(horizontal = 16.dp), password = true)
-            Row(Modifier.padding(horizontal = 8.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                TextButton(onClick = { onConnect(address, user, password) }, enabled = !connecting && address.isNotBlank() && user.isNotBlank()) {
-                    Text(if (connecting) "Connecting" else "Connect", style = type(15, FontWeight.SemiBold, ink.accent))
-                }
-                if (account.connected) {
-                    TextButton(onClick = onSync, enabled = !account.status.running) { Text("Sync now", style = type(15, FontWeight.SemiBold, ink.accent)) }
-                    TextButton(onClick = onSignOut) { Text("Sign out", style = type(15, FontWeight.SemiBold, ink.warn)) }
-                }
-            }
-            val line = when {
-                connectError != null -> connectError
-                !account.connected -> null
-                account.status.running -> "Syncing"
-                account.status.error.isNotEmpty() -> account.status.error
-                account.status.lastSync > 0 -> "Synced " + Format.dayShort(Instant.ofEpochMilli(account.status.lastSync).atZone(look.zone).toLocalDate()) + " " +
-                    Format.time(Instant.ofEpochMilli(account.status.lastSync).atZone(look.zone).toLocalTime(), look.h24) + " · ${account.calendars} calendars"
-                else -> null
-            }
-            if (line != null) Text(line, style = type(14, color = if (connectError != null || (account.status.error.isNotEmpty() && !account.status.running)) ink.warn else ink.muted), modifier = Modifier.padding(horizontal = 20.dp))
-
-            if (problems.isNotEmpty()) {
-                Section("Not sent")
-                for (p in problems) {
-                    Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 6.dp)) {
-                        Text(p.title, style = type(16, FontWeight.Medium, ink.text))
-                        Text(p.calendar + " · " + problemLabel(p.problem), style = type(13, color = ink.warn))
-                        Row {
-                            TextButton(onClick = { onKeepMine(p.id) }) { Text("Keep mine", style = type(14, FontWeight.Medium, ink.accent)) }
-                            TextButton(onClick = { onKeepTheirs(p.id) }) { Text("Keep theirs", style = type(14, FontWeight.Medium, ink.accent)) }
-                        }
-                    }
-                }
-            }
-
-            Section("Calendar colours")
-            CalendarColors(calendars, onColor)
-            ThemeOptions(s, onChange)
-
-            Section("Calendar")
-            val weekStarts = listOf(null to "Phone", DayOfWeek.MONDAY to "Monday", DayOfWeek.SUNDAY to "Sunday", DayOfWeek.SATURDAY to "Saturday")
-            Choose("Week starts", weekStarts.first { it.first == s.weekStart }.second, weekStarts.map { it.second }) { i -> onChange { it.copy(weekStart = weekStarts[i].first) } }
-            val views = listOf(View.MONTH to "Month", View.LIST to "List", View.WEEK to "Week", View.DAY to "Day")
-            Choose("Opens on", views.first { it.first == s.defaultView }.second, views.map { it.second }) { i -> onChange { it.copy(defaultView = views[i].first) } }
-            val writable = calendars.filter { !it.readOnly }
-            Choose("New events in", writable.firstOrNull { it.id == s.defaultCalendar }?.name ?: writable.firstOrNull()?.name.orEmpty(), writable.map { it.name }) { i -> onChange { it.copy(defaultCalendar = writable[i].id) } }
-            Choose("New event length", "${s.eventMinutes} min", EventLength.OPTIONS.map { "$it min" }) { i -> onChange { it.copy(eventMinutes = EventLength.OPTIONS[i]) } }
-            val timed = listOf<Int?>(null) + Reminders.TIMED_PRESETS
-            Choose("Reminder", s.timedReminder?.let { Reminders.label(it, false) } ?: "None", timed.map { m -> m?.let { Reminders.label(it, false) } ?: "None" }) { i -> onChange { it.copy(timedReminder = timed[i]) } }
-            val allDay = listOf<Int?>(null) + Reminders.ALL_DAY_PRESETS.sorted()
-            Choose("All-day reminder", s.allDayReminder?.let { Reminders.label(it, true) } ?: "None", allDay.map { m -> m?.let { Reminders.label(it, true) } ?: "None" }) { i -> onChange { it.copy(allDayReminder = allDay[i]) } }
-            val clocks = listOf(Clock.SYSTEM to "Phone", Clock.H24 to "24-hour", Clock.H12 to "12-hour")
-            Choose("Clock", clocks.first { it.first == s.clock }.second, clocks.map { it.second }) { i -> onChange { it.copy(clock = clocks[i].first) } }
-            Toggle("Week numbers", s.weekNumbers) { on -> onChange { it.copy(weekNumbers = on) } }
-            Toggle("Lunar dates", s.lunar) { on -> onChange { it.copy(lunar = on) } }
-            Text(ZoneId.systemDefault().id, style = type(13, color = ink.muted), modifier = Modifier.padding(start = 20.dp, top = 16.dp))
-        }
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).navigationBarsPadding().padding(bottom = 24.dp), content = content)
     }
 }
 
@@ -214,9 +196,12 @@ fun Choose(label: String, value: String, options: List<String>, onPick: (Int) ->
     val ink = LocalInk.current
     var open by remember { mutableStateOf(false) }
     Box {
-        Row(Modifier.fillMaxWidth().clickable { open = true }.padding(horizontal = 20.dp, vertical = 14.dp)) {
-            Text(label, style = type(16, color = ink.text), modifier = Modifier.weight(1f))
-            Text(value, style = type(16, color = ink.muted))
+        Row(Modifier.fillMaxWidth().clickable { open = true }.padding(horizontal = 20.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(label, style = type(16, color = ink.text))
+                Text(value, style = type(14, color = ink.muted))
+            }
+            Icon(Icons.Filled.ArrowDropDown, contentDescription = null, tint = ink.muted)
         }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             options.forEachIndexed { i, o ->

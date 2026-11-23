@@ -282,13 +282,35 @@ fun MonthPlainPreview() = Themed(dark = false, wallpaper = false) {
     }
 }
 
-@Preview(name = "Settings", widthDp = 400, heightDp = 1300)
+@Preview(name = "Options", widthDp = 400, heightDp = 860)
 @Composable
-fun SettingsPreview() = Themed(dark = false) {
-    SettingsScreen(
-        Settings(weekStart = DayOfWeek.MONDAY), AccountView("https://caldav.example.com/", "alex", true, SyncStatus(lastSync = NOW.toEpochMilli()), 4),
-        listOf(Problem("p1", "Dentist", "Home", "conflict")), CALENDARS.filter { HolidayCalendar.of(it.id) == null }, look(), false, null,
-        {}, {}, { _, _, _ -> }, {}, {}, {}, {},
+fun OptionsPreview() = Themed(dark = true) { OptionsList({}, {}) }
+
+@Composable
+private fun Page(page: OptionPage) = Themed(dark = true) { OptionPageScreen(page, Settings(), CALENDARS, {}, { _, _ -> }, {}) }
+
+@Preview(name = "Options, Views", widthDp = 400, heightDp = 1100)
+@Composable
+fun ViewOptionsPreview() = Page(OptionPage.VIEWS)
+
+@Preview(name = "Options, Calendar colors", widthDp = 400, heightDp = 860)
+@Composable
+fun ColorOptionsPreview() = Page(OptionPage.COLORS)
+
+@Preview(name = "Options, Reminders", widthDp = 400, heightDp = 860)
+@Composable
+fun ReminderOptionsPreview() = Page(OptionPage.REMINDERS)
+
+@Preview(name = "Options, Widget", widthDp = 400, heightDp = 1100)
+@Composable
+fun WidgetOptionsPreview() = Page(OptionPage.WIDGET)
+
+@Preview(name = "Accounts", widthDp = 400, heightDp = 860)
+@Composable
+fun AccountsPreview() = Themed(dark = true) {
+    AccountsScreen(
+        AccountView("https://caldav.example.com/", "alex", true, SyncStatus(lastSync = NOW.toEpochMilli()), 4),
+        listOf(Problem("p1", "Dentist", "Home", "conflict")), look(), false, null, {}, { _, _, _ -> }, {}, {}, {}, {},
     )
 }
 

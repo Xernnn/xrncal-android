@@ -82,7 +82,9 @@ sealed interface Screen {
      */
     data class Edit(val state: EditorState, val occ: Occurrence?, val locked: Boolean = false, val problem: String? = null) : Screen
     data object Search : Screen
-    data object Settings : Screen
+    data object Options : Screen
+    data class Option(val page: OptionPage) : Screen
+    data object Accounts : Screen
 }
 
 /** Pagers start in the middle of this many pages each way: a hundred years of months. */
@@ -194,11 +196,11 @@ fun App(graph: Graph) {
                 },
                 onSync = { scope.launch { graph.syncNow() } },
                 onAccounts = {
-                    stack += Screen.Settings
+                    stack += Screen.Accounts
                     scope.launch { drawer.close() }
                 },
                 onOptions = {
-                    stack += Screen.Settings
+                    stack += Screen.Options
                     scope.launch { drawer.close() }
                 },
             )
@@ -422,25 +424,34 @@ fun App(graph: Graph) {
             }
             SearchScreen(query, { query = it }, past, { past = it }, results, look, onBack = { stack.removeAt(stack.lastIndex) }, onEvent = ::open)
         }
-        Screen.Settings -> {
+        Screen.Options -> OptionsList(onPage = { stack += Screen.Option(it) }, onBack = { stack.removeAt(stack.lastIndex) })
+        is Screen.Option -> OptionPageScreen(
+            top.page, settings, calendars,
+            onChange = { change ->
+                val before = graph.settings.value
+                graph.settings.update(change)
+                val after = graph.settings.value
+                if (after.syncMinutes != before.syncMinutes && graph.account.connected) SyncWork.keep(context, after.syncMinutes)
+                scope.launch { graph.reminders.rearm() }
+            },
+            onColor = { id, color -> scope.launch { graph.events.setColor(id, color, graph.settings) } },
+            onBack = { stack.removeAt(stack.lastIndex) },
+        )
+        Screen.Accounts -> {
             var connecting by remember { mutableStateOf(false) }
             var error by remember { mutableStateOf<String?>(null) }
             val problems by produceState(emptyList<Problem>(), revision) { value = graph.events.problems() }
             val account = AccountView(graph.account.address, graph.account.user, graph.account.connected, status, calendars.count { it.group == EventRepository.SERVER_GROUP })
-            SettingsScreen(
-                settings, account, problems, calendars, look, connecting, error,
+            AccountsScreen(
+                account, problems, look, connecting, error,
                 onBack = { stack.removeAt(stack.lastIndex) },
-                onChange = { change ->
-                    graph.settings.update(change)
-                    scope.launch { graph.reminders.rearm() }
-                },
                 onConnect = { a, u, p ->
                     connecting = true
                     error = null
                     scope.launch {
                         error = graph.connect(a, u, p)
                         connecting = false
-                        if (error == null) SyncWork.keep(context)
+                        if (error == null) SyncWork.keep(context, settings.syncMinutes)
                     }
                 },
                 onSync = { scope.launch { graph.syncNow() } },
@@ -452,7 +463,6 @@ fun App(graph: Graph) {
                 },
                 onKeepMine = { id -> scope.launch { graph.events.keepMine(id) } },
                 onKeepTheirs = { id -> scope.launch { runCatching { graph.engine.keepTheirs(id) } } },
-                onColor = { id, color -> scope.launch { graph.events.setColor(id, color, graph.settings) } },
             )
         }
         null -> Unit

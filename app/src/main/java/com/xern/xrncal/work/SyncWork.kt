@@ -34,7 +34,7 @@ object SyncWork {
 
     private fun network() = Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
 
-    fun every(): PeriodicWorkRequest = PeriodicWorkRequest.Builder(SyncWorker::class.java, EVERY_MINUTES, TimeUnit.MINUTES)
+    fun every(minutes: Long = EVERY_MINUTES): PeriodicWorkRequest = PeriodicWorkRequest.Builder(SyncWorker::class.java, maxOf(15L, minutes), TimeUnit.MINUTES)
         .setConstraints(network())
         .setBackoffCriteria(BackoffPolicy.LINEAR, 1, TimeUnit.MINUTES)
         .build()
@@ -46,11 +46,12 @@ object SyncWork {
         .build()
 
     /**
-     * Books the 30-minute sync, or keeps the one booked: UPDATE keeps its timing, so opening the
-     * app doesn't push it back, and a later version's request replaces this one's.
+     * Books the sync every [minutes] (Options, Synchronisation; 30 by default), or keeps the one
+     * booked: UPDATE keeps its timing, so opening the app doesn't push it back, and a new interval
+     * or a later version's request replaces this one's.
      */
-    fun keep(context: Context) {
-        WorkManager.getInstance(context).enqueueUniquePeriodicWork(EVERY, ExistingPeriodicWorkPolicy.UPDATE, every())
+    fun keep(context: Context, minutes: Int = EVERY_MINUTES.toInt()) {
+        WorkManager.getInstance(context).enqueueUniquePeriodicWork(EVERY, ExistingPeriodicWorkPolicy.UPDATE, every(minutes.toLong()))
     }
 
     /** Signed out: no more background syncs. */
