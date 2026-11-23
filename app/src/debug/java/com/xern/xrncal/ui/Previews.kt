@@ -191,18 +191,19 @@ fun DayPreview() = Themed(dark = true) {
     }
 }
 
-@Preview(name = "Detail", widthDp = 400, heightDp = 860)
-@Composable
-fun DetailPreview() = Themed(dark = false) {
-    val o = EVENTS.first { it.title == "Status briefing" && it.firstDay == LocalDate.of(2026, 11, 30) }.copy(notes = "Bring the made-up figures for the third quarter.")
-    DetailScreen(o, DetailInfo(CALENDARS[0], ZONE, "FREQ=WEEKLY;BYDAY=MO", listOf(EventReminder(10), EventReminder(60)), null), look(), {}, {}, {}, {}, {})
-}
-
-@Preview(name = "Detail, conflict", widthDp = 400, heightDp = 860)
+@Preview(name = "Editor, conflict", widthDp = 400, heightDp = 860)
 @Composable
 fun ConflictPreview() = Themed(dark = true) {
-    val o = EVENTS.first { it.title == "Dentist" }
-    DetailScreen(o, DetailInfo(CALENDARS[1], ZONE, null, listOf(EventReminder(30)), "conflict"), look(), {}, {}, {}, {}, {})
+    val state = EditorState(EventDraft("Dentist", false, LocalDate.of(2026, 11, 26), LocalTime.of(16, 0), LocalDate.of(2026, 11, 26), LocalTime.of(17, 0), ZONE, reminders = listOf(EventReminder(30)), location = "12 Made-up Street"), "home")
+    EditorScreen(state, false, CALENDARS.filter { !it.readOnly }, look(), {}, {}, syncProblem = "conflict", onDelete = {}, onCopy = {}, onShare = {})
+}
+
+@Preview(name = "Holiday", widthDp = 400, heightDp = 860)
+@Composable
+fun LockedPreview() = Themed(dark = true) {
+    val h = EVENTS.first { it.calendarId == HolidayCalendar.VIETNAM.id }
+    val state = EditorState(EventDraft(h.title, true, h.firstDay, LocalTime.MIDNIGHT, h.lastDay, LocalTime.MIDNIGHT, ZONE, notes = h.notes, color = h.color), h.calendarId)
+    EditorScreen(state, false, CALENDARS.filter { it.id == h.calendarId }, look(), {}, {}, locked = true, onCopy = {}, onShare = {})
 }
 
 @Preview(name = "Editor", widthDp = 400, heightDp = 1200)
@@ -212,13 +213,13 @@ fun EditorPreview() = Themed(dark = false) {
         EventDraft("Phở with Tuấn", false, LocalDate.of(2026, 11, 27), LocalTime.of(18, 30), LocalDate.of(2026, 11, 27), LocalTime.of(20, 0), ZONE, "FREQ=WEEKLY;INTERVAL=2;BYDAY=FR", listOf(EventReminder(30)), "Phở Made-up, District 3", ""),
         "family",
     )
-    EditorScreen(state, false, CALENDARS.filter { !it.readOnly }, look(), Reminders.Defaults(10, null), {}, {})
+    EditorScreen(state, false, CALENDARS.filter { !it.readOnly }, look(), {}, {}, onDelete = {}, onCopy = {}, onShare = {})
 }
 
 @Preview(name = "Add", widthDp = 400, heightDp = 860)
 @Composable
 fun AddPreview() = Themed(dark = true) {
-    EditorScreen(EditorState(newDraft(TODAY, null, NOW, ZONE, 60), "home"), true, CALENDARS.filter { !it.readOnly }, look(), Reminders.Defaults(10, null), {}, {})
+    EditorScreen(EditorState(newDraft(TODAY, null, NOW, ZONE, 60, Reminders.ONE_CALENDAR_DEFAULTS.forNew(false)), "home"), true, CALENDARS.filter { !it.readOnly }, look(), {}, {}, onCopy = {})
 }
 
 @Preview(name = "Year", widthDp = 400, heightDp = 860)

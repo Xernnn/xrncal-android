@@ -433,6 +433,23 @@ class RadicaleTest {
     }
 
     @Test
+    fun undoAfterTheDeleteReachedTheServerMakesTheEventAgain() {
+        laptopPut(work + "dentist-1.ics", dentist)
+        val phone = Phone()
+        phone.sync()
+        val u = runBlocking { phone.events.delete(phone.one("Dentist"), Scope.ALL) }!!
+        phone.sync()
+        assertNull(laptopGet(work + "dentist-1.ics"))
+        runBlocking { phone.events.undo(u) }
+        phone.sync()
+        val other = Phone()
+        other.sync()
+        val back = other.one("Dentist")
+        assertEquals("dentist-1", back.uid)
+        assertEquals("12 Made-up Street", back.location)
+    }
+
+    @Test
     fun aNewEventsDefaultReminderReachesTheServerAsItsOwnAlarm() {
         val phone = Phone()
         phone.sync()

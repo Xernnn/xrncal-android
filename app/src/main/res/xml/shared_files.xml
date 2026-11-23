@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- What the share provider may hand out: the .ics files Share writes to the app's cache. -->
+<paths>
+    <cache-path name="shared" path="shared/" />
+</paths>

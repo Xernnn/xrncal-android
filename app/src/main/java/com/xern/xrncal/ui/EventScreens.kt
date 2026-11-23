@@ -33,7 +33,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.outlined.DarkMode
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.NotificationsNone
 import androidx.compose.material.icons.outlined.Place
@@ -58,6 +58,8 @@ import androidx.compose.material3.TimePicker
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -92,109 +94,12 @@ import java.time.ZoneId
 import java.time.ZoneOffset
 import java.time.temporal.ChronoUnit
 
-// ---------------- detail ----------------
-
-/** What the detail shows of an event beyond its occurrence. */
-data class DetailInfo(
-    val calendar: CalendarInfo?,
-    val zone: ZoneId?,
-    val rule: String?,
-    val reminders: List<EventReminder>,
-    val problem: String?,
-)
-
-/**
- * An event's detail: the app bar in its calendar's colour with back, edit and delete; then the
- * title, the date and time, the lunar date, the repeat, the reminders, the calendar, the place and
- * the notes. An event that couldn't be sent shows why, with Keep mine and Keep theirs.
- */
-@Composable
-fun DetailScreen(
-    o: Occurrence,
-    info: DetailInfo,
-    look: Look,
-    onBack: () -> Unit,
-    onEdit: (() -> Unit)?,
-    onDelete: (() -> Unit)?,
-    onKeepMine: () -> Unit,
-    onKeepTheirs: () -> Unit,
-) {
-    val ink = LocalInk.current
-    val bar = look.color(o)
-    val fg = onColor(bar)
-    var menu by remember { mutableStateOf(false) }
-    Column(Modifier.fillMaxSize().background(ink.screen)) {
-        Column(Modifier.fillMaxWidth().background(bar).statusBarsPadding()) {
-            Row(Modifier.fillMaxWidth().height(56.dp), verticalAlignment = Alignment.CenterVertically) {
-                BarIcon(Icons.AutoMirrored.Filled.ArrowBack, onBack, fg, "Back")
-                Spacer(Modifier.weight(1f))
-                if (onEdit != null) BarIcon(Icons.Filled.Edit, onEdit, fg, "Edit")
-                if (onDelete != null) {
-                    Box {
-                        BarIcon(Icons.Filled.MoreVert, { menu = true }, fg, "More")
-                        DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                            DropdownMenuItem(text = { Text("Delete", style = type(15)) }, onClick = {
-                                menu = false
-                                onDelete()
-                            })
-                        }
-                    }
-                }
-            }
-            Text(o.title.ifBlank { "(no title)" }, style = type(24, FontWeight.Medium, fg), modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 18.dp))
-        }
-        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(vertical = 8.dp).navigationBarsPadding()) {
-            if (info.problem != null) {
-                Column(Modifier.fillMaxWidth().padding(16.dp).clip(RoundedCornerShape(8.dp)).background(ink.field).padding(12.dp)) {
-                    Text(problemLabel(info.problem), style = type(15, FontWeight.SemiBold, ink.warn))
-                    Row {
-                        TextButton(onClick = onKeepMine) { Text("Keep mine", style = type(14, FontWeight.Medium, ink.accent)) }
-                        TextButton(onClick = onKeepTheirs) { Text("Keep theirs", style = type(14, FontWeight.Medium, ink.accent)) }
-                    }
-                }
-            }
-            val zoned = info.zone?.takeIf { !o.allDay && it.rules.getOffset(o.start) != look.zone.rules.getOffset(o.start) }
-            DetailLine(
-                icon = Icons.Outlined.Schedule,
-                main = if (o.allDay) (if (o.multiDay) "${Format.dateButton(o.firstDay)} – ${Format.dateButton(o.lastDay)}" else Format.dateButton(o.firstDay))
-                else if (o.multiDay) Format.span(o, look.h24, look.zone) else Format.dateButton(o.firstDay),
-                side = if (o.allDay) null else if (o.multiDay) null else Format.span(o, look.h24, look.zone),
-            )
-            if (zoned != null) DetailLine(Format.span(o, look.h24, zoned), zoned.id, Icons.Outlined.Language)
-            if (look.lunar) DetailLine("Âm lịch " + Format.lunarLong(o.firstDay), null, Icons.Outlined.DarkMode)
-            info.rule?.let { DetailLine(RepeatRules.describe(it, o.firstDay), null, Icons.Outlined.Repeat) }
-            info.reminders.forEachIndexed { i, r -> DetailLine(Reminders.label(r.minutesBefore, o.allDay), null, if (i == 0) Icons.Outlined.NotificationsNone else null) }
-            info.calendar?.let { c ->
-                Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.size(20.dp), contentAlignment = Alignment.Center) { Swatch(Color(c.color)) }
-                    Spacer(Modifier.width(16.dp))
-                    Text(c.name, style = type(16, color = ink.text))
-                }
-            }
-            if (o.location.isNotBlank()) DetailLine(o.location, null, Icons.Outlined.Place)
-            if (o.notes.isNotBlank()) {
-                HorizontalDivider(color = ink.line, modifier = Modifier.padding(vertical = 8.dp))
-                Text(o.notes, style = type(15, color = ink.text), modifier = Modifier.padding(horizontal = 20.dp))
-            }
-        }
-    }
-}
+// ---------------- shared ----------------
 
 fun problemLabel(p: String): String = when (p) {
     "conflict" -> "Changed on the server too"
     "gone" -> "Deleted on the server"
     else -> p
-}
-
-@Composable
-private fun DetailLine(main: String, side: String?, icon: androidx.compose.ui.graphics.vector.ImageVector? = null) {
-    val ink = LocalInk.current
-    Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 9.dp), verticalAlignment = Alignment.CenterVertically) {
-        if (icon != null) Icon(icon, contentDescription = null, tint = ink.muted, modifier = Modifier.size(20.dp)) else Spacer(Modifier.size(20.dp))
-        Spacer(Modifier.width(16.dp))
-        Text(main, style = type(16, color = ink.text), modifier = Modifier.weight(1f))
-        if (side != null) Text(side, style = type(16, color = ink.text))
-    }
 }
 
 /** "This event" or "All events", asked before editing or deleting a date of a series. */
@@ -220,6 +125,10 @@ fun ScopeDialog(title: String, onThis: () -> Unit, onAll: () -> Unit, onDismiss:
 /** The editor's fields while they are being changed. */
 @Stable
 class EditorState(draft: EventDraft, calendarId: String) {
+    /** What the editor opened with: ✓ with nothing changed saves nothing. */
+    private val initial = draft
+    private val initialCalendar = calendarId
+
     var title by mutableStateOf(draft.title)
     var calendarId by mutableStateOf(calendarId)
     var allDay by mutableStateOf(draft.allDay)
@@ -236,6 +145,9 @@ class EditorState(draft: EventDraft, calendarId: String) {
 
     fun draft() = EventDraft(title, allDay, startDate, startTime, endDate, endTime, zone, rule?.let { RepeatRules.fitUntil(it, allDay, zone) }, reminders, location, notes, color)
 
+    /** Whether anything differs from what the editor opened with. */
+    fun changed(): Boolean = calendarId != initialCalendar || draft() != initial.copy(rrule = initial.rrule?.let { RepeatRules.fitUntil(it, initial.allDay, initial.zone) })
+
     /** A new start moves the end with it, so the event keeps its length. */
     fun moveStart(date: LocalDate, time: LocalTime) {
         val before = java.time.LocalDateTime.of(startDate, startTime)
@@ -249,10 +161,16 @@ class EditorState(draft: EventDraft, calendarId: String) {
     }
 }
 
+/** The editor's fields can't be changed: a read-only calendar's event, or a holiday. */
+val LocalLocked = compositionLocalOf { false }
+
 /**
- * The editor, as One Calendar lays it out: the app bar in the chosen calendar's colour with ✕ and
- * ✓, then Subject, Calendar, All day, Start and End (date, time, time zone), Repeat, Location,
- * Reminders and Notes.
+ * The editor, opened straight from an event as One Calendar and the laptop do (docs/spec.md, phase
+ * 2 item 8): the bar in the event's colour with ✕, "Add" or "Edit", ⋮ (Copy, Share), Delete and
+ * ✓; then Subject, Calendar with the event's colour, All day, Start and End (date, time, time
+ * zone; the lunar date under the start), Repeat, Location, Reminder and Description. An event
+ * that couldn't be sent says why at the top, with Keep mine and Keep theirs. A [locked] event (a
+ * read-only calendar's, a holiday) shows its fields without ✓ or Delete.
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -261,69 +179,104 @@ fun EditorScreen(
     adding: Boolean,
     calendars: List<CalendarInfo>,
     look: Look,
-    defaults: Reminders.Defaults,
     onCancel: () -> Unit,
     onSave: () -> Unit,
+    locked: Boolean = false,
+    syncProblem: String? = null,
+    onDelete: (() -> Unit)? = null,
+    onCopy: (() -> Unit)? = null,
+    onShare: (() -> Unit)? = null,
+    onKeepMine: () -> Unit = {},
+    onKeepTheirs: () -> Unit = {},
 ) {
     val ink = LocalInk.current
     val cal = calendars.firstOrNull { it.id == state.calendarId }
-    val bar = Color(cal?.color ?: 0xFF308FFE.toInt())
+    val bar = Color(state.color ?: cal?.color ?: 0xFF308FFE.toInt())
     val fg = onColor(bar)
     val problem = state.draft().problem()
     var picking by remember { mutableStateOf<String?>(null) }
+    var menu by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxSize().background(ink.screen).imePadding()) {
         Row(Modifier.fillMaxWidth().background(bar).statusBarsPadding().height(56.dp), verticalAlignment = Alignment.CenterVertically) {
             BarIcon(Icons.Filled.Close, onCancel, fg, "Cancel")
             Text(if (adding) "Add" else "Edit", style = type(20, FontWeight.SemiBold, fg), modifier = Modifier.padding(start = 8.dp).weight(1f))
-            BarIcon(Icons.Filled.Check, { if (problem == null) onSave() }, if (problem == null) fg else fg.copy(alpha = 0.4f), "Save")
+            if (onCopy != null || onShare != null) {
+                Box {
+                    BarIcon(Icons.Filled.MoreVert, { menu = true }, fg, "More")
+                    DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                        if (onCopy != null) DropdownMenuItem(text = { Text("Copy", style = type(15)) }, onClick = {
+                            menu = false
+                            onCopy()
+                        })
+                        if (onShare != null) DropdownMenuItem(text = { Text("Share", style = type(15)) }, onClick = {
+                            menu = false
+                            onShare()
+                        })
+                    }
+                }
+            }
+            if (!locked && onDelete != null) BarIcon(Icons.Outlined.Delete, onDelete, fg, "Delete")
+            if (!locked) BarIcon(Icons.Filled.Check, { if (problem == null) onSave() }, if (problem == null) fg else fg.copy(alpha = 0.4f), "Save")
         }
-        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 24.dp).navigationBarsPadding()) {
-            Label("Subject")
-            Field(state.title, { state.title = it }, Modifier.padding(horizontal = 16.dp))
-            Label("Calendar")
-            var colorOpen by remember { mutableStateOf(false) }
-            Row(Modifier.padding(end = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.weight(1f)) { CalendarPicker(calendars, state.calendarId) { state.calendarId = it } }
-                Row(
-                    Modifier.height(52.dp).clip(RoundedCornerShape(4.dp)).background(ink.field).clickable { colorOpen = true }
-                        .semantics { contentDescription = "Event colour" }.padding(start = 12.dp, end = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Swatch(Color(state.color ?: cal?.color ?: 0), 22.dp)
-                    Icon(Icons.Filled.ArrowDropDown, contentDescription = null, tint = ink.muted)
+        CompositionLocalProvider(LocalLocked provides locked) {
+            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 24.dp).navigationBarsPadding()) {
+                if (syncProblem != null) {
+                    Column(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 12.dp).clip(RoundedCornerShape(8.dp)).background(ink.field).padding(12.dp)) {
+                        Text(problemLabel(syncProblem), style = type(15, FontWeight.SemiBold, ink.warn))
+                        Row {
+                            TextButton(onClick = onKeepMine) { Text("Keep mine", style = type(14, FontWeight.Medium, ink.accent)) }
+                            TextButton(onClick = onKeepTheirs) { Text("Keep theirs", style = type(14, FontWeight.Medium, ink.accent)) }
+                        }
+                    }
                 }
-            }
-            if (colorOpen) {
-                ColorPickerDialog("Colour", state.color, cal?.color ?: 0, onPick = {
-                    state.color = it
-                    colorOpen = false
-                }, onDismiss = { colorOpen = false })
-            }
-            Divider()
-            SwitchRow("All day", state.allDay) { on ->
-                state.allDay = on
-                if (on && state.endDate.isBefore(state.startDate)) state.endDate = state.startDate
-                if (!on && java.time.LocalDateTime.of(state.endDate, state.endTime) <= java.time.LocalDateTime.of(state.startDate, state.startTime)) {
-                    val end = java.time.LocalDateTime.of(state.startDate, state.startTime).plusHours(1)
-                    state.endDate = end.toLocalDate()
-                    state.endTime = end.toLocalTime()
+                Label("Subject")
+                Field(state.title, { state.title = it }, Modifier.padding(horizontal = 16.dp))
+                Label("Calendar")
+                var colorOpen by remember { mutableStateOf(false) }
+                Row(Modifier.padding(end = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.weight(1f)) { CalendarPicker(calendars, state.calendarId) { state.calendarId = it } }
+                    Row(
+                        Modifier.height(52.dp).clip(RoundedCornerShape(4.dp)).background(ink.field).clickable(enabled = !locked) { colorOpen = true }
+                            .semantics { contentDescription = "Event colour" }.padding(start = 12.dp, end = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Swatch(Color(state.color ?: cal?.color ?: 0), 22.dp)
+                        Icon(Icons.Filled.ArrowDropDown, contentDescription = null, tint = ink.muted)
+                    }
                 }
+                if (colorOpen) {
+                    ColorPickerDialog("Colour", state.color, cal?.color ?: 0, onPick = {
+                        state.color = it
+                        colorOpen = false
+                    }, onDismiss = { colorOpen = false })
+                }
+                Divider()
+                SwitchRow("All day", state.allDay) { on ->
+                    state.allDay = on
+                    if (on && state.endDate.isBefore(state.startDate)) state.endDate = state.startDate
+                    if (!on && java.time.LocalDateTime.of(state.endDate, state.endTime) <= java.time.LocalDateTime.of(state.startDate, state.startTime)) {
+                        val end = java.time.LocalDateTime.of(state.startDate, state.startTime).plusHours(1)
+                        state.endDate = end.toLocalDate()
+                        state.endTime = end.toLocalTime()
+                    }
+                }
+                Label("Start")
+                WhenRow(state.startDate, state.startTime, state.allDay, look, { picking = "startDate" }, { picking = "startTime" }, { picking = "zone" })
+                if (look.lunar) Text("Âm lịch " + Format.lunarLong(state.startDate), style = type(13, color = ink.muted), modifier = Modifier.padding(start = 20.dp, top = 4.dp))
+                Label("End")
+                WhenRow(state.endDate, state.endTime, state.allDay, look, { picking = "endDate" }, { picking = "endTime" }, { picking = "zone" })
+                if (problem != null) Text(problem, style = type(13, color = ink.warn), modifier = Modifier.padding(start = 20.dp, top = 4.dp))
+                if (!state.allDay && state.zone != look.zone) Text(state.zone.id, style = type(13, color = ink.muted), modifier = Modifier.padding(start = 20.dp, top = 4.dp))
+                Divider()
+                RepeatSection(state)
+                Divider()
+                Label("Location")
+                Field(state.location, { state.location = it }, Modifier.padding(horizontal = 16.dp))
+                Label("Reminder")
+                ReminderSection(state)
+                Label("Description")
+                Field(state.notes, { state.notes = it }, Modifier.padding(horizontal = 16.dp).heightIn(min = 96.dp), singleLine = false)
             }
-            Label("Start")
-            WhenRow(state.startDate, state.startTime, state.allDay, look, { picking = "startDate" }, { picking = "startTime" }, { picking = "zone" })
-            Label("End")
-            WhenRow(state.endDate, state.endTime, state.allDay, look, { picking = "endDate" }, { picking = "endTime" }, { picking = "zone" })
-            if (problem != null) Text(problem, style = type(13, color = ink.warn), modifier = Modifier.padding(start = 20.dp, top = 4.dp))
-            if (!state.allDay && state.zone != look.zone) Text(state.zone.id, style = type(13, color = ink.muted), modifier = Modifier.padding(start = 20.dp, top = 4.dp))
-            Divider()
-            RepeatSection(state)
-            Divider()
-            Label("Location")
-            Field(state.location, { state.location = it }, Modifier.padding(horizontal = 16.dp))
-            Label("Reminders")
-            ReminderSection(state)
-            Label("Notes")
-            Field(state.notes, { state.notes = it }, Modifier.padding(horizontal = 16.dp).heightIn(min = 96.dp), singleLine = false)
         }
     }
     when (picking) {
@@ -349,6 +302,7 @@ fun Field(value: String, onChange: (String) -> Unit, modifier: Modifier = Modifi
     TextField(
         value = value,
         onValueChange = onChange,
+        readOnly = LocalLocked.current,
         singleLine = singleLine,
         textStyle = type(16, color = ink.text),
         keyboardOptions = KeyboardOptions(keyboardType = when {
@@ -371,7 +325,7 @@ fun Field(value: String, onChange: (String) -> Unit, modifier: Modifier = Modifi
 private fun Picker(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, leading: (@Composable () -> Unit)? = null) {
     val ink = LocalInk.current
     Row(
-        modifier.height(52.dp).clip(RoundedCornerShape(4.dp)).background(ink.field).clickable(onClick = onClick).padding(start = 12.dp, end = 4.dp),
+        modifier.height(52.dp).clip(RoundedCornerShape(4.dp)).background(ink.field).clickable(enabled = !LocalLocked.current, onClick = onClick).padding(start = 12.dp, end = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         leading?.invoke()
@@ -407,9 +361,10 @@ private fun CalendarPicker(calendars: List<CalendarInfo>, selected: String, onPi
 @Composable
 private fun SwitchRow(text: String, on: Boolean, onChange: (Boolean) -> Unit) {
     val ink = LocalInk.current
-    Row(Modifier.fillMaxWidth().clickable { onChange(!on) }.padding(start = 20.dp, end = 16.dp, top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+    val locked = LocalLocked.current
+    Row(Modifier.fillMaxWidth().clickable(enabled = !locked) { onChange(!on) }.padding(start = 20.dp, end = 16.dp, top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(text, style = type(17, color = ink.text), modifier = Modifier.weight(1f))
-        Switch(checked = on, onCheckedChange = onChange, colors = SwitchDefaults.colors(checkedTrackColor = ink.accent))
+        Switch(checked = on, onCheckedChange = onChange, enabled = !locked, colors = SwitchDefaults.colors(checkedTrackColor = ink.accent))
     }
 }
 
@@ -420,8 +375,8 @@ private fun WhenRow(date: LocalDate, time: LocalTime, allDay: Boolean, look: Loo
         Picker(Format.dateButton(date), onDate, Modifier.weight(1.4f))
         if (!allDay) {
             Picker(Format.time(time, look.h24), onTime, Modifier.weight(0.9f))
-            Box(Modifier.size(52.dp).clip(RoundedCornerShape(4.dp)).background(ink.field).clickable(onClick = onZone), contentAlignment = Alignment.Center) {
-                Icon(Icons.Outlined.Language, contentDescription = null, tint = ink.muted)
+            Box(Modifier.size(52.dp).clip(RoundedCornerShape(4.dp)).background(ink.field).clickable(enabled = !LocalLocked.current, onClick = onZone), contentAlignment = Alignment.Center) {
+                Icon(Icons.Outlined.Language, contentDescription = "Time zone", tint = ink.muted)
             }
         }
     }
@@ -559,11 +514,11 @@ private fun ReminderSection(state: EditorState) {
         for (r in list) {
             Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(4.dp)).background(ink.field).padding(start = 12.dp, end = 4.dp).height(48.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(Reminders.choiceLabel(r.minutesBefore) + if (r.email) " (email)" else "", style = type(16, color = ink.text), modifier = Modifier.weight(1f))
-                IconButton(onClick = { state.reminders = list - r }) { Icon(Icons.Filled.Close, contentDescription = "Remove reminder", tint = ink.muted) }
+                if (!LocalLocked.current) IconButton(onClick = { state.reminders = list - r }) { Icon(Icons.Filled.Close, contentDescription = "Remove reminder", tint = ink.muted) }
             }
         }
         Box {
-            Text("+ Reminder", style = type(15, FontWeight.Medium, ink.accent), modifier = Modifier.clickable { adding = true }.padding(vertical = 8.dp, horizontal = 4.dp))
+            if (!LocalLocked.current) Text("+ Reminder", style = type(15, FontWeight.Medium, ink.accent), modifier = Modifier.clickable { adding = true }.padding(vertical = 8.dp, horizontal = 4.dp))
             DropdownMenu(expanded = adding, onDismissRequest = { adding = false }) {
                 for (m in Reminders.ONE_CALENDAR_CHOICES) {
                     DropdownMenuItem(text = { Text(Reminders.choiceLabel(m), style = type(15)) }, onClick = {

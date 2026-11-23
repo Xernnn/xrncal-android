@@ -171,13 +171,42 @@ class EventRepository(
         return moved.id
     }
 
-    suspend fun delete(occ: Occurrence, scope: Scope) = withContext(work) {
-        val r = store.resource(occ.resourceId) ?: return@withContext
-        val cal = store.calendar(r.calendarId) ?: return@withContext
+    /** A resource as it was before a delete, for Undo. */
+    data class Undo(val before: ResourceEntity)
+
+    /** Deletes [occ] (that date, or the whole event); returns what Undo needs to put it back. */
+    suspend fun delete(occ: Occurrence, scope: Scope): Undo? = withContext(work) {
+        val r = store.resource(occ.resourceId) ?: return@withContext null
+        val cal = store.calendar(r.calendarId) ?: return@withContext null
         require(!cal.readOnly) { "read-only calendar" }
         val ics = Edits.delete(r.ics, occ, scope, clock())
         if (ics == null) store.deleteLocal(r.id) else store.saveLocal(r.copy(ics = ics))
         changed()
+        Undo(r)
+    }
+
+    /**
+     * Puts a deleted event back as it was, as the laptop's Undo does: its resource again if the
+     * delete is still waiting to go to the server, else made again (with the same UID) if it has
+     * gone there or was never sent. Returns the resource's id.
+     */
+    suspend fun undo(u: Undo): String = withContext(work) {
+        val now = store.resource(u.before.id)
+        val id = if (now != null) {
+            store.saveLocal(now.copy(ics = u.before.ics, deleted = false)).id
+        } else {
+            store.saveLocal(ResourceEntity(ResourceEntity.newId(), u.before.calendarId, ics = u.before.ics)).id
+        }
+        changed()
+        id
+    }
+
+    /** The iCalendar text to share for [occ]: its resource, or a holiday written as an event. */
+    suspend fun shareText(occ: Occurrence): String = withContext(work) {
+        store.resource(occ.resourceId)?.ics ?: Edits.create(
+            EventDraft(occ.title, occ.allDay, occ.firstDay, java.time.LocalTime.MIDNIGHT, occ.lastDay, java.time.LocalTime.MIDNIGHT, zone(), notes = occ.notes),
+            occ.uid, clock(),
+        )
     }
 
     /** Events whose title, place or notes have every word typed, each at its date nearest to now. */

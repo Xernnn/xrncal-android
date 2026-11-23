@@ -46,6 +46,17 @@ class ManifestTest {
         )
     }
 
+    /** Share hands out only the .ics files it writes, to the app shared with, read once. */
+    @Test
+    fun theShareProviderGivesOutOnlyTheSharedFolder() {
+        val provider = named("provider").single { it.getAttributeNS(ANDROID, "name") == "androidx.core.content.FileProvider" }
+        assertEquals("com.xern.xrncal.files", provider.getAttributeNS(ANDROID, "authorities"))
+        assertEquals("false", provider.getAttributeNS(ANDROID, "exported"))
+        assertEquals("true", provider.getAttributeNS(ANDROID, "grantUriPermissions"))
+        val paths = File("src/main/res/xml/shared_files.xml").readText()
+        assertTrue(paths, paths.contains("<cache-path name=\"shared\" path=\"shared/\" />") && !paths.contains("root-path") && !paths.contains("files-path"))
+    }
+
     @Test
     fun nothingLeavesThePhoneInABackup() {
         val app = named("application").single()

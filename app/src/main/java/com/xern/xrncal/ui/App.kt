@@ -40,6 +40,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -71,8 +72,11 @@ import kotlinx.coroutines.launch
 
 /** What is open over the calendar, last on top. */
 sealed interface Screen {
-    data class Detail(val occ: Occurrence) : Screen
-    data class Edit(val state: EditorState, val occ: Occurrence?, val scope: Scope) : Screen
+    /**
+     * The editor: a new event ([occ] null), or [occ] opened on its own date's fields; [locked] for
+     * one that can't be changed, [problem] when it couldn't be sent.
+     */
+    data class Edit(val state: EditorState, val occ: Occurrence?, val locked: Boolean = false, val problem: String? = null) : Screen
     data object Search : Screen
     data object Settings : Screen
 }
@@ -115,7 +119,7 @@ fun App(graph: Graph) {
     var anchor by remember { mutableStateOf(today) }
     var popup by remember { mutableStateOf<LocalDate?>(null) }
     var asking by remember { mutableStateOf<Pair<String, (Scope) -> Unit>?>(null) }
-    var confirmDelete by remember { mutableStateOf<(() -> Unit)?>(null) }
+    var undo by remember { mutableStateOf<EventRepository.Undo?>(null) }
     val drawer = rememberDrawerState(DrawerValue.Closed)
     val writable = calendars.filter { !it.readOnly && HolidayCalendar.of(it.id) == null }
     val defaults = Reminders.Defaults(settings.timedReminder, settings.allDayReminder)
@@ -125,19 +129,32 @@ fun App(graph: Graph) {
 
     fun add(day: LocalDate, hour: Int? = null) {
         val cal = defaultCalendar() ?: return
-        stack += Screen.Edit(EditorState(newDraft(day, hour, now, zone, settings.eventMinutes, defaults.forNew(false)), cal), null, Scope.ALL)
+        stack += Screen.Edit(EditorState(newDraft(day, hour, now, zone, settings.eventMinutes, defaults.forNew(false)), cal), null)
+    }
+
+    // Tapping an event opens the editor straight away, as One Calendar and the laptop do.
+    suspend fun editorFor(o: Occurrence): Screen.Edit? {
+        val holiday = HolidayCalendar.of(o.calendarId) != null
+        val draft = if (holiday) {
+            com.xern.xrncal.domain.EventDraft(o.title, true, o.firstDay, java.time.LocalTime.MIDNIGHT, o.lastDay, java.time.LocalTime.MIDNIGHT, zone, notes = o.notes, color = o.color)
+        } else {
+            graph.events.draft(o, Scope.THIS) ?: return null
+        }
+        val problem = if (holiday) null else graph.events.resource(o.resourceId)?.problem
+        return Screen.Edit(EditorState(draft, o.calendarId), o, locked = holiday || o.calendarId in look.readOnly, problem = problem)
     }
 
     fun open(o: Occurrence) {
         popup = null
-        stack += Screen.Detail(o)
+        scope.launch { editorFor(o)?.let { stack += it } }
     }
 
     LaunchedEffect(Unit) {
         graph.open.collect { (id, start) ->
-            graph.events.find(id, start)?.let {
+            graph.events.find(id, start)?.let { o ->
+                val e = editorFor(o) ?: return@let
                 stack.clear()
-                stack += Screen.Detail(it)
+                stack += e
             }
         }
     }
@@ -307,53 +324,68 @@ fun App(graph: Graph) {
     }
 
     when (val top = stack.lastOrNull()) {
-        is Screen.Detail -> DetailRoute(
-            graph, top.occ, look, revision, defaults,
-            onBack = { stack.removeAt(stack.lastIndex) },
-            onEdit = { o ->
-                val go = { s: Scope ->
-                    asking = null
-                    scope.launch {
-                        val draft = graph.events.draft(o, s) ?: return@launch
-                        stack += Screen.Edit(EditorState(draft, o.calendarId), o, s)
-                    }
-                    Unit
-                }
-                if (o.recurring) asking = "Edit" to go else go(Scope.ALL)
-            },
-            onDelete = { o ->
-                val go = { s: Scope ->
-                    asking = null
-                    confirmDelete = null
-                    scope.launch {
-                        graph.events.delete(o, s)
-                        stack.removeAll { it is Screen.Detail }
-                    }
-                    Unit
-                }
-                if (o.recurring) asking = "Delete" to go else confirmDelete = { go(Scope.ALL) }
-            },
-            onKeepMine = { id -> scope.launch { graph.events.keepMine(id) } },
-            onKeepTheirs = { id ->
-                scope.launch {
-                    runCatching { graph.engine.keepTheirs(id) }
-                    graph.syncSoon(0)
-                }
-            },
-        )
         is Screen.Edit -> {
             val state = top.state
-            // One date of a series stays in its calendar; a whole event can move to another.
-            val choices = if (top.occ != null && top.occ.recurring && top.scope == Scope.THIS) writable.filter { it.id == state.calendarId } else writable
-            EditorScreen(state, top.occ == null, choices, look, defaults, onCancel = { stack.removeAt(stack.lastIndex) }, onSave = {
-                val draft = state.draft()
-                scope.launch {
-                    if (top.occ == null) graph.events.create(state.calendarId, draft)
-                    else graph.events.update(top.occ, draft, top.scope, state.calendarId)
-                    anchor = draft.startDate
-                    stack.removeAll { it is Screen.Edit || it is Screen.Detail }
-                }
-            })
+            val occ = top.occ
+            fun close() {
+                stack.removeAll { it is Screen.Edit }
+            }
+            // A date of a series stays in its calendar unless the whole series is saved; the
+            // event's own calendar is offered even when it can't take changes (to show it).
+            val choices = if (top.locked) calendars.filter { it.id == state.calendarId } else writable
+            EditorScreen(
+                state, occ == null, choices, look,
+                onCancel = { stack.removeAt(stack.lastIndex) },
+                onSave = {
+                    val draft = state.draft()
+                    fun save(s: Scope) {
+                        asking = null
+                        scope.launch {
+                            if (occ == null) graph.events.create(state.calendarId, draft)
+                            else graph.events.update(occ, draft, s, state.calendarId)
+                            anchor = draft.startDate
+                            close()
+                        }
+                    }
+                    when {
+                        occ == null -> save(Scope.ALL)
+                        !state.changed() -> close()
+                        // "This event" or "All events" is asked when there is something to save.
+                        occ.recurring && state.calendarId == occ.calendarId -> asking = "Save" to ::save
+                        else -> save(Scope.ALL)
+                    }
+                },
+                locked = top.locked,
+                syncProblem = top.problem,
+                onDelete = occ?.let { o ->
+                    {
+                        fun delete(s: Scope) {
+                            asking = null
+                            scope.launch {
+                                undo = graph.events.delete(o, s)
+                                close()
+                            }
+                        }
+                        if (o.recurring) asking = "Delete" to ::delete else delete(Scope.ALL)
+                    }
+                },
+                onCopy = {
+                    // A new event with the same fields, in a calendar that can take it.
+                    val cal = writable.firstOrNull { it.id == state.calendarId }?.id ?: defaultCalendar()
+                    if (cal != null) stack += Screen.Edit(EditorState(state.draft().copy(reminders = state.reminders ?: defaults.forNew(state.allDay)), cal), null)
+                },
+                onShare = occ?.let { o -> { scope.launch { shareEvent(context, o.title, graph.events.shareText(o)) } } },
+                onKeepMine = { occ?.let { o -> scope.launch { graph.events.keepMine(o.resourceId); close() } } },
+                onKeepTheirs = {
+                    occ?.let { o ->
+                        scope.launch {
+                            runCatching { graph.engine.keepTheirs(o.resourceId) }
+                            graph.syncSoon(0)
+                            close()
+                        }
+                    }
+                },
+            )
         }
         Screen.Search -> {
             var query by rememberSaveable { mutableStateOf("") }
@@ -400,14 +432,47 @@ fun App(graph: Graph) {
     }
 
     asking?.let { (what, go) -> ScopeDialog(what, { go(Scope.THIS) }, { go(Scope.ALL) }, { asking = null }) }
-    confirmDelete?.let { go ->
-        AlertDialog(
-            onDismissRequest = { confirmDelete = null },
-            title = { Text("Delete?", style = type(18, FontWeight.SemiBold, ink.text)) },
-            confirmButton = { TextButton(onClick = go) { Text("Delete", style = type(14, FontWeight.Medium, ink.warn)) } },
-            dismissButton = { TextButton(onClick = { confirmDelete = null }) { Text("Cancel", style = type(14, FontWeight.Medium, ink.accent)) } },
-        )
+
+    // "Deleted" with Undo for a few seconds, as the laptop does.
+    undo?.let { u ->
+        LaunchedEffect(u) {
+            delay(UNDO_MS)
+            if (undo === u) undo = null
+        }
+        Box(Modifier.fillMaxSize().navigationBarsPadding().padding(16.dp), contentAlignment = Alignment.BottomCenter) {
+            Row(
+                Modifier.fillMaxWidth().clip(androidx.compose.foundation.shape.RoundedCornerShape(6.dp)).background(ink.sheet).padding(start = 16.dp, end = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("Deleted", style = type(15, color = ink.text), modifier = Modifier.weight(1f))
+                TextButton(onClick = {
+                    undo = null
+                    scope.launch { graph.events.undo(u) }
+                }) { Text("Undo", style = type(15, FontWeight.SemiBold, ink.accent)) }
+            }
+        }
     }
+}
+
+/** How long "Deleted" offers Undo. */
+private const val UNDO_MS = 6_000L
+
+/** An event as an .ics file through Android's share sheet (written to the app's cache, shared by its file provider). */
+private suspend fun shareEvent(context: android.content.Context, title: String, ics: String) {
+    val uri = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        val dir = java.io.File(context.cacheDir, "shared").apply { mkdirs() }
+        dir.listFiles()?.forEach { it.delete() }
+        val name = title.replace(Regex("[^\\p{L}\\p{N} ._-]"), "").trim().take(60).ifEmpty { "event" } + ".ics"
+        val file = java.io.File(dir, name)
+        file.writeText(ics)
+        androidx.core.content.FileProvider.getUriForFile(context, context.packageName + ".files", file)
+    }
+    val send = android.content.Intent(android.content.Intent.ACTION_SEND)
+        .setType("text/calendar")
+        .putExtra(android.content.Intent.EXTRA_STREAM, uri)
+        .putExtra(android.content.Intent.EXTRA_SUBJECT, title)
+        .addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    context.startActivity(android.content.Intent.createChooser(send, "Share"))
 }
 
 /** Calls [onPage] whenever the pager settles on a page. */
@@ -421,41 +486,4 @@ private fun Follow(pager: PagerState, onPage: (Int) -> Unit) {
 fun occurrences(graph: Graph, from: LocalDate, to: LocalDate, revision: Long, holidays: Set<String>): List<Occurrence> {
     val state = produceState(emptyList<Occurrence>(), from, to, revision, holidays) { value = graph.events.occurrences(from, to) }
     return state.value
-}
-
-@Composable
-private fun DetailRoute(
-    graph: Graph,
-    occ: Occurrence,
-    look: Look,
-    revision: Long,
-    defaults: Reminders.Defaults,
-    onBack: () -> Unit,
-    onEdit: (Occurrence) -> Unit,
-    onDelete: (Occurrence) -> Unit,
-    onKeepMine: (String) -> Unit,
-    onKeepTheirs: (String) -> Unit,
-) {
-    val holiday = HolidayCalendar.of(occ.calendarId) != null
-    val info by produceState(DetailInfo(null, null, null, emptyList(), null), occ, revision) {
-        val cal = graph.events.calendars().firstOrNull { it.id == occ.calendarId }
-        val row = if (holiday) null else graph.events.resource(occ.resourceId)
-        val master = if (holiday) null else graph.events.parsed(occ.resourceId)?.master(occ.uid)
-        val start = master?.start
-        val zone = when {
-            start == null || start.isDate -> null
-            start.utc -> ZoneOffset.UTC
-            else -> Zones.ianaFor(start.tzid ?: "")
-        }
-        val reminders = if (holiday) emptyList() else Reminders.effective(occ.reminders)
-        value = DetailInfo(cal, zone, master?.rrule, reminders, row?.problem)
-    }
-    val editable = !holiday && occ.calendarId !in look.readOnly
-    DetailScreen(
-        occ, info, look, onBack,
-        onEdit = if (editable) ({ onEdit(occ) }) else null,
-        onDelete = if (editable) ({ onDelete(occ) }) else null,
-        onKeepMine = { onKeepMine(occ.resourceId) },
-        onKeepTheirs = { onKeepTheirs(occ.resourceId) },
-    )
 }

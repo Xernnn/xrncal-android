@@ -38,6 +38,15 @@
             </intent-filter>
         </activity>
 
+        <!-- Share: an event as an .ics file, read once by the app it is shared with. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="com.xern.xrncal.files"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/shared_files" />
+        </provider>
+
         <!-- A reminder's alarm, and the moments the alarms are set again. HyperOS delivers the boot
              and update ones only with Autostart on. -->
         <receiver android:name=".work.ReminderReceiver" android:exported="false">
