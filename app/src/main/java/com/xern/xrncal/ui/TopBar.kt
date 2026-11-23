@@ -96,7 +96,7 @@ fun TopBar(
         Box {
             BarIcon(Icons.Filled.Add, { adding = true }, description = "Add")
             DropdownMenu(expanded = adding, onDismissRequest = { adding = false }) {
-                DropdownMenuItem(text = { Text("Add appointment", style = type(16)) }, onClick = {
+                DropdownMenuItem(text = { Text("Add appointment", style = type(16)) }, leadingIcon = { Icon(Icons.Filled.Add, contentDescription = null, tint = ink.accent) }, onClick = {
                     adding = false
                     onAdd()
                 })

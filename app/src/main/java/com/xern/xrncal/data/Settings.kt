@@ -58,7 +58,10 @@ data class Settings(
     val overlay: Float = 0.15f,
     /** The wallpaper's blur, 0 to 20. */
     val blur: Int = 2,
-    /** Today's date and the time line: One Calendar's signal colour. */
+    /**
+     * Today's date and the time line. By default xrncal's red, the laptop's, drawn in its dark or
+     * light shade ([signalFor]); any other colour is drawn as picked.
+     */
     val signal: Int = SIGNAL_RED,
 
     // Views.
@@ -113,8 +116,18 @@ data class Settings(
     /** The zone the app shows everything in. */
     fun zoneId(): ZoneId = if (deviceZone) ZoneId.systemDefault() else zone?.let { runCatching { ZoneId.of(it) }.getOrNull() } ?: ZoneId.systemDefault()
 
+    /** The signal colour as drawn in the dark or the light theme: the default's own shade, or the colour picked. */
+    fun signalFor(dark: Boolean): Int = if (signal == SIGNAL_RED && !dark) SIGNAL_RED_LIGHT else signal
+
     companion object {
-        const val SIGNAL_RED = 0xFFF44336.toInt()
+        /** xrncal's today red, the laptop's in its dark theme (#f0616d); the default. */
+        const val SIGNAL_RED = 0xFFF0616D.toInt()
+
+        /** The same red in the laptop's light theme (#eb5757). */
+        const val SIGNAL_RED_LIGHT = 0xFFEB5757.toInt()
+
+        /** One Calendar's red (#f44336), the default until settings version 3. */
+        const val ONE_CALENDAR_RED = 0xFFF44336.toInt()
         val SNOOZES = listOf(5, 10, 15, 30, 60)
         val SYNC_INTERVALS = listOf(15, 30, 60, 120, 360)
         val HISTORY = listOf(1, 2, 3, 5, 0)
@@ -124,8 +137,8 @@ data class Settings(
 
 /** What changes when settings saved by an older version are read. */
 object SettingsMigration {
-    /** 1: 0.1.0, which saved every setting whenever one changed. 2: phase 2. */
-    const val VERSION = 2
+    /** 1: 0.1.0, which saved every setting whenever one changed. 2: phase 2. 3: xrncal's colours. */
+    const val VERSION = 3
 
     /**
      * The reminder defaults as read from version [from]: 0.1.0's own defaults (10 minutes, none)
@@ -137,6 +150,13 @@ object SettingsMigration {
         val d = Settings()
         return (if (timed == 10) d.timedReminder else timed) to (if (allDay == null) d.allDayReminder else allDay)
     }
+
+    /**
+     * The signal colour as read from version [from]: One Calendar's red, the default until
+     * version 3, becomes xrncal's, since every save wrote it whether or not the owner picked it;
+     * any other colour was picked and stays.
+     */
+    fun signal(from: Int, stored: Int): Int = if (from < 3 && stored == Settings.ONE_CALENDAR_RED) Settings.SIGNAL_RED else stored
 }
 
 /** Where [Settings] are kept: preferences on the phone, memory in the tests. */
@@ -205,7 +225,7 @@ class PrefsSettings(private val prefs: SharedPreferences) : SettingsStore() {
             wallpaper = string("wallpaper", d.wallpaper) ?: d.wallpaper,
             overlay = float("overlay", d.overlay),
             blur = int("blur", d.blur),
-            signal = int("signal", d.signal),
+            signal = SettingsMigration.signal(from, int("signal", d.signal)),
             monthPopup = bool("monthPopup", d.monthPopup),
             dayStart = int("dayStart", d.dayStart).coerceIn(0, 23),
             hourSize = enum("hourSize", d.hourSize),

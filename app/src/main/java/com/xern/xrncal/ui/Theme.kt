@@ -24,7 +24,8 @@ import com.xern.xrncal.R
 
 /**
  * The colours: One Calendar's phone themes (light: #F5F5F5 bars on a white page; dark: #36373B
- * bars on #202125), its red for today, and xrncal's tile blue as the accent.
+ * bars on #202125), with the laptop xrncal's own: its red for today (#eb5757 light, #f0616d
+ * dark) and its accent (#2383e2 light, the blurple #5865f2 dark).
  */
 @Immutable
 data class Ink(
@@ -58,15 +59,14 @@ data class Ink(
     }
 
     companion object {
-        val Accent = Color(0xFF308FFE)
         val Light = Ink(
             page = Color(0xFFFFFFFF), bar = Color(0xFFF5F5F5), text = Color(0xFF1B1B1B), muted = Color(0xFF6E6E6E), faint = Color(0xFFBDBDBD),
-            line = Color(0xFFE6E6E6), todayCell = Color(0xFFF7F7F7), today = Color(0xFFDB090C), accent = Accent, accentTint = Color(0xFFE6EFFF),
+            line = Color(0xFFE6E6E6), todayCell = Color(0xFFF7F7F7), today = Color(0xFFEB5757), accent = Color(0xFF2383E2), accentTint = Color(0xFFE5F0FB),
             sheet = Color(0xFFFFFFFF), field = Color(0xFFF0F0F0), lunar = Color(0xFF9A9A9A), warn = Color(0xFFD93025),
         )
         val Dark = Ink(
             page = Color(0xFF202125), bar = Color(0xFF36373B), text = Color(0xFFF1F1F1), muted = Color(0xFFA8A8AC), faint = Color(0xFF5C5D61),
-            line = Color(0xFF34353A), todayCell = Color(0xFF2A2B30), today = Color(0xFFFF4A4D), accent = Color(0xFF5AA6FF), accentTint = Color(0xFF263A55),
+            line = Color(0xFF34353A), todayCell = Color(0xFF2A2B30), today = Color(0xFFF0616D), accent = Color(0xFF5865F2), accentTint = Color(0xFF34375A),
             sheet = Color(0xFF2B2C31), field = Color(0xFF36373B), lunar = Color(0xFF85868B), warn = Color(0xFFFF6B5E),
         )
     }

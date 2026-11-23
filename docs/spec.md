@@ -128,7 +128,8 @@ editor opens on that date's fields or the series'. One date of a series stays in
 **Look.** One Calendar's default light theme (#F5F5F5 bars, white page) and dark theme (#202125
 page, #36373B bars); calendar colours drawn as solid fills with white text (dark text on a light
 colour). On top of that, the xrn family's: MiSans VF for every text, xrncal's tile as the app
-icon, its blue (#308FFE) as the accent, light and dark following the phone. Figures and short
+icon, light and dark following the phone, and (since xrncal's touches, below) the laptop
+xrncal's accent and today red. Figures and short
 labels only: no hints, explanations, empty-state sentences or legends.
 
 ## Data model
@@ -290,7 +291,7 @@ them), plus "No image" (the plain One Calendar themes of phase 1) and **Import f
 through Android's photo picker, which needs no permission: the picture is scaled down to 1600 px
 and kept in the app's own files. Settings, Theme: wallpaper, overlay darkness (0 to 0.8), blur
 (0 to 20), app theme (System, Light, Dark; Dark by default) and the signal colour (today's date
-and the time line; One Calendar's red by default).
+and the time line; One Calendar's red by default until xrncal's touches made it the laptop's).
 
 ### 2. Colours
 
@@ -493,6 +494,20 @@ TalkBack names it and tests can find it.
   round trip; a new event's default reminder reaching the server as a VALARM.
 - Previews of every new screen from made-up calendars, rendered to PNGs.
 - `ManifestTest`: the widgets' receivers and the share provider (Snooze is an explicit broadcast to the reminder receiver, which needs no filter).
+
+## xrncal's touches: the laptop's look over One Calendar's layout
+
+One Calendar's layout stays (top bar, drawer, month cells, list, editor); these carry the laptop
+xrncal's signature touches over it.
+
+- **Colours.** The accent is the laptop's: #2383e2 in the light theme, the blurple #5865f2 in the
+  dark, in place of One Calendar's light blue. It colours the Options bars, an editor bar with no
+  calendar colour to take, switches, the selected drawer item, the `+` menu, links and buttons; an
+  editor's bar in its calendar's colour stays so. The default signal colour (today) is the
+  laptop's red, #eb5757 light and #f0616d dark. Settings saved before (version 2 or older) with One
+  Calendar's red (#f44336), the old default, move to the new one, since every save wrote it
+  whether or not it was picked; any other colour stays, and so does One Calendar's red picked
+  after the update.
 
 ## Later
 

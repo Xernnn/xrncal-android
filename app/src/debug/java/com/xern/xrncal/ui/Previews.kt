@@ -112,7 +112,7 @@ private val EVENTS: List<Occurrence> by lazy {
 /** The app's theme over the default wallpaper (Cyber City, overlay 0.15, blur 2), as on the phone. */
 @Composable
 private fun Themed(dark: Boolean, wallpaper: Boolean = true, content: @Composable () -> Unit) =
-    XrnTheme(dark = dark, wallpaper = wallpaper, signal = androidx.compose.ui.graphics.Color(Settings.SIGNAL_RED)) {
+    XrnTheme(dark = dark, wallpaper = wallpaper, signal = androidx.compose.ui.graphics.Color(Settings().signalFor(dark))) {
         val image = androidx.compose.ui.graphics.ImageBitmap.imageResource(com.xern.xrncal.R.drawable.wallpaper_cyber_city)
         androidx.compose.runtime.CompositionLocalProvider(LocalBackdrop provides { Backdrop(if (wallpaper) image else null, 0.15f, 2, dark) }) {
             Box(Modifier.fillMaxSize()) {

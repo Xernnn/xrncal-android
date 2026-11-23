@@ -119,7 +119,7 @@ object Widgets {
             when (row) {
                 is WidgetData.AgendaRow.Day -> i.toLong() to RemoteViews(context.packageName, R.layout.widget_agenda_day).apply {
                     setTextViewText(R.id.row_day, dayTitle(row.date) + if (s.lunar) "  ·  " + Format.lunar(row.date) else "")
-                    setTextColor(R.id.row_day, if (row.date == input.today) s.signal else s.widgetText)
+                    setTextColor(R.id.row_day, if (row.date == input.today) s.signalFor(s.widgetDark) else s.widgetText)
                     // A header opens the app.
                     setOnClickFillInIntent(R.id.row_day, Intent())
                 }
@@ -168,7 +168,7 @@ object Widgets {
         val views = RemoteViews(context.packageName, R.layout.widget_date)
         frame(views, s)
         views.setTextViewText(R.id.date_weekday, input.today.dayOfWeek.getDisplayName(TextStyle.SHORT, L))
-        views.setTextColor(R.id.date_weekday, s.signal)
+        views.setTextColor(R.id.date_weekday, s.signalFor(s.widgetDark))
         views.setTextViewText(R.id.date_day, "${input.today.dayOfMonth}")
         views.setTextColor(R.id.date_day, s.widgetText)
         views.setTextViewText(R.id.date_lunar, if (s.lunar) Format.lunar(input.today) else input.today.month.getDisplayName(TextStyle.SHORT, L))
@@ -229,7 +229,7 @@ object Widgets {
                 val today = d == input.today
                 text.textSize = dp(11f)
                 text.typeface = Typeface.create(if (today) "sans-serif-medium" else "sans-serif", Typeface.NORMAL)
-                text.color = if (today) s.signal else s.widgetText
+                text.color = if (today) s.signalFor(s.widgetDark) else s.widgetText
                 text.alpha = if (d.month == month.month) 255 else 110
                 c.drawText("${d.dayOfMonth}" + if (week.more[i] > 0) "+${week.more[i]}" else "", pad + col * i + dp(3f), y + dp(11f), text)
                 if (s.lunar && d.month == month.month && col > dp(36f)) {
