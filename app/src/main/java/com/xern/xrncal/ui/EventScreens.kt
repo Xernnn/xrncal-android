@@ -126,12 +126,12 @@ fun DetailScreen(
     Column(Modifier.fillMaxSize().background(ink.screen)) {
         Column(Modifier.fillMaxWidth().background(bar).statusBarsPadding()) {
             Row(Modifier.fillMaxWidth().height(56.dp), verticalAlignment = Alignment.CenterVertically) {
-                BarIcon(Icons.AutoMirrored.Filled.ArrowBack, onBack, fg)
+                BarIcon(Icons.AutoMirrored.Filled.ArrowBack, onBack, fg, "Back")
                 Spacer(Modifier.weight(1f))
-                if (onEdit != null) BarIcon(Icons.Filled.Edit, onEdit, fg)
+                if (onEdit != null) BarIcon(Icons.Filled.Edit, onEdit, fg, "Edit")
                 if (onDelete != null) {
                     Box {
-                        BarIcon(Icons.Filled.MoreVert, { menu = true }, fg)
+                        BarIcon(Icons.Filled.MoreVert, { menu = true }, fg, "More")
                         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                             DropdownMenuItem(text = { Text("Delete", style = type(15)) }, onClick = {
                                 menu = false
@@ -273,9 +273,9 @@ fun EditorScreen(
     var picking by remember { mutableStateOf<String?>(null) }
     Column(Modifier.fillMaxSize().background(ink.screen).imePadding()) {
         Row(Modifier.fillMaxWidth().background(bar).statusBarsPadding().height(56.dp), verticalAlignment = Alignment.CenterVertically) {
-            BarIcon(Icons.Filled.Close, onCancel, fg)
+            BarIcon(Icons.Filled.Close, onCancel, fg, "Cancel")
             Text(if (adding) "Add" else "Edit", style = type(20, FontWeight.SemiBold, fg), modifier = Modifier.padding(start = 8.dp).weight(1f))
-            BarIcon(Icons.Filled.Check, { if (problem == null) onSave() }, if (problem == null) fg else fg.copy(alpha = 0.4f))
+            BarIcon(Icons.Filled.Check, { if (problem == null) onSave() }, if (problem == null) fg else fg.copy(alpha = 0.4f), "Save")
         }
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 24.dp).navigationBarsPadding()) {
             Label("Subject")

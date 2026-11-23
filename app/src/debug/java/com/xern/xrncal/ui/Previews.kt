@@ -123,15 +123,8 @@ private fun between(from: LocalDate, to: LocalDate) = EVENTS.filter { !it.firstD
 
 /** The calendar's top bar, as App draws it. */
 @Composable
-private fun Bar(title: String) {
-    val ink = LocalInk.current
-    Row(Modifier.fillMaxWidth().background(ink.bar).statusBarsPadding().height(56.dp), verticalAlignment = Alignment.CenterVertically) {
-        BarIcon(Icons.Filled.Menu, {})
-        Text(title, style = type(24, color = ink.text), modifier = Modifier.padding(start = 12.dp).weight(1f))
-        BarIcon(Icons.Filled.Add, {})
-        TodayButton(TODAY.dayOfMonth) {}
-    }
-}
+private fun Bar(title: String, subtitle: String? = null) =
+    TopBar(title, subtitle, TODAY.dayOfMonth, CALENDARS, "caldav.example.com", {}, {}, {}, {}, { _, _ -> })
 
 @Composable
 private fun MonthScreen(dark: Boolean) = Themed(dark = dark) {
@@ -184,7 +177,7 @@ fun ListDarkPreview() = ListScreen(true)
 fun WeekPreview() = Themed(dark = true) {
     val week = (0L until 7L).map { LocalDate.of(2026, 11, 23).plusDays(it) }
     Column(Modifier.fillMaxSize()) {
-        Bar("November")
+        Bar("November", "week 48")
         TimeGridPage(week, between(week.first(), week.last()), look(), NOW, {}, { _, _ -> }, androidx.compose.foundation.rememberScrollState(840), 40.dp)
     }
 }
@@ -193,7 +186,7 @@ fun WeekPreview() = Themed(dark = true) {
 @Composable
 fun DayPreview() = Themed(dark = true) {
     Column(Modifier.fillMaxSize()) {
-        Bar("November")
+        Bar("Tuesday 24", "November")
         TimeGridPage(listOf(TODAY), between(TODAY, TODAY), look(), NOW, {}, { _, _ -> }, androidx.compose.foundation.rememberScrollState(840), 40.dp)
     }
 }
@@ -228,10 +221,18 @@ fun AddPreview() = Themed(dark = true) {
     EditorScreen(EditorState(newDraft(TODAY, null, NOW, ZONE, 60), "home"), true, CALENDARS.filter { !it.readOnly }, look(), Reminders.Defaults(10, null), {}, {})
 }
 
+@Preview(name = "Filter", widthDp = 400, heightDp = 860)
+@Composable
+fun FilterPreview() = Themed(dark = true) {
+    Box(Modifier.fillMaxSize()) {
+        Box(Modifier.padding(start = 150.dp, top = 60.dp).background(LocalInk.current.sheet)) { FilterList(CALENDARS, "caldav.example.com") { _, _ -> } }
+    }
+}
+
 @Preview(name = "Drawer", widthDp = 400, heightDp = 860)
 @Composable
-fun DrawerPreview() = Themed(dark = false) {
-    DrawerContent(View.MONTH, CALENDARS, "caldav.example.com", false, {}, {}, {}, {}, { _, _ -> })
+fun DrawerPreview() = Themed(dark = true) {
+    DrawerContent(View.WEEK, false, {}, {}, {}, {}, {})
 }
 
 @Preview(name = "Search", widthDp = 400, heightDp = 860)

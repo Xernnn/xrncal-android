@@ -151,7 +151,9 @@ fun App(graph: Graph) {
     val days = remember { today }
 
     var title by remember { mutableStateOf("") }
+    var subtitle by remember { mutableStateOf<String?>(null) }
     var todayAction by remember { mutableStateOf<() -> Unit>({}) }
+    val serverName = graph.account.address.let { a -> runCatching { java.net.URI(a.trim()).host }.getOrNull() ?: a }.ifBlank { "CalDAV" }
 
     LocalBackdrop.current()
     ModalNavigationDrawer(
@@ -160,8 +162,6 @@ fun App(graph: Graph) {
         drawerContent = {
             DrawerContent(
                 view = view,
-                calendars = calendars,
-                serverName = graph.account.address.let { a -> runCatching { java.net.URI(a.trim()).host }.getOrNull() ?: a }.ifBlank { "CalDAV" },
                 syncing = status.running,
                 onView = {
                     view = it
@@ -172,21 +172,26 @@ fun App(graph: Graph) {
                     scope.launch { drawer.close() }
                 },
                 onSync = { scope.launch { graph.syncNow() } },
-                onSettings = {
+                onAccounts = {
                     stack += Screen.Settings
                     scope.launch { drawer.close() }
                 },
-                onToggle = { id, on -> scope.launch { graph.events.setShown(id, on, graph.settings) } },
+                onOptions = {
+                    stack += Screen.Settings
+                    scope.launch { drawer.close() }
+                },
             )
         },
     ) {
         Column(Modifier.fillMaxSize()) {
-            Row(Modifier.fillMaxWidth().background(ink.bar).statusBarsPadding().height(56.dp), verticalAlignment = Alignment.CenterVertically) {
-                BarIcon(Icons.Filled.Menu, { scope.launch { drawer.open() } })
-                Text(title, style = type(24, color = ink.text), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(start = 12.dp).weight(1f))
-                BarIcon(Icons.Filled.Add, { add(if (view == View.DAY || YearMonth.from(anchor) != YearMonth.from(today)) anchor else today) })
-                TodayButton(today.dayOfMonth) { todayAction() }
-            }
+            TopBar(
+                title, subtitle, today.dayOfMonth, calendars, serverName,
+                onMenu = { scope.launch { drawer.open() } },
+                onSubtitle = { view = View.MONTH },
+                onAdd = { add(if (view == View.DAY || YearMonth.from(anchor) != YearMonth.from(today)) anchor else today) },
+                onToday = { todayAction() },
+                onToggle = { id, on -> scope.launch { graph.events.setShown(id, on, graph.settings) } },
+            )
             Box(Modifier.fillMaxSize().navigationBarsPadding()) {
                 key(view, firstDay) {
                     when (view) {
@@ -194,6 +199,7 @@ fun App(graph: Graph) {
                             val pager = rememberPagerState(initialPage = MID + ChronoUnit.MONTHS.between(months, YearMonth.from(anchor)).toInt()) { 2 * MID }
                             Follow(pager) { p -> anchor = months.plusMonths((p - MID).toLong()).let { if (it == YearMonth.from(today)) today else it.atDay(1) } }
                             title = Format.month(months.plusMonths((pager.currentPage - MID).toLong()), today)
+                            subtitle = null
                             todayAction = { scope.launch { pager.animateScrollToPage(MID + ChronoUnit.MONTHS.between(months, YearMonth.from(today)).toInt()) } }
                             HorizontalPager(pager, beyondViewportPageCount = 1) { page ->
                                 val ym = months.plusMonths((page - MID).toLong())
@@ -206,6 +212,7 @@ fun App(graph: Graph) {
                             val pager = rememberPagerState(initialPage = MID + ChronoUnit.MONTHS.between(months, YearMonth.from(anchor)).toInt()) { 2 * MID }
                             val ym = months.plusMonths((pager.currentPage - MID).toLong())
                             title = Format.month(ym, today)
+                            subtitle = null
                             var from by remember { mutableStateOf(anchor) }
                             Follow(pager) { p ->
                                 val m = months.plusMonths((p - MID).toLong())
@@ -234,6 +241,7 @@ fun App(graph: Graph) {
                             Follow(pager) { p -> anchor = weeks.plusWeeks((p - MID).toLong()).let { if (WeekStart.startOfWeek(today, firstDay) == it) today else it } }
                             val start = weeks.plusWeeks((pager.currentPage - MID).toLong())
                             title = Format.month(YearMonth.from(start.plusDays(3)), today)
+                            subtitle = "week ${WeekStart.isoWeekOfRow(start)}"
                             todayAction = { scope.launch { pager.animateScrollToPage(MID + ChronoUnit.WEEKS.between(weeks, WeekStart.startOfWeek(today, firstDay)).toInt()) } }
                             val scroll = rememberScrollState()
                             // Opened at the day's start (08:00), as One Calendar.
@@ -248,7 +256,9 @@ fun App(graph: Graph) {
                         View.DAY -> {
                             val pager = rememberPagerState(initialPage = MID + ChronoUnit.DAYS.between(days, anchor).toInt()) { 2 * MID }
                             Follow(pager) { p -> anchor = days.plusDays((p - MID).toLong()) }
-                            title = Format.month(YearMonth.from(days.plusDays((pager.currentPage - MID).toLong())), today)
+                            val shown = days.plusDays((pager.currentPage - MID).toLong())
+                            title = Format.dayTitle(shown, today)
+                            subtitle = Format.month(YearMonth.from(shown), today)
                             todayAction = { scope.launch { pager.animateScrollToPage(MID + ChronoUnit.DAYS.between(days, today).toInt()) } }
                             val scroll = rememberScrollState()
                             // Opened at the day's start (08:00), as One Calendar.

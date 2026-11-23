@@ -64,67 +64,6 @@ import java.time.DayOfWeek
 import java.time.Instant
 import java.time.ZoneId
 
-// ---------------- drawer ----------------
-
-/**
- * The drawer: the views (List, Month, Week, Day), Search, Sync and Settings, then each calendar
- * with its colour and a switch, by account, and the holiday calendars.
- */
-@Composable
-fun DrawerContent(
-    view: View,
-    calendars: List<CalendarInfo>,
-    serverName: String,
-    syncing: Boolean,
-    onView: (View) -> Unit,
-    onSearch: () -> Unit,
-    onSync: () -> Unit,
-    onSettings: () -> Unit,
-    onToggle: (String, Boolean) -> Unit,
-) {
-    val ink = LocalInk.current
-    Column(Modifier.fillMaxHeight().width(300.dp).background(ink.sheet).statusBarsPadding().navigationBarsPadding().verticalScroll(rememberScrollState())) {
-        Spacer(Modifier.height(8.dp))
-        DrawerItem(Icons.AutoMirrored.Outlined.ViewList, "List", view == View.LIST) { onView(View.LIST) }
-        DrawerItem(Icons.Outlined.CalendarMonth, "Month", view == View.MONTH) { onView(View.MONTH) }
-        DrawerItem(Icons.Outlined.CalendarViewWeek, "Week", view == View.WEEK) { onView(View.WEEK) }
-        DrawerItem(Icons.Outlined.CalendarViewDay, "Day", view == View.DAY) { onView(View.DAY) }
-        HorizontalDivider(color = ink.line, modifier = Modifier.padding(vertical = 6.dp))
-        DrawerItem(Icons.Outlined.Search, "Search", false, onSearch)
-        DrawerItem(Icons.Outlined.Sync, if (syncing) "Syncing" else "Sync", false, onSync)
-        DrawerItem(Icons.Outlined.Settings, "Settings", false, onSettings)
-        for ((group, title) in listOf(EventRepository.SERVER_GROUP to serverName, EventRepository.LOCAL_GROUP to "Phone", EventRepository.HOLIDAY_GROUP to "Holidays")) {
-            val list = calendars.filter { it.group == group }
-            if (list.isEmpty()) continue
-            HorizontalDivider(color = ink.line, modifier = Modifier.padding(vertical = 6.dp))
-            Text(title, style = type(13, FontWeight.Medium, ink.muted), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(start = 20.dp, top = 6.dp, bottom = 4.dp, end = 16.dp))
-            for (c in list) {
-                Row(Modifier.fillMaxWidth().clickable { onToggle(c.id, !c.shown) }.padding(start = 20.dp, end = 12.dp, top = 2.dp, bottom = 2.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Swatch(Color(c.color), 16.dp)
-                    Spacer(Modifier.width(14.dp))
-                    Text(c.name, style = type(15, color = ink.text), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-                    Switch(checked = c.shown, onCheckedChange = { onToggle(c.id, it) }, colors = SwitchDefaults.colors(checkedTrackColor = Color(c.color)))
-                }
-            }
-        }
-        Spacer(Modifier.height(16.dp))
-    }
-}
-
-@Composable
-private fun DrawerItem(icon: ImageVector, label: String, selected: Boolean, onClick: () -> Unit) {
-    val ink = LocalInk.current
-    Row(
-        Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 1.dp).clip(RoundedCornerShape(24.dp))
-            .background(if (selected) ink.accentTint else Color.Transparent).clickable(onClick = onClick).padding(horizontal = 14.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(icon, contentDescription = null, tint = if (selected) ink.accent else ink.muted)
-        Spacer(Modifier.width(20.dp))
-        Text(label, style = type(16, FontWeight.Medium, if (selected) ink.accent else ink.text))
-    }
-}
-
 // ---------------- search ----------------
 
 @Composable
@@ -133,7 +72,7 @@ fun SearchScreen(query: String, onQuery: (String) -> Unit, results: List<Occurre
     Box(Modifier.fillMaxSize()) { LocalBackdrop.current() }
     Column(Modifier.fillMaxSize().background(ink.page)) {
         Row(Modifier.fillMaxWidth().background(ink.bar).statusBarsPadding().padding(end = 12.dp, top = 4.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            BarIcon(Icons.AutoMirrored.Filled.ArrowBack, onBack)
+            BarIcon(Icons.AutoMirrored.Filled.ArrowBack, onBack, description = "Back")
             Field(query, onQuery, Modifier.weight(1f))
         }
         LazyColumn(Modifier.fillMaxSize().navigationBarsPadding()) {
@@ -168,7 +107,7 @@ fun SettingsScreen(
     val ink = LocalInk.current
     Column(Modifier.fillMaxSize().background(ink.screen)) {
         Row(Modifier.fillMaxWidth().background(ink.accent).statusBarsPadding().height(56.dp), verticalAlignment = Alignment.CenterVertically) {
-            BarIcon(Icons.AutoMirrored.Filled.ArrowBack, onBack, Color.White)
+            BarIcon(Icons.AutoMirrored.Filled.ArrowBack, onBack, Color.White, "Back")
             Text("Settings", style = type(20, FontWeight.SemiBold, Color.White), modifier = Modifier.padding(start = 8.dp))
         }
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).navigationBarsPadding().padding(bottom = 24.dp)) {

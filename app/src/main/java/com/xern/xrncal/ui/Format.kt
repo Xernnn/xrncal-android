@@ -60,6 +60,10 @@ object Format {
         return if (ym.year == today.year) name else "$name ${ym.year}"
     }
 
+    /** The day view's title, as One Calendar's: `Tuesday 24`, with the year when it isn't this year's. */
+    fun dayTitle(d: LocalDate, today: LocalDate): String =
+        "${d.dayOfWeek.getDisplayName(TextStyle.FULL, L)} ${d.dayOfMonth}" + if (d.year != today.year) " ${d.year}" else ""
+
     /** `24 FRIDAY`, the list's day header. */
     fun listDay(d: LocalDate): String = "${d.dayOfMonth} ${d.dayOfWeek.getDisplayName(TextStyle.FULL, L).uppercase(L)}"
 

@@ -87,7 +87,7 @@ fun rememberNow(): Instant {
 @Composable
 fun TodayButton(day: Int, onClick: () -> Unit) {
     val ink = LocalInk.current
-    IconButton(onClick = onClick) {
+    IconButton(onClick = onClick, modifier = Modifier.semantics { contentDescription = "Today" }) {
         Box(Modifier.size(26.dp), contentAlignment = Alignment.Center) {
             Canvas(Modifier.size(24.dp)) {
                 val stroke = 1.8.dp.toPx()
@@ -100,9 +100,10 @@ fun TodayButton(day: Int, onClick: () -> Unit) {
     }
 }
 
+/** An icon button in a bar, named for TalkBack and the tests by [description]. */
 @Composable
-fun BarIcon(icon: ImageVector, onClick: () -> Unit, tint: Color = LocalInk.current.text) {
-    IconButton(onClick = onClick) { Icon(icon, contentDescription = null, tint = tint) }
+fun BarIcon(icon: ImageVector, onClick: () -> Unit, tint: Color = LocalInk.current.text, description: String) {
+    IconButton(onClick = onClick) { Icon(icon, contentDescription = description, tint = tint) }
 }
 
 @Composable
