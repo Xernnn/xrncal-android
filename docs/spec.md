@@ -357,7 +357,8 @@ and the time line; One Calendar's red by default until xrncal's touches made it 
   smaller, when it differs from the phone's, written the same way (`04`); a zone off the whole
   hour keeps its minutes (`02:30`).
 - Event blocks: the title, then the time range (when the block has room).
-- Week header: One Calendar's "Mo 23" with the lunar day under it; today's in the signal colour.
+- Week header: One Calendar's "Mo 23" with the lunar day under it; today's in the signal colour
+  (the laptop's stacked header since xrncal's touches, below).
 
 ### 5. Top bar like One Calendar's
 
@@ -518,6 +519,13 @@ xrncal's signature touches over it.
   the day header (the chip, then the year's name), the month cell (the glyph and the coloured
   date without the chip's ground, which a seventh of a phone can't hold; a "+N" beside the number
   gives way to it) and the list's day headers carry them. Other days keep the plain lunar date.
+- **The laptop's week header**, in place of One Calendar's "Mo 23" on one line: the weekday in
+  small capitals on top ("MO"), the date big under it, the lunar date (or the moon's chip) small
+  under that. Today's weekday is in the today colour and its date white on a filled circle of it;
+  Saturday's and Sunday's names are in the today colour a little faded, as the laptop's. The day
+  view's header is the same stack in the gutter's width, with the lunar date and the week level
+  with the date beside it. The header is taller than One Calendar's line; the grid's room below
+  midnight still lets it open at the day's start.
 
 ## Later
 

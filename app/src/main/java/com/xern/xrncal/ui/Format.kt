@@ -39,6 +39,12 @@ object Format {
     /** One Calendar's week header: `Mo`, `Tu`. */
     fun weekdayTwo(d: java.time.DayOfWeek): String = d.getDisplayName(TextStyle.SHORT, L).take(2)
 
+    /** The laptop's week header, the weekday in small capitals over the date: `MO`, `TU`. */
+    fun weekdayCaps(d: java.time.DayOfWeek): String = weekdayTwo(d).uppercase(L)
+
+    /** Saturday and Sunday, whose names the week header and the month's weekday row write in red, as the laptop does. */
+    fun weekend(d: java.time.DayOfWeek): Boolean = d == java.time.DayOfWeek.SATURDAY || d == java.time.DayOfWeek.SUNDAY
+
     /** `16:00 – 17:00`; across days, each end with its day. */
     fun span(o: Occurrence, h24: Boolean, zone: ZoneId = ZoneId.systemDefault()): String {
         if (o.allDay) return if (o.multiDay) "${dayShort(o.firstDay)} – ${dayShort(o.lastDay)}" else "All day"

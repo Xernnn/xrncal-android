@@ -60,4 +60,10 @@ class ViewTextTest {
         assertEquals("Mo", Format.weekdayTwo(DayOfWeek.MONDAY))
         assertEquals("Tu", Format.weekdayTwo(DayOfWeek.TUESDAY))
     }
+
+    @Test
+    fun theLaptopsWeekHeaderWritesTheWeekdayInCapitalsAndMarksTheWeekend() {
+        assertEquals(listOf("MO", "TU", "WE", "TH", "FR", "SA", "SU"), DayOfWeek.entries.map { Format.weekdayCaps(it) })
+        assertEquals(listOf(DayOfWeek.SATURDAY, DayOfWeek.SUNDAY), DayOfWeek.entries.filter { Format.weekend(it) })
+    }
 }

@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -21,6 +22,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.xern.xrncal.domain.Lunar
 import com.xern.xrncal.domain.Moon
 import com.xern.xrncal.domain.MoonMark
@@ -57,6 +59,27 @@ fun MoonChip(mark: MoonMark, style: TextStyle, modifier: Modifier = Modifier, co
     ) {
         MoonGlyph(mark.moon, color, (style.fontSize.value * if (compact) 0.6f else 0.7f).dp)
         Text(mark.text, style = style.copy(color = color, fontWeight = if (mark.tet) FontWeight.Bold else FontWeight.SemiBold), maxLines = 1)
+    }
+}
+
+/**
+ * A date as the laptop draws today's: white on a filled circle of the today colour, [diameter]
+ * across. Any other day is plain, in [color] and [weight], in the same room, so a row of dates
+ * lines up whichever is today.
+ */
+@Composable
+fun DayNumber(day: Int, today: Boolean, size: Int, diameter: Dp, color: Color, modifier: Modifier = Modifier, weight: FontWeight = FontWeight.Normal) {
+    val ink = LocalInk.current
+    Box(
+        modifier.requiredSize(diameter).then(if (today) Modifier.clip(CircleShape).background(ink.today) else Modifier),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            "$day",
+            style = type(size, if (today) FontWeight.Bold else weight, if (today) Color.White else color, lineHeight = size.sp),
+            maxLines = 1,
+            softWrap = false,
+        )
     }
 }
 
