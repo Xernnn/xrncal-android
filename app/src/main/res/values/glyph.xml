@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The calendar glyph on the tile (100 x 100): two rings, the top bar and the page, in white,
+         and a square on the page in the tile's colour. -->
+    <string name="tile_glyph_page" translatable="false">M39,20 A4,4 0 0 1 43,24 V30 A4,4 0 0 1 39,34 A4,4 0 0 1 35,30 V24 A4,4 0 0 1 39,20 Z M61,20 A4,4 0 0 1 65,24 V30 A4,4 0 0 1 61,34 A4,4 0 0 1 57,30 V24 A4,4 0 0 1 61,20 Z M26,39 V37 A9,9 0 0 1 35,28 H65 A9,9 0 0 1 74,37 V39 Z M26,45 H74 V66 A9,9 0 0 1 65,75 H35 A9,9 0 0 1 26,66 Z</string>
+    <string name="tile_glyph_cuts" translatable="false">M52,53 h12 v12 h-12 Z</string>
+    <!-- Both at once, for the one-colour icons (monochrome launcher layer, status bar): drawn
+         even-odd, so the square is a hole. -->
+    <string name="tile_glyph" translatable="false">M39,20 A4,4 0 0 1 43,24 V30 A4,4 0 0 1 39,34 A4,4 0 0 1 35,30 V24 A4,4 0 0 1 39,20 Z M61,20 A4,4 0 0 1 65,24 V30 A4,4 0 0 1 61,34 A4,4 0 0 1 57,30 V24 A4,4 0 0 1 61,20 Z M26,39 V37 A9,9 0 0 1 35,28 H65 A9,9 0 0 1 74,37 V39 Z M26,45 H74 V66 A9,9 0 0 1 65,75 H35 A9,9 0 0 1 26,66 Z M52,53 h12 v12 h-12 Z</string>
+</resources>

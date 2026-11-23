@@ -1,0 +1,9 @@
+# LF in the repository, whatever the machine that commits.
+* text=auto eol=lf
+
+# Binary assets
+*.png  binary
+*.jpg  binary
+*.webp binary
+*.ttf  binary
+*.jar  binary

@@ -1,0 +1,39 @@
+# Gradle / Kotlin build output and caches
+.gradle/
+build/
+.kotlin/
+.externalNativeBuild/
+.cxx/
+captures/
+
+# Machine-specific: Android SDK location
+local.properties
+
+# Built apps and signing keys
+*.apk
+*.aab
+*.jks
+*.keystore
+
+# Secrets, logs, heap dumps
+.env
+.env.*
+*.log
+*.hprof
+
+# A calendar export holds someone's real events: never in the repo
+*.ics
+!app/src/test/resources/**/*.ics
+!domain/src/test/resources/**/*.ics
+
+# IDE / editor / OS
+.idea/
+*.iml
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Python (the throwaway Radicale the sync tests may start)
+__pycache__/
+.venv/

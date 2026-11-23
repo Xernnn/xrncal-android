@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The xrncal tile's blue (resources/icon.svg of the laptop app): the launcher icon, the in-app
+         tile, and the cut-out in the white glyph, which is painted in it. -->
+    <color name="xrn_tile">#308FFE</color>
+</resources>
