@@ -142,6 +142,22 @@ class LayoutsTest {
         // No range yet: nothing to do.
         assertNull(DayLayout.openAt(max = 0, value = 0, placed = null, target = eight))
     }
+
+    @Test
+    fun theGridHasRoomBelowMidnightSoTheDaysStartCanReachTheTop() {
+        // The owner's phone: a grid about 750 dp tall, Medium hours, the day starting at 08:00.
+        val viewport = 750f
+        // Before: 40 dp hours and nothing below midnight. The grid could scroll 210 dp, which put
+        // about 05:15 at the top with midnight at the bottom, not 08:00.
+        assertTrue(24 * 40f - viewport < 8 * 40f)
+        // Now: room below midnight lets 08:00 reach the top whatever the screen's height.
+        for (hour in listOf(30f, 45f, 56f)) {
+            val max = 24 * hour + DayLayout.roomBelow(viewport, hour, 8) - viewport
+            assertTrue("hour $hour", max >= 8 * hour)
+        }
+        // A grid shorter than the rest of the day needs no room.
+        assertEquals(0f, DayLayout.roomBelow(500f, 45f, 8), 0f)
+    }
 }
 
 /** clock-minutes.test.ts: an event on the grid of a day the clocks change. */
