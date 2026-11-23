@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      # The sync tests run the phone's engine against a real Radicale 3.8.1, the version the
+      # owner's server runs; without it they would be skipped, so CI installs it first.
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Radicale for the sync tests
+        run: |
+          pip install --quiet radicale==3.8.1
+          echo "XRNCAL_RADICALE=$(command -v radicale)" >> "$GITHUB_ENV"
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v6
+
+      # The domain's tests (the laptop app's vectors), the app's (sync against Radicale, reminders,
+      # the manifest), and a debug build.
+      - name: Tests and debug build
+        run: ./gradlew --console=plain :domain:test :app:testDebugUnitTest :app:assembleDebug
+
+      - name: The sync tests ran, not skipped
+        run: |
+          grep -q 'skipped="0"' app/build/test-results/testDebugUnitTest/TEST-com.xern.xrncal.RadicaleTest.xml
+
+      - name: Keep the reports of a failed run
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: reports
+          path: |
+            domain/build/reports/
+            app/build/reports/
