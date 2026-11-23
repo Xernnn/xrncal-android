@@ -120,6 +120,8 @@ object Widgets {
                 is WidgetData.AgendaRow.Day -> i.toLong() to RemoteViews(context.packageName, R.layout.widget_agenda_day).apply {
                     setTextViewText(R.id.row_day, dayTitle(row.date) + if (s.lunar) "  ·  " + Format.lunar(row.date) else "")
                     setTextColor(R.id.row_day, if (row.date == input.today) s.signal else s.widgetText)
+                    // A header opens the app.
+                    setOnClickFillInIntent(R.id.row_day, Intent())
                 }
                 is WidgetData.AgendaRow.Event -> i.toLong() to RemoteViews(context.packageName, R.layout.widget_agenda_event).apply {
                     val o = row.occurrence

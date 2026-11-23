@@ -24,6 +24,7 @@
         android:fontFamily="sans-serif"
         android:maxLines="1"
         android:paddingStart="8dp"
+        android:paddingEnd="4dp"
         android:textSize="13sp" />
 
     <TextView

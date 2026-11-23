@@ -6,23 +6,34 @@ CalDAV, and shows the Vietnamese lunar date on every day. It is the phone side o
 calendars from the same CalDAV server, so an event made on one shows on the other. Kotlin and
 Jetpack Compose, minimum Android 12.
 
-**Status:** phase 1 (version 0.1.0). [docs/spec.md](docs/spec.md) says what is in it, what
-is left for later, and which of One Calendar's layouts it copies.
+**Status:** phase 2 (on top of 0.1.0). [docs/spec.md](docs/spec.md) says what each phase
+holds, what is left for later, and which of One Calendar's layouts it copies.
 
 ## What it does
 
-- **Month** (the default), **List**, **Week** and **Day** views, swiped between periods, with
-  One Calendar's top bar (`+` and a Today button) and a drawer of views and calendars.
-- The **lunar date** (âm lịch) on each day of the month, in each day header and in an event's
-  detail, worked out on the phone by the same method as the laptop app.
-- **Events**: detail, create, edit, delete; all-day; start and end in any time zone; repeat
-  (every day, weekdays, week, month, year, or custom); reminders; location; notes. One date of a
-  repeating event, or all of them.
-- **Reminders** as notifications at their minute (exact alarms), set again after every sync and
-  after a reboot.
+- **Month**, **List**, **Week**, **Day** and **Year** views, swiped between periods, under One
+  Calendar's top bar (the period and its subtitle, `+`, the calendar **filter**, Today) and
+  drawer; a **wallpaper** behind every view (the laptop's four, or one from the gallery) with
+  see-through bars and grid.
+- The month fills each day with one-line chips and counts the rest ("24+2"); tapping a day opens
+  One Calendar's day pop-up. Week and day open at the day's start, at the hour size chosen, with
+  a **second time zone** in the gutter. The year tints each day in its busiest calendar's colour.
+- The **lunar date** (âm lịch) on each day of the month, in the headers, the year and the
+  editor, worked out on the phone by the same method as the laptop app.
+- **Events** open straight into One Calendar's editor: emoji, title and place suggestions and
+  dates typed into a new event's title (all as the laptop does), calendar and **event colour**,
+  all-day, start and end in any time zone, One Calendar's compact repeat form, reminders,
+  description; Copy, Share as .ics, Delete with Undo. One date of a repeating event, or all.
+- **Colours**: One Calendar's palette; a calendar's colour is written to the server, so the
+  laptop shows it too.
+- **Reminders** as notifications at their minute (exact alarms) with Open and Snooze, set again
+  after every sync and after a reboot. As in One Calendar, an event rings only for its own
+  reminders; the defaults fill in new events.
+- **Widgets**: One Calendar's agenda, a month and the date icon.
 - **Holiday calendars**: Vietnam's public and lunar holidays and a few international days,
-  worked out on the phone and turned on and off in the drawer.
-- **Search** across every calendar, accents ignored.
+  worked out on the phone.
+- **Search** with One Calendar's Future and Past tabs, accents ignored; **Options** laid out as
+  One Calendar's.
 
 ## Sync
 
@@ -32,7 +43,8 @@ then the principal's calendar home), keeps each event's iCalendar text as the se
 sends changes back with `If-Match`, so it never writes over an edit made elsewhere: that becomes a
 conflict to settle with "Keep mine" or "Keep theirs". It works offline and sends what changed when
 the server is back. Sync runs on opening the app, after each change and every 30 minutes in the
-background. The password is kept sealed with an Android Keystore key.
+background (Options sets the interval). A calendar colour picked on the phone is written to the
+server as Apple's `calendar-color` (PROPPATCH), which the laptop reads too. The password is kept sealed with an Android Keystore key.
 
 xrncal on the laptop and this app agree on what they write: events in their own time zone with a
 `VTIMEZONE`, reminders as `VALARM`s (as in One Calendar, an event without one never rings; the
@@ -42,7 +54,7 @@ was.
 ## Build and test
 
 ```sh
-./gradlew :domain:test              # iCalendar, recurrence, lunar dates, holidays, reminders, layouts
+./gradlew :domain:test              # iCalendar, recurrence, lunar dates, holidays, reminders, layouts, typed dates, suggestions
 ./gradlew :app:testDebugUnitTest    # sync against a real Radicale, reminders, the manifest
 ./gradlew :app:assembleDebug
 ```
@@ -74,8 +86,8 @@ repository; elsewhere a debug build uses the machine's debug key.
 
 ## Docs
 
-- [docs/spec.md](docs/spec.md): phase 1's scope, the One Calendar layouts copied, the data model,
-  sync and reminders.
+- [docs/spec.md](docs/spec.md): each phase's scope, the One Calendar layouts copied, the data
+  model, sync and reminders.
 
 ## License
 
