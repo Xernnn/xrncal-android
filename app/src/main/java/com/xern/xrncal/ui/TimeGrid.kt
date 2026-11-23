@@ -87,6 +87,7 @@ fun TimeGridPage(
     onSlot: (LocalDate, Int) -> Unit,
     scroll: ScrollState = rememberScrollState(),
     hourHeight: Dp = 40.dp,
+    dayStart: Int = 0,
 ) {
     val ink = LocalInk.current
     Column(Modifier.fillMaxSize().background(ink.page)) {
@@ -116,79 +117,85 @@ fun TimeGridPage(
         }
         AllDayRow(days, occurrences, look, onEvent)
         HorizontalDivider(color = ink.line)
-        // The hours.
-        Box(Modifier.fillMaxSize().verticalScroll(scroll)) {
-            Row(Modifier.fillMaxWidth().height(hourHeight * 24)) {
-                Column(Modifier.width(GUTTER)) {
-                    for (h in 0 until 24) {
-                        Column(Modifier.height(hourHeight).fillMaxWidth().padding(top = 2.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(Format.hourLabel(h, look.h24), style = type(11, color = ink.muted), maxLines = 1)
-                            look.secondZone?.let { z ->
-                                val there = look.today.atTime(h, 0).atZone(look.zone).withZoneSameInstant(z).toLocalTime()
-                                Text(Format.hourLabel(there.hour, look.h24, there.minute), style = type(9, color = ink.lunar), maxLines = 1)
-                            }
-                        }
-                    }
-                }
-                BoxWithConstraints(Modifier.fillMaxSize()) {
-                    val col = maxWidth / days.size
-                    // Lines and empty hours.
-                    Column(Modifier.fillMaxSize()) {
+        // The hours. One Calendar leaves blank below the last hour when the day's start to midnight
+        // is shorter than the screen, so that the grid can open at the start (08:00) on any phone.
+        BoxWithConstraints(Modifier.fillMaxSize()) {
+            val room = com.xern.xrncal.domain.DayLayout.roomBelow(maxHeight.value, hourHeight.value, dayStart).dp
+            Box(Modifier.fillMaxSize().verticalScroll(scroll)) {
+                // The 24 hours, and room below midnight so that the day's start can reach the top.
+                Spacer(Modifier.fillMaxWidth().height(hourHeight * 24 + room))
+                Row(Modifier.fillMaxWidth().height(hourHeight * 24)) {
+                    Column(Modifier.width(GUTTER)) {
                         for (h in 0 until 24) {
-                            Box(Modifier.fillMaxWidth().height(hourHeight)) {
-                                HorizontalDivider(color = ink.line)
-                            }
-                        }
-                    }
-                    Row(Modifier.fillMaxSize()) {
-                        days.forEachIndexed { i, d ->
-                            Box(
-                                Modifier.weight(1f).fillMaxHeight()
-                                    .background(if (d == look.today && days.size > 1) ink.todayCell else androidx.compose.ui.graphics.Color.Transparent)
-                                    .pointerInput(d) { detectTapGestures { p -> onSlot(d, (p.y / (hourHeight.toPx())).toInt().coerceIn(0, 23)) } },
-                            ) {
-                                if (i > 0) Box(Modifier.width(1.dp).fillMaxHeight().background(ink.line))
-                            }
-                        }
-                    }
-                    // Events.
-                    days.forEachIndexed { i, d ->
-                        for (p in DayLayout.day(d, occurrences, look.zone)) {
-                            val w = col / p.columns
-                            val bg = look.color(p.occurrence)
-                            val height = hourHeight * ((p.endMin - p.startMin) / 60f) - 2.dp
-                            Box(
-                                Modifier
-                                    .offset(x = col * i + w * p.column + 1.dp, y = hourHeight * (p.startMin / 60f) + 1.dp)
-                                    .width(w - 2.dp)
-                                    .height(height)
-                                    .clip(RoundedCornerShape(3.dp))
-                                    .background(bg)
-                                    .clickable { onEvent(p.occurrence) }
-                                    .padding(horizontal = 3.dp, vertical = 1.dp),
-                            ) {
-                                val single = days.size == 1
-                                val size = if (single) 13 else 11
-                                Column {
-                                    Text(p.occurrence.title.ifBlank { "(no title)" }, style = chip(size, onColor(bg), lineHeight = (size + 2).sp), maxLines = if (single) 2 else 4, overflow = TextOverflow.Ellipsis)
-                                    // The time range under the title, as the laptop's blocks, when there's room.
-                                    if (height >= (if (single) 34.dp else 40.dp)) {
-                                        val time = listOf(segmentLabel(p.occurrence, d, look), if (single) p.occurrence.location else "").filter { it.isNotBlank() }.joinToString("  ")
-                                        Text(time, style = type(if (single) 12 else 9, color = onColor(bg).copy(alpha = 0.9f), lineHeight = (if (single) 14 else 11).sp), maxLines = if (single) 1 else 2, overflow = TextOverflow.Ellipsis)
-                                    }
+                            Column(Modifier.height(hourHeight).fillMaxWidth().padding(top = 2.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(Format.hourLabel(h, look.h24), style = type(11, color = ink.muted), maxLines = 1)
+                                look.secondZone?.let { z ->
+                                    val there = look.today.atTime(h, 0).atZone(look.zone).withZoneSameInstant(z).toLocalTime()
+                                    Text(Format.hourLabel(there.hour, look.h24, there.minute), style = type(9, color = ink.lunar), maxLines = 1)
                                 }
                             }
                         }
                     }
-                    // The current time.
-                    val todayAt = days.indexOf(look.today)
-                    if (todayAt >= 0) {
-                        val minutes = ClockMinutes.ofDay(now.atZone(look.zone), look.today)
-                        val y = hourHeight * (minutes / 60f)
-                        val x = if (days.size == 1) 0.dp else col * todayAt
-                        val width = if (days.size == 1) maxWidth else col
-                        Box(Modifier.offset(x = x, y = y - 1.dp).width(width).height(2.dp).background(ink.today))
-                        Box(Modifier.offset(x = x - 4.dp, y = y - 5.dp).size(10.dp).clip(CircleShape).background(ink.today))
+                    BoxWithConstraints(Modifier.fillMaxSize()) {
+                        val col = maxWidth / days.size
+                        // Lines and empty hours.
+                        Column(Modifier.fillMaxSize()) {
+                            for (h in 0 until 24) {
+                                Box(Modifier.fillMaxWidth().height(hourHeight)) {
+                                    HorizontalDivider(color = ink.line)
+                                }
+                            }
+                        }
+                        Row(Modifier.fillMaxSize()) {
+                            days.forEachIndexed { i, d ->
+                                Box(
+                                    Modifier.weight(1f).fillMaxHeight()
+                                        .background(if (d == look.today && days.size > 1) ink.todayCell else androidx.compose.ui.graphics.Color.Transparent)
+                                        .pointerInput(d) { detectTapGestures { p -> onSlot(d, (p.y / (hourHeight.toPx())).toInt().coerceIn(0, 23)) } },
+                                ) {
+                                    if (i > 0) Box(Modifier.width(1.dp).fillMaxHeight().background(ink.line))
+                                }
+                            }
+                        }
+                        // Events.
+                        days.forEachIndexed { i, d ->
+                            for (p in DayLayout.day(d, occurrences, look.zone)) {
+                                val w = col / p.columns
+                                val bg = look.color(p.occurrence)
+                                val height = hourHeight * ((p.endMin - p.startMin) / 60f) - 2.dp
+                                Box(
+                                    Modifier
+                                        .offset(x = col * i + w * p.column + 1.dp, y = hourHeight * (p.startMin / 60f) + 1.dp)
+                                        .width(w - 2.dp)
+                                        .height(height)
+                                        .clip(RoundedCornerShape(3.dp))
+                                        .background(bg)
+                                        .clickable { onEvent(p.occurrence) }
+                                        .padding(horizontal = 3.dp, vertical = 1.dp),
+                                ) {
+                                    val single = days.size == 1
+                                    val size = if (single) 13 else 11
+                                    Column {
+                                        Text(p.occurrence.title.ifBlank { "(no title)" }, style = chip(size, onColor(bg), lineHeight = (size + 2).sp), maxLines = if (single) 2 else 4, overflow = TextOverflow.Ellipsis)
+                                        // The time range under the title, as the laptop's blocks, when there's room.
+                                        if (height >= (if (single) 34.dp else 40.dp)) {
+                                            val time = listOf(segmentLabel(p.occurrence, d, look), if (single) p.occurrence.location else "").filter { it.isNotBlank() }.joinToString("  ")
+                                            Text(time, style = type(if (single) 12 else 9, color = onColor(bg).copy(alpha = 0.9f), lineHeight = (if (single) 14 else 11).sp), maxLines = if (single) 1 else 2, overflow = TextOverflow.Ellipsis)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        // The current time.
+                        val todayAt = days.indexOf(look.today)
+                        if (todayAt >= 0) {
+                            val minutes = ClockMinutes.ofDay(now.atZone(look.zone), look.today)
+                            val y = hourHeight * (minutes / 60f)
+                            val x = if (days.size == 1) 0.dp else col * todayAt
+                            val width = if (days.size == 1) maxWidth else col
+                            Box(Modifier.offset(x = x, y = y - 1.dp).width(width).height(2.dp).background(ink.today))
+                            Box(Modifier.offset(x = x - 4.dp, y = y - 5.dp).size(10.dp).clip(CircleShape).background(ink.today))
+                        }
                     }
                 }
             }

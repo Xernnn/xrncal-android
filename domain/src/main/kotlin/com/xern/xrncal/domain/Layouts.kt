@@ -115,6 +115,15 @@ object DayLayout {
      * The range isn't final at the first layout: placing it once then stopped the grid wherever
      * that early, shorter range ended (04:00 on the owner's phone), and nothing put it back.
      */
+    /**
+     * The blank below midnight, in the grid's units, that lets [dayStart] reach the top of a
+     * [viewport] [hour]s tall: the day's start to midnight may be shorter than the screen (8 to 24
+     * at 45 dp is 720 dp on a 750 dp grid), and then the grid could only scroll to 07:20, or to
+     * 04:00 at the old 40 dp. One Calendar leaves the same blank under its last hour.
+     */
+    fun roomBelow(viewport: Float, hour: Float, dayStart: Int): Float =
+        maxOf(0f, viewport - hour * (24 - dayStart))
+
     fun openAt(max: Int, value: Int, placed: Int?, target: Int): Int? = when {
         max <= 0 -> null
         placed == null || value == placed -> target.coerceIn(0, max)

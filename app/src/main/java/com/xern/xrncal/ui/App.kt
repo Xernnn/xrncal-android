@@ -276,7 +276,7 @@ fun App(graph: Graph) {
                             HorizontalPager(pager, beyondViewportPageCount = 1) { page ->
                                 val d0 = weeks.plusWeeks((page - MID).toLong())
                                 val week = (0L until 7L).map { d0.plusDays(it) }
-                                TimeGridPage(week, occurrences(graph, week.first(), week.last(), revision, settings.holidays), look, now, ::open, { d, h -> add(d, h) }, scroll, hourHeight)
+                                TimeGridPage(week, occurrences(graph, week.first(), week.last(), revision, settings.holidays), look, now, ::open, { d, h -> add(d, h) }, scroll, hourHeight, settings.dayStart)
                             }
                         }
                         View.YEAR -> {
@@ -305,7 +305,7 @@ fun App(graph: Graph) {
                             val scroll = rememberDayStartScroll(with(density) { (hourHeight * settings.dayStart).roundToPx() })
                             HorizontalPager(pager, beyondViewportPageCount = 1) { page ->
                                 val d = days.plusDays((page - MID).toLong())
-                                TimeGridPage(listOf(d), occurrences(graph, d, d, revision, settings.holidays), look, now, ::open, { day, h -> add(day, h) }, scroll, hourHeight)
+                                TimeGridPage(listOf(d), occurrences(graph, d, d, revision, settings.holidays), look, now, ::open, { day, h -> add(day, h) }, scroll, hourHeight, settings.dayStart)
                             }
                         }
                     }

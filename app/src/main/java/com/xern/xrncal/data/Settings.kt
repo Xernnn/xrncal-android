@@ -25,7 +25,7 @@ enum class Clock { SYSTEM, H12, H24 }
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
 
 /** One Calendar's hour sizes for the day and week grids: Medium fits 08:00 to 23:00 on the owner's phone. */
-enum class HourSize(val dp: Int, val label: String) { SMALL(30, "Small"), MEDIUM(40, "Medium"), LARGE(56, "Large") }
+enum class HourSize(val dp: Int, val label: String) { SMALL(30, "Small"), MEDIUM(45, "Medium"), LARGE(56, "Large") }
 
 /**
  * The owner's choices (docs/spec.md, "Settings" and phase 2's Options). The defaults are the

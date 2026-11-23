@@ -343,9 +343,12 @@ and the time line; One Calendar's red by default).
 ### 4. Week and day views like One Calendar's and the laptop's
 
 - **The day starts at 08:00**: the grid opens scrolled to the "Start time of day" (Options,
-  Views). The scroll is placed again while the layout settles, until the owner scrolls: 0.2.0
-  placed it once at the first layout, whose range was still short, and opened at 04:00, and **hour size** Small, Medium (the default: 08:00 to 23:00 fill the owner's screen,
-  as One Calendar shows them) or Large sets the hour's height. Pinch zoom of the grid is left out:
+  Views), placed again while the layout settles until the owner scrolls. Below midnight the grid
+  keeps a blank as tall as needed for the day's start to reach the top, as One Calendar does: in
+  0.2.0 and 0.2.1 the day's start to midnight was shorter than the screen, the grid could not
+  scroll that far, and it opened with midnight at the bottom and about 05:00 at the top.
+- **Hour size** Small (30 dp), Medium (45 dp, the default: One Calendar's hour on the owner's
+  phone, so 08:00 to midnight about fills the screen as it does there) or Large (56 dp). Pinch zoom of the grid is left out:
   it fights the pager's swipe, and the setting does the job.
 - **The second time zone** (laptop): under each hour in the gutter, that hour in the second zone,
   smaller, when it differs from the phone's.
