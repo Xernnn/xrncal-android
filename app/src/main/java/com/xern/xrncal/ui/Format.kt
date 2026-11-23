@@ -64,6 +64,9 @@ object Format {
     fun dayTitle(d: LocalDate, today: LocalDate): String =
         "${d.dayOfWeek.getDisplayName(TextStyle.FULL, L)} ${d.dayOfMonth}" + if (d.year != today.year) " ${d.year}" else ""
 
+    /** The day pop-up's title, as One Calendar's: `TUESDAY 24`. */
+    fun popupDay(d: LocalDate): String = "${d.dayOfWeek.getDisplayName(TextStyle.FULL, L).uppercase(L)} ${d.dayOfMonth}"
+
     /** `24 FRIDAY`, the list's day header. */
     fun listDay(d: LocalDate): String = "${d.dayOfMonth} ${d.dayOfWeek.getDisplayName(TextStyle.FULL, L).uppercase(L)}"
 

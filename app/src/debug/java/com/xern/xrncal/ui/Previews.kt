@@ -146,11 +146,11 @@ fun MonthDarkPreview() = MonthScreen(true)
 
 @Preview(name = "Day pop-up", widthDp = 400, heightDp = 860)
 @Composable
-fun DayPopupPreview() = Themed(dark = false) {
+fun DayPopupPreview() = Themed(dark = true) {
     Box(Modifier.fillMaxSize()) {
-        MonthScreen(false)
+        MonthScreen(true)
         val day = LocalDate.of(2026, 11, 24)
-        DayPopup(day, com.xern.xrncal.domain.Agenda.sortDay(between(day, day), day), look(), {}, {}, {})
+        DayPopup(day, com.xern.xrncal.domain.Agenda.sortDay(between(day, day), day), look(), {}, {}, {}, {})
     }
 }
 

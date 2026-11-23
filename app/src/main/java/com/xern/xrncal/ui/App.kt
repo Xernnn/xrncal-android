@@ -205,7 +205,13 @@ fun App(graph: Graph) {
                                 val ym = months.plusMonths((page - MID).toLong())
                                 val grid = MonthLayout.weeks(ym, firstDay)
                                 val list = occurrences(graph, grid.first().first(), grid.last().last(), revision, settings.holidays)
-                                MonthPage(ym, firstDay, list, look, onDay = { popup = it }, onEvent = ::open)
+                                MonthPage(ym, firstDay, list, look, onDay = { d ->
+                                    // One Calendar's "Show month day popup"; off, a day opens its Day view.
+                                    if (settings.monthPopup) popup = d else {
+                                        anchor = d
+                                        view = View.DAY
+                                    }
+                                }, onEvent = ::open)
                             }
                         }
                         View.LIST -> {
@@ -293,6 +299,10 @@ fun App(graph: Graph) {
         DayPopup(day, Agenda.sortDay(list, day), look, onEvent = ::open, onAdd = {
             popup = null
             add(day)
+        }, onDayView = {
+            popup = null
+            anchor = day
+            view = View.DAY
         }, onDismiss = { popup = null })
     }
 

@@ -21,6 +21,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.outlined.CalendarViewDay
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -171,24 +172,37 @@ private fun DayCell(d: LocalDate, inMonth: Boolean, today: Boolean, more: Int, l
     }
 }
 
-/** The pop-up a tapped day opens: its date, its lunar date and its events; `+` starts one on it. */
+/**
+ * One Calendar's day pop-up, opened by tapping a day in the month: the day as a title in the
+ * signal colour ("TUESDAY 24", the lunar date beside it), Add appointment, Day view, then the
+ * day's events as cards in their colours with their times.
+ */
 @Composable
-fun DayPopup(day: LocalDate, events: List<Occurrence>, look: Look, onEvent: (Occurrence) -> Unit, onAdd: () -> Unit, onDismiss: () -> Unit) {
+fun DayPopup(day: LocalDate, events: List<Occurrence>, look: Look, onEvent: (Occurrence) -> Unit, onAdd: () -> Unit, onDayView: () -> Unit, onDismiss: () -> Unit) {
     val ink = LocalInk.current
     Dialog(onDismissRequest = onDismiss) {
-        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(ink.sheet).padding(vertical = 8.dp)) {
-            Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text(Format.dayLong(day), style = type(17, FontWeight.SemiBold, if (day == look.today) ink.today else ink.text))
-                    if (look.lunar) Text(Format.lunarLong(day), style = type(13, color = ink.muted))
+        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(4.dp)).background(ink.sheet).padding(vertical = 12.dp)) {
+            Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 6.dp), verticalAlignment = Alignment.Bottom) {
+                Text(Format.popupDay(day), style = type(20, color = ink.today), modifier = Modifier.weight(1f))
+                if (look.lunar) Text(Format.lunarLong(day), style = type(13, color = ink.muted))
+            }
+            PopupAction(Icons.Filled.Add, "Add appointment", onAdd)
+            PopupAction(Icons.Outlined.CalendarViewDay, "Day view", onDayView)
+            if (events.isNotEmpty()) {
+                LazyColumn(Modifier.fillMaxWidth().heightIn(max = 380.dp).padding(horizontal = 16.dp, vertical = 6.dp).clip(RoundedCornerShape(2.dp)), verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(1.dp)) {
+                    items(events, key = { it.key + it.calendarId }) { o -> EventCard(o, look, day, { onEvent(o) }, RoundedCornerShape(0.dp)) }
                 }
-                IconButton(onClick = onAdd) { Icon(Icons.Filled.Add, contentDescription = null, tint = ink.text) }
             }
-            HorizontalDivider(color = ink.line, modifier = Modifier.padding(top = 6.dp))
-            LazyColumn(Modifier.fillMaxWidth().heightIn(max = 420.dp)) {
-                items(events, key = { it.key + it.calendarId }) { o -> EventRow(o, look, { onEvent(o) }, day = day) }
-            }
-            if (events.isEmpty()) Spacer(Modifier.size(12.dp))
         }
+    }
+}
+
+@Composable
+private fun PopupAction(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit) {
+    val ink = LocalInk.current
+    Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 20.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+        Icon(icon, contentDescription = null, tint = ink.text, modifier = Modifier.size(22.dp))
+        Spacer(Modifier.width(30.dp))
+        Text(label, style = type(16, color = ink.text))
     }
 }
