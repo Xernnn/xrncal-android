@@ -47,6 +47,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -66,15 +68,31 @@ import java.time.ZoneId
 
 // ---------------- search ----------------
 
+/**
+ * One Calendar's search: its Future and Past tabs over the field, each match at its next date
+ * (Future, soonest first) or its last one (Past, latest first), over the wallpaper.
+ */
 @Composable
-fun SearchScreen(query: String, onQuery: (String) -> Unit, results: List<Occurrence>, look: Look, onBack: () -> Unit, onEvent: (Occurrence) -> Unit) {
+fun SearchScreen(query: String, onQuery: (String) -> Unit, past: Boolean, onPast: (Boolean) -> Unit, results: List<Occurrence>, look: Look, onBack: () -> Unit, onEvent: (Occurrence) -> Unit) {
     val ink = LocalInk.current
     Box(Modifier.fillMaxSize()) { LocalBackdrop.current() }
     Column(Modifier.fillMaxSize().background(ink.page)) {
-        Row(Modifier.fillMaxWidth().background(ink.bar).statusBarsPadding().padding(end = 12.dp, top = 4.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            BarIcon(Icons.AutoMirrored.Filled.ArrowBack, onBack, description = "Back")
-            Field(query, onQuery, Modifier.weight(1f))
+        Column(Modifier.fillMaxWidth().background(ink.bar).statusBarsPadding()) {
+            Row(Modifier.fillMaxWidth().height(56.dp), verticalAlignment = Alignment.CenterVertically) {
+                BarIcon(Icons.AutoMirrored.Filled.ArrowBack, onBack, description = "Back")
+                Text("Search", style = type(22, color = ink.text), modifier = Modifier.padding(start = 10.dp))
+            }
+            Row(Modifier.fillMaxWidth()) {
+                for ((label, isPast) in listOf("FUTURE" to false, "PAST" to true)) {
+                    val on = past == isPast
+                    Column(Modifier.weight(1f).clickable { onPast(isPast) }.semantics { selected = on }, horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(label, style = type(14, FontWeight.Medium, if (on) ink.text else ink.muted), modifier = Modifier.padding(vertical = 10.dp))
+                        Box(Modifier.fillMaxWidth().height(2.dp).background(if (on) ink.text else Color.Transparent))
+                    }
+                }
+            }
         }
+        Field(query, onQuery, Modifier.padding(horizontal = 16.dp, vertical = 10.dp))
         LazyColumn(Modifier.fillMaxSize().navigationBarsPadding()) {
             items(results, key = { it.resourceId + it.start }) { o -> EventRow(o, look, { onEvent(o) }, showDate = true) }
         }

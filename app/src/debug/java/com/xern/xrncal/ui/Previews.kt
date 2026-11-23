@@ -261,8 +261,8 @@ fun DrawerPreview() = Themed(dark = true) {
 
 @Preview(name = "Search", widthDp = 400, heightDp = 860)
 @Composable
-fun SearchPreview() = Themed(dark = false) {
-    SearchScreen("pho", {}, EVENTS.filter { it.title.startsWith("Phở") }, look(), {}, {})
+fun SearchPreview() = Themed(dark = true) {
+    SearchScreen("swim", {}, false, {}, EVENTS.filter { it.title.startsWith("Swim") && it.firstDay >= TODAY }, look(), {}, {})
 }
 
 @Preview(name = "Theme", widthDp = 400, heightDp = 860)

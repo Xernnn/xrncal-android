@@ -415,11 +415,12 @@ fun App(graph: Graph) {
         }
         Screen.Search -> {
             var query by rememberSaveable { mutableStateOf("") }
-            val results by produceState(emptyList<Occurrence>(), query, revision) {
+            var past by rememberSaveable { mutableStateOf(false) }
+            val results by produceState(emptyList<Occurrence>(), query, past, revision) {
                 delay(200)
-                value = graph.events.search(query)
+                value = graph.events.search(query, past)
             }
-            SearchScreen(query, { query = it }, results, look, onBack = { stack.removeAt(stack.lastIndex) }, onEvent = ::open)
+            SearchScreen(query, { query = it }, past, { past = it }, results, look, onBack = { stack.removeAt(stack.lastIndex) }, onEvent = ::open)
         }
         Screen.Settings -> {
             var connecting by remember { mutableStateOf(false) }

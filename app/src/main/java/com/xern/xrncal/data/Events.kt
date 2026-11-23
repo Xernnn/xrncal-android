@@ -209,17 +209,24 @@ class EventRepository(
         )
     }
 
-    /** Events whose title, place or notes have every word typed, each at its date nearest to now. */
-    suspend fun search(query: String): List<Occurrence> = withContext(work) {
+    /**
+     * Events whose title, place or notes have every word typed, as One Calendar's search tabs list
+     * them: [past] false, each at its next date, soonest first (Future); true, each at its last
+     * date before now, latest first (Past), as far back as Options' history.
+     */
+    suspend fun search(query: String, past: Boolean = false): List<Occurrence> = withContext(work) {
         val words = TextFold.forMatch(query).split(' ').filter { it.isNotEmpty() }
         if (words.isEmpty()) return@withContext emptyList()
         val z = zone()
+        val now = clock()
         val cals = store.calendars().map { it.id }
         val rows = store.matching(cals, words.maxBy { it.length }).filter { r -> TextFold.matches(r.search, query) }
-        val found = rows.mapNotNull { r -> parse(r, z)?.let { Occurrences.nearest(it, r.id, r.calendarId, clock(), z) } }
-        val now = clock()
-        // What is to come first, soonest first; then the past, latest first.
-        found.sortedWith(compareBy<Occurrence>({ it.end.isBefore(now) }, { if (it.end.isBefore(now)) -it.start.toEpochMilli() else it.start.toEpochMilli() }))
+        val years = settings().historyYears.takeIf { it > 0 }?.toLong() ?: 50L
+        val found = rows.mapNotNull { r ->
+            val res = parse(r, z) ?: return@mapNotNull null
+            if (past) Occurrences.last(res, r.id, r.calendarId, now, z, years) else Occurrences.next(res, r.id, r.calendarId, now, z)
+        }
+        if (past) found.sortedByDescending { it.start } else found.sortedBy { it.start }
     }
 
     /** What the editor's suggestions learn from: the titles and the places of the events already there. */

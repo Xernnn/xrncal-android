@@ -242,6 +242,18 @@ object Occurrences {
         )
     }
 
+    /** The next date of an event not yet over at [now] (within two years), or null: search's Future tab. */
+    fun next(res: ParsedResource, resourceId: String, calendarId: String, now: Instant, zone: ZoneId): Occurrence? {
+        val today = now.atZone(zone).toLocalDate()
+        return expand(res, resourceId, calendarId, today, today.plusYears(2), zone).firstOrNull { !it.end.isBefore(now) && it.end != now || (it.start == it.end && !it.start.isBefore(now)) }
+    }
+
+    /** The last date of an event over by [now] (within [years] years back), or null: search's Past tab. */
+    fun last(res: ParsedResource, resourceId: String, calendarId: String, now: Instant, zone: ZoneId, years: Long = 2): Occurrence? {
+        val today = now.atZone(zone).toLocalDate()
+        return expand(res, resourceId, calendarId, today.minusYears(years), today, zone).lastOrNull { !it.end.isAfter(now) && !(it.start == it.end && !it.start.isBefore(now)) }
+    }
+
     /**
      * The date of an event nearest to [now]: the next one to come, else the last one before. What a
      * search result shows and opens for a series.
