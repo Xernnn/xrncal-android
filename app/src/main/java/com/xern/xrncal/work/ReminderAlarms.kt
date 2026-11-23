@@ -62,6 +62,23 @@ class PrefsRungLog(private val prefs: SharedPreferences) : RungLog {
         set(v) = prefs.edit().putString("rung", JSONObject(v as Map<*, *>).toString()).apply()
 }
 
+/** The snoozed reminders in prefs, as JSON. */
+class PrefsSnoozeLog(private val prefs: SharedPreferences) : com.xern.xrncal.data.SnoozeLog {
+    override var snoozed: Map<String, com.xern.xrncal.data.Snooze>
+        get() = runCatching {
+            val o = JSONObject(prefs.getString("snoozed", "{}")!!)
+            o.keys().asSequence().associateWith { k ->
+                val z = o.getJSONObject(k)
+                com.xern.xrncal.data.Snooze(z.getString("id"), z.getLong("start"), z.getInt("before"), z.getLong("at"))
+            }
+        }.getOrDefault(emptyMap())
+        set(v) {
+            val o = JSONObject()
+            for ((k, z) in v) o.put(k, JSONObject().put("id", z.resourceId).put("start", z.start).put("before", z.minutesBefore).put("at", z.at))
+            prefs.edit().putString("snoozed", o.toString()).apply()
+        }
+}
+
 /** The notifications: channel "Reminders". */
 object ReminderNotes {
     const val CHANNEL = "reminders"
@@ -74,10 +91,26 @@ object ReminderNotes {
     fun allowed(context: Context): Boolean =
         context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
 
-    fun show(context: Context, ring: Ring, h24: Boolean) {
+    const val SNOOZE = "com.xern.xrncal.SNOOZE"
+
+    fun tag(o: com.xern.xrncal.domain.Occurrence) = o.resourceId + "|" + o.start.toEpochMilli()
+
+    /**
+     * A reminder's notification: the title, the time and the place, with Open and Snooze (by
+     * Options' snooze length). With "Notification data sensitive" on, the lock screen shows only
+     * that a reminder is there.
+     */
+    fun show(context: Context, ring: Ring, h24: Boolean, snoozeMinutes: Int = 10, sensitive: Boolean = false) {
         if (!allowed(context)) return
         channel(context)
         val o = ring.occurrence
+        val snooze = PendingIntent.getBroadcast(
+            context,
+            ring.key.hashCode(),
+            Intent(context, ReminderReceiver::class.java).setAction(SNOOZE)
+                .putExtra("id", o.resourceId).putExtra("start", o.start.toEpochMilli()).putExtra("before", ring.minutesBefore).putExtra("minutes", snoozeMinutes),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
         val open = PendingIntent.getActivity(
             context,
             ring.key.hashCode(),
@@ -98,9 +131,14 @@ object ReminderNotes {
             .setCategory(Notification.CATEGORY_EVENT)
             .setContentIntent(open)
             .setAutoCancel(true)
-            .setVisibility(Notification.VISIBILITY_PRIVATE)
+            .addAction(Notification.Action.Builder(null, "Open", open).build())
+            .addAction(Notification.Action.Builder(null, "Snooze " + com.xern.xrncal.domain.Reminders.choiceLabel(snoozeMinutes), snooze).build())
+            .setVisibility(if (sensitive) Notification.VISIBILITY_PRIVATE else Notification.VISIBILITY_PUBLIC)
+            .apply {
+                if (sensitive) setPublicVersion(Notification.Builder(context, CHANNEL).setSmallIcon(R.drawable.ic_notification).setContentTitle("Reminder").build())
+            }
             .build()
-        context.getSystemService(NotificationManager::class.java).notify(o.resourceId + "|" + o.start.toEpochMilli(), 1, n)
+        context.getSystemService(NotificationManager::class.java).notify(tag(o), 1, n)
     }
 }
 
@@ -118,12 +156,20 @@ class ReminderReceiver : BroadcastReceiver() {
                     AndroidAlarmScheduler.RING -> {
                         // An event moved or deleted on the laptop shouldn't ring: sync first, briefly.
                         withTimeoutOrNull(8_000) { graph.syncNow() }
-                        val h24 = com.xern.xrncal.ui.Format.is24(context, graph.settings.value.clock)
-                        graph.reminders.ringing().forEach { ReminderNotes.show(context, it, h24) }
+                        val s = graph.settings.value
+                        val h24 = com.xern.xrncal.ui.Format.is24(context, s.clock)
+                        graph.reminders.ringing().forEach { ReminderNotes.show(context, it, h24, s.snoozeMinutes, s.privateNotifications) }
                         graph.reminders.rearm()
+                    }
+                    ReminderNotes.SNOOZE -> {
+                        val id = intent.getStringExtra("id") ?: return@launch
+                        val start = intent.getLongExtra("start", 0)
+                        context.getSystemService(NotificationManager::class.java).cancel("$id|$start", 1)
+                        graph.reminders.snooze(id, start, intent.getIntExtra("before", 0), intent.getIntExtra("minutes", graph.settings.value.snoozeMinutes))
                     }
                     else -> {
                         graph.reminders.rearm() // boot, update, time, zone
+                        Widgets.refresh(context)
                         if (intent.action == Intent.ACTION_BOOT_COMPLETED && graph.account.connected) SyncWork.now(context)
                     }
                 }

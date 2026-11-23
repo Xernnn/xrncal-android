@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Menu
@@ -16,6 +17,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.xern.xrncal.SyncStatus
@@ -58,7 +62,8 @@ private val CALENDARS = listOf(
     CalendarInfo(HolidayCalendar.INTERNATIONAL.id, HolidayCalendar.INTERNATIONAL.title, HolidayCalendar.INTERNATIONAL.color, true, false, EventRepository.HOLIDAY_GROUP),
 )
 
-private fun look(lunar: Boolean = true) = Look(CALENDARS.associate { it.id to it.color }, TODAY, h24 = true, lunar = lunar, weekNumbers = true, zone = ZONE)
+// The owner's phone is in Sydney and the second zone is Ho Chi Minh City's, as on the laptop.
+private fun look(lunar: Boolean = true) = Look(CALENDARS.associate { it.id to it.color }, TODAY, h24 = true, lunar = lunar, weekNumbers = true, zone = ZONE, secondZone = ZoneId.of("Australia/Sydney"))
 
 private var n = 0
 
@@ -104,22 +109,28 @@ private val EVENTS: List<Occurrence> by lazy {
     }
 }
 
+/** The app's theme over the default wallpaper (Cyber City, overlay 0.15, blur 2), as on the phone. */
+@Composable
+private fun Themed(dark: Boolean, wallpaper: Boolean = true, content: @Composable () -> Unit) =
+    XrnTheme(dark = dark, wallpaper = wallpaper, signal = androidx.compose.ui.graphics.Color(Settings.SIGNAL_RED)) {
+        val image = androidx.compose.ui.graphics.ImageBitmap.imageResource(com.xern.xrncal.R.drawable.wallpaper_cyber_city)
+        androidx.compose.runtime.CompositionLocalProvider(LocalBackdrop provides { Backdrop(if (wallpaper) image else null, 0.15f, 2, dark) }) {
+            Box(Modifier.fillMaxSize()) {
+                LocalBackdrop.current()
+                content()
+            }
+        }
+    }
+
 private fun between(from: LocalDate, to: LocalDate) = EVENTS.filter { !it.firstDay.isAfter(to) && !it.lastDay.isBefore(from) }
 
 /** The calendar's top bar, as App draws it. */
 @Composable
-private fun Bar(title: String) {
-    val ink = LocalInk.current
-    Row(Modifier.fillMaxWidth().background(ink.bar).statusBarsPadding().height(56.dp), verticalAlignment = Alignment.CenterVertically) {
-        BarIcon(Icons.Filled.Menu, {})
-        Text(title, style = type(24, color = ink.text), modifier = Modifier.padding(start = 12.dp).weight(1f))
-        BarIcon(Icons.Filled.Add, {})
-        TodayButton(TODAY.dayOfMonth) {}
-    }
-}
+private fun Bar(title: String, subtitle: String? = null) =
+    TopBar(title, subtitle, TODAY.dayOfMonth, CALENDARS, "caldav.example.com", {}, {}, {}, {}, { _, _ -> })
 
 @Composable
-private fun MonthScreen(dark: Boolean) = XrnTheme(dark = dark) {
+private fun MonthScreen(dark: Boolean) = Themed(dark = dark) {
     val ym = YearMonth.of(2026, 11)
     val grid = MonthLayout.weeks(ym, DayOfWeek.MONDAY)
     Column(Modifier.fillMaxSize()) {
@@ -138,16 +149,16 @@ fun MonthDarkPreview() = MonthScreen(true)
 
 @Preview(name = "Day pop-up", widthDp = 400, heightDp = 860)
 @Composable
-fun DayPopupPreview() = XrnTheme(dark = false) {
+fun DayPopupPreview() = Themed(dark = true) {
     Box(Modifier.fillMaxSize()) {
-        MonthScreen(false)
+        MonthScreen(true)
         val day = LocalDate.of(2026, 11, 24)
-        DayPopup(day, com.xern.xrncal.domain.Agenda.sortDay(between(day, day), day), look(), {}, {}, {})
+        DayPopup(day, com.xern.xrncal.domain.Agenda.sortDay(between(day, day), day), look(), {}, {}, {}, {})
     }
 }
 
 @Composable
-private fun ListScreen(dark: Boolean) = XrnTheme(dark = dark) {
+private fun ListScreen(dark: Boolean) = Themed(dark = dark) {
     val ym = YearMonth.of(2026, 11)
     val grid = MonthLayout.weeks(ym, DayOfWeek.MONDAY, rows = null)
     Column(Modifier.fillMaxSize()) {
@@ -166,73 +177,192 @@ fun ListDarkPreview() = ListScreen(true)
 
 @Preview(name = "Week", widthDp = 400, heightDp = 860)
 @Composable
-fun WeekPreview() = XrnTheme(dark = false) {
+fun WeekPreview() = Themed(dark = true) {
     val week = (0L until 7L).map { LocalDate.of(2026, 11, 23).plusDays(it) }
     Column(Modifier.fillMaxSize()) {
-        Bar("November")
-        TimeGridPage(week, between(week.first(), week.last()), look(), NOW, {}, { _, _ -> }, androidx.compose.foundation.rememberScrollState(400 * 3))
+        Bar("November", "week 48")
+        TimeGridPage(week, between(week.first(), week.last()), look(), NOW, {}, { _, _ -> }, androidx.compose.foundation.rememberScrollState(840), 40.dp)
     }
 }
 
 @Preview(name = "Day", widthDp = 400, heightDp = 860)
 @Composable
-fun DayPreview() = XrnTheme(dark = true) {
+fun DayPreview() = Themed(dark = true) {
     Column(Modifier.fillMaxSize()) {
-        Bar("November")
-        TimeGridPage(listOf(TODAY), between(TODAY, TODAY), look(), NOW, {}, { _, _ -> }, androidx.compose.foundation.rememberScrollState(60 * 3 * 8))
+        Bar("Tuesday 24", "November")
+        TimeGridPage(listOf(TODAY), between(TODAY, TODAY), look(), NOW, {}, { _, _ -> }, androidx.compose.foundation.rememberScrollState(840), 40.dp)
     }
 }
 
-@Preview(name = "Detail", widthDp = 400, heightDp = 860)
+@Preview(name = "Editor, conflict", widthDp = 400, heightDp = 860)
 @Composable
-fun DetailPreview() = XrnTheme(dark = false) {
-    val o = EVENTS.first { it.title == "Status briefing" && it.firstDay == LocalDate.of(2026, 11, 30) }.copy(notes = "Bring the made-up figures for the third quarter.")
-    DetailScreen(o, DetailInfo(CALENDARS[0], ZONE, "FREQ=WEEKLY;BYDAY=MO", listOf(EventReminder(10), EventReminder(60)), null), look(), {}, {}, {}, {}, {})
+fun ConflictPreview() = Themed(dark = true) {
+    val state = EditorState(EventDraft("Dentist", false, LocalDate.of(2026, 11, 26), LocalTime.of(16, 0), LocalDate.of(2026, 11, 26), LocalTime.of(17, 0), ZONE, reminders = listOf(EventReminder(30)), location = "12 Made-up Street"), "home")
+    EditorScreen(state, false, CALENDARS.filter { !it.readOnly }, look(), {}, {}, syncProblem = "conflict", onDelete = {}, onCopy = {}, onShare = {})
 }
 
-@Preview(name = "Detail, conflict", widthDp = 400, heightDp = 860)
+@Preview(name = "Holiday", widthDp = 400, heightDp = 860)
 @Composable
-fun ConflictPreview() = XrnTheme(dark = true) {
-    val o = EVENTS.first { it.title == "Dentist" }
-    DetailScreen(o, DetailInfo(CALENDARS[1], ZONE, null, listOf(EventReminder(30)), "conflict"), look(), {}, {}, {}, {}, {})
+fun LockedPreview() = Themed(dark = true) {
+    val h = EVENTS.first { it.calendarId == HolidayCalendar.VIETNAM.id }
+    val state = EditorState(EventDraft(h.title, true, h.firstDay, LocalTime.MIDNIGHT, h.lastDay, LocalTime.MIDNIGHT, ZONE, notes = h.notes, color = h.color), h.calendarId)
+    EditorScreen(state, false, CALENDARS.filter { it.id == h.calendarId }, look(), {}, {}, locked = true, onCopy = {}, onShare = {})
 }
 
 @Preview(name = "Editor", widthDp = 400, heightDp = 1200)
 @Composable
-fun EditorPreview() = XrnTheme(dark = false) {
+fun EditorPreview() = Themed(dark = false) {
     val state = EditorState(
         EventDraft("Phở with Tuấn", false, LocalDate.of(2026, 11, 27), LocalTime.of(18, 30), LocalDate.of(2026, 11, 27), LocalTime.of(20, 0), ZONE, "FREQ=WEEKLY;INTERVAL=2;BYDAY=FR", listOf(EventReminder(30)), "Phở Made-up, District 3", ""),
         "family",
     )
-    EditorScreen(state, false, CALENDARS.filter { !it.readOnly }, look(), Reminders.Defaults(10, null), {}, {})
+    EditorScreen(state, false, CALENDARS.filter { !it.readOnly }, look(), {}, {}, onDelete = {}, onCopy = {}, onShare = {}, aids = EditorAids(emoji = true))
 }
 
 @Preview(name = "Add", widthDp = 400, heightDp = 860)
 @Composable
-fun AddPreview() = XrnTheme(dark = true) {
-    EditorScreen(EditorState(newDraft(TODAY, null, NOW, ZONE, 60), "home"), true, CALENDARS.filter { !it.readOnly }, look(), Reminders.Defaults(10, null), {}, {})
+fun AddPreview() = Themed(dark = true) {
+    EditorScreen(EditorState(newDraft(TODAY, null, NOW, ZONE, 60, Reminders.ONE_CALENDAR_DEFAULTS.forNew(false)), "home"), true, CALENDARS.filter { !it.readOnly }, look(), {}, {}, onCopy = {})
+}
+
+@Preview(name = "Add, typed date", widthDp = 400, heightDp = 860)
+@Composable
+fun TypedPreview() = Themed(dark = true) {
+    val state = EditorState(newDraft(TODAY, null, NOW, ZONE, 60, Reminders.ONE_CALENDAR_DEFAULTS.forNew(false)), "home")
+    state.typeTitle("🍜 Phở with Sam tomorrow 6:30pm every week", com.xern.xrncal.domain.EntryContext(TODAY), 60)
+    EditorScreen(state, true, CALENDARS.filter { !it.readOnly }, look(), {}, {}, onCopy = {}, aids = EditorAids(emoji = true, entry = com.xern.xrncal.domain.EntryContext(TODAY)))
+}
+
+@Preview(name = "Emoji", widthDp = 400, heightDp = 860)
+@Composable
+fun EmojiPreview() = Themed(dark = true) {
+    EmojiPanel("🍜", listOf("🍜", "☕", "🏊", "🎂"), {}, {}, {})
+}
+
+@Preview(name = "Year", widthDp = 400, heightDp = 860)
+@Composable
+fun YearPreview() = Themed(dark = true) {
+    Column(Modifier.fillMaxSize()) {
+        Bar("2026")
+        YearPage(2026, DayOfWeek.MONDAY, between(LocalDate.of(2026, 1, 1), LocalDate.of(2026, 12, 31)), look()) {}
+    }
+}
+
+@Preview(name = "Filter", widthDp = 400, heightDp = 860)
+@Composable
+fun FilterPreview() = Themed(dark = true) {
+    Box(Modifier.fillMaxSize()) {
+        Box(Modifier.padding(start = 150.dp, top = 60.dp).background(LocalInk.current.sheet)) { FilterList(CALENDARS, "caldav.example.com") { _, _ -> } }
+    }
 }
 
 @Preview(name = "Drawer", widthDp = 400, heightDp = 860)
 @Composable
-fun DrawerPreview() = XrnTheme(dark = false) {
-    DrawerContent(View.MONTH, CALENDARS, "caldav.example.com", false, {}, {}, {}, {}, { _, _ -> })
+fun DrawerPreview() = Themed(dark = true) {
+    DrawerContent(View.WEEK, false, {}, {}, {}, {}, {})
 }
 
 @Preview(name = "Search", widthDp = 400, heightDp = 860)
 @Composable
-fun SearchPreview() = XrnTheme(dark = false) {
-    SearchScreen("pho", {}, EVENTS.filter { it.title.startsWith("Phở") }, look(), {}, {})
+fun SearchPreview() = Themed(dark = true) {
+    SearchScreen("swim", {}, false, {}, EVENTS.filter { it.title.startsWith("Swim") && it.firstDay >= TODAY }, look(), {}, {})
 }
 
-@Preview(name = "Settings", widthDp = 400, heightDp = 1300)
+@Preview(name = "Theme", widthDp = 400, heightDp = 860)
 @Composable
-fun SettingsPreview() = XrnTheme(dark = false) {
-    SettingsScreen(
-        Settings(weekStart = DayOfWeek.MONDAY), AccountView("https://caldav.example.com/", "alex", true, SyncStatus(lastSync = NOW.toEpochMilli()), 4),
-        listOf(Problem("p1", "Dentist", "Home", "conflict")), CALENDARS.filter { HolidayCalendar.of(it.id) == null }, look(), false, null,
-        {}, {}, { _, _, _ -> }, {}, {}, {}, {},
+fun ThemePreview() = Themed(dark = true) {
+    Column(Modifier.fillMaxSize().background(LocalInk.current.screen)) { ThemeOptions(Settings()) {} }
+}
+
+@Preview(name = "Month, no wallpaper", widthDp = 400, heightDp = 860)
+@Composable
+fun MonthPlainPreview() = Themed(dark = false, wallpaper = false) {
+    val ym = YearMonth.of(2026, 11)
+    val grid = MonthLayout.weeks(ym, DayOfWeek.MONDAY)
+    Column(Modifier.fillMaxSize()) {
+        Bar("November")
+        MonthPage(ym, DayOfWeek.MONDAY, between(grid.first().first(), grid.last().last()), look(), {}, {})
+    }
+}
+
+@Preview(name = "Options", widthDp = 400, heightDp = 860)
+@Composable
+fun OptionsPreview() = Themed(dark = true) { OptionsList({}, {}) }
+
+@Composable
+private fun Page(page: OptionPage) = Themed(dark = true) { OptionPageScreen(page, Settings(), CALENDARS, {}, { _, _ -> }, {}) }
+
+@Preview(name = "Options, Views", widthDp = 400, heightDp = 1100)
+@Composable
+fun ViewOptionsPreview() = Page(OptionPage.VIEWS)
+
+@Preview(name = "Options, Calendar colors", widthDp = 400, heightDp = 860)
+@Composable
+fun ColorOptionsPreview() = Page(OptionPage.COLORS)
+
+@Preview(name = "Options, Reminders", widthDp = 400, heightDp = 860)
+@Composable
+fun ReminderOptionsPreview() = Page(OptionPage.REMINDERS)
+
+@Preview(name = "Options, Widget", widthDp = 400, heightDp = 1100)
+@Composable
+fun WidgetOptionsPreview() = Page(OptionPage.WIDGET)
+
+@Preview(name = "Accounts", widthDp = 400, heightDp = 860)
+@Composable
+fun AccountsPreview() = Themed(dark = true) {
+    AccountsScreen(
+        AccountView("https://caldav.example.com/", "alex", true, SyncStatus(lastSync = NOW.toEpochMilli()), 4),
+        listOf(Problem("p1", "Dentist", "Home", "conflict")), look(), false, null, {}, { _, _, _ -> }, {}, {}, {}, {},
     )
+}
+
+// ---- widgets, at the sizes a Redmi Note 14's home screen gives four by two and one by one ----
+
+private fun widgetInput(s: Settings = Settings()) = com.xern.xrncal.work.WidgetInput(
+    s, TODAY, NOW, true, CALENDARS.associate { it.id to it.color },
+    agenda = between(TODAY, TODAY.plusDays(13)), month = between(LocalDate.of(2026, 10, 26), LocalDate.of(2026, 12, 6)), zone = ZONE,
+)
+
+@Composable
+private fun OnHomeScreen(content: @Composable () -> Unit) = Themed(dark = true) {
+    Box(Modifier.fillMaxSize().padding(12.dp), contentAlignment = Alignment.TopCenter) { content() }
+}
+
+@Preview(name = "Agenda widget", widthDp = 400, heightDp = 330)
+@Composable
+fun AgendaWidgetPreview() = OnHomeScreen {
+    val input = widgetInput()
+    val s = input.settings
+    Column(
+        Modifier.size(376.dp, 300.dp).clip(androidx.compose.foundation.shape.RoundedCornerShape(16.dp))
+            .background(androidx.compose.ui.graphics.Color(s.widgetBackground).copy(alpha = s.widgetOpacity)).padding(start = 12.dp, end = 12.dp, top = 10.dp),
+    ) {
+        Text(com.xern.xrncal.work.Widgets.dayTitle(TODAY), style = type(16, androidx.compose.ui.text.font.FontWeight.Medium, androidx.compose.ui.graphics.Color(s.widgetText)), modifier = Modifier.padding(bottom = 4.dp))
+        for ((_, rv) in com.xern.xrncal.work.Widgets.agendaRows(androidx.compose.ui.platform.LocalContext.current, input).take(14)) {
+            androidx.compose.ui.viewinterop.AndroidView(factory = { ctx -> rv.apply(ctx, android.widget.FrameLayout(ctx)) }, modifier = Modifier.fillMaxWidth())
+        }
+    }
+}
+
+@Preview(name = "Month widget", widthDp = 400, heightDp = 320)
+@Composable
+fun MonthWidgetPreview() = OnHomeScreen {
+    val input = widgetInput()
+    val s = input.settings
+    val picture = com.xern.xrncal.work.Widgets.monthPicture(input, 376, 280, androidx.compose.ui.platform.LocalDensity.current.density)
+    Box(Modifier.size(376.dp, 280.dp).clip(androidx.compose.foundation.shape.RoundedCornerShape(16.dp)).background(androidx.compose.ui.graphics.Color(s.widgetBackground).copy(alpha = s.widgetOpacity))) {
+        androidx.compose.foundation.Image(picture.asImageBitmap(), contentDescription = null, modifier = Modifier.fillMaxSize())
+    }
+}
+
+@Preview(name = "Date widget", widthDp = 120, heightDp = 120)
+@Composable
+fun DateWidgetPreview() = OnHomeScreen {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    Box(Modifier.size(90.dp)) {
+        androidx.compose.ui.viewinterop.AndroidView(factory = { ctx -> com.xern.xrncal.work.Widgets.date(context, widgetInput(), clicks = false).apply(ctx, android.widget.FrameLayout(ctx)) }, modifier = Modifier.fillMaxSize())
+    }
 }
 
 @Suppress("unused")

@@ -42,7 +42,21 @@ data class Ink(
     val field: Color,
     val lunar: Color,
     val warn: Color,
+    /** Full screens over the calendar (the editor, Options): always solid. */
+    val screen: Color = page,
+    /** A wallpaper is behind the views, which are then see-through. */
+    val wallpaper: Boolean = false,
 ) {
+    /**
+     * These colours over a wallpaper: the page see-through, the bars darker (lighter in the light
+     * theme), the lines faint, as the laptop and One Calendar's themes draw them.
+     */
+    fun overWallpaper(dark: Boolean): Ink = if (dark) {
+        copy(page = Color(0x6B000000), bar = Color(0x8C000000), line = Color(0x2EFFFFFF), todayCell = Color(0x1FFFFFFF), faint = Color(0x80FFFFFF), lunar = Color(0xB3FFFFFF), muted = Color(0xD9FFFFFF), screen = page, wallpaper = true)
+    } else {
+        copy(page = Color(0x8CFFFFFF), bar = Color(0xB3F5F5F5), line = Color(0x33000000), todayCell = Color(0x1A000000), screen = page, wallpaper = true)
+    }
+
     companion object {
         val Accent = Color(0xFF308FFE)
         val Light = Ink(
@@ -91,26 +105,31 @@ fun chip(size: Int, color: Color, lineHeight: TextUnit = 1.3.em) = type(size, Fo
     lineBreak = androidx.compose.ui.text.style.LineBreak.Paragraph,
 )
 
+/**
+ * The app's colours: light or dark, with [signal] for today and the time line, and see-through
+ * views when a [wallpaper] is behind them.
+ */
 @Composable
-fun XrnTheme(dark: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit) {
-    val ink = if (dark) Ink.Dark else Ink.Light
+fun XrnTheme(dark: Boolean = isSystemInDarkTheme(), wallpaper: Boolean = false, signal: Color? = null, content: @Composable () -> Unit) {
+    val base = (if (dark) Ink.Dark else Ink.Light).let { if (signal != null) it.copy(today = signal) else it }
+    val ink = if (wallpaper) base.overWallpaper(dark) else base
     val scheme = if (dark) {
-        darkColorScheme(primary = ink.accent, onPrimary = Color.White, background = ink.page, surface = ink.sheet, onSurface = ink.text, surfaceVariant = ink.field, onSurfaceVariant = ink.muted, outline = ink.line, surfaceContainerHigh = ink.sheet, surfaceContainerHighest = ink.field, surfaceContainer = ink.sheet, surfaceContainerLow = ink.sheet, secondaryContainer = ink.accentTint)
+        darkColorScheme(primary = ink.accent, onPrimary = Color.White, background = ink.screen, surface = ink.sheet, onSurface = ink.text, surfaceVariant = ink.field, onSurfaceVariant = ink.muted, outline = ink.line, surfaceContainerHigh = ink.sheet, surfaceContainerHighest = ink.field, surfaceContainer = ink.sheet, surfaceContainerLow = ink.sheet, secondaryContainer = ink.accentTint)
     } else {
-        lightColorScheme(primary = ink.accent, onPrimary = Color.White, background = ink.page, surface = ink.sheet, onSurface = ink.text, surfaceVariant = ink.field, onSurfaceVariant = ink.muted, outline = ink.line, surfaceContainerHigh = ink.sheet, surfaceContainerHighest = ink.field, surfaceContainer = ink.sheet, surfaceContainerLow = ink.sheet, secondaryContainer = ink.accentTint)
+        lightColorScheme(primary = ink.accent, onPrimary = Color.White, background = ink.screen, surface = ink.sheet, onSurface = ink.text, surfaceVariant = ink.field, onSurfaceVariant = ink.muted, outline = ink.line, surfaceContainerHigh = ink.sheet, surfaceContainerHighest = ink.field, surfaceContainer = ink.sheet, surfaceContainerLow = ink.sheet, secondaryContainer = ink.accentTint)
     }
-    val base = Typography()
+    val t = Typography()
     val typography = Typography(
-        bodyLarge = base.bodyLarge.copy(fontFamily = MiSans),
-        bodyMedium = base.bodyMedium.copy(fontFamily = MiSans),
-        bodySmall = base.bodySmall.copy(fontFamily = MiSans),
-        labelLarge = base.labelLarge.copy(fontFamily = MiSans),
-        labelMedium = base.labelMedium.copy(fontFamily = MiSans),
-        labelSmall = base.labelSmall.copy(fontFamily = MiSans),
-        titleLarge = base.titleLarge.copy(fontFamily = MiSans),
-        titleMedium = base.titleMedium.copy(fontFamily = MiSans),
-        titleSmall = base.titleSmall.copy(fontFamily = MiSans),
-        headlineSmall = base.headlineSmall.copy(fontFamily = MiSans),
+        bodyLarge = t.bodyLarge.copy(fontFamily = MiSans),
+        bodyMedium = t.bodyMedium.copy(fontFamily = MiSans),
+        bodySmall = t.bodySmall.copy(fontFamily = MiSans),
+        labelLarge = t.labelLarge.copy(fontFamily = MiSans),
+        labelMedium = t.labelMedium.copy(fontFamily = MiSans),
+        labelSmall = t.labelSmall.copy(fontFamily = MiSans),
+        titleLarge = t.titleLarge.copy(fontFamily = MiSans),
+        titleMedium = t.titleMedium.copy(fontFamily = MiSans),
+        titleSmall = t.titleSmall.copy(fontFamily = MiSans),
+        headlineSmall = t.headlineSmall.copy(fontFamily = MiSans),
     )
     CompositionLocalProvider(LocalInk provides ink) {
         MaterialTheme(colorScheme = scheme, typography = typography, content = content)

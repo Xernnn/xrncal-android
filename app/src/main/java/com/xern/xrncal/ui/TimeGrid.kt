@@ -34,6 +34,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.xern.xrncal.domain.ClockMinutes
 import com.xern.xrncal.domain.DayLayout
 import com.xern.xrncal.domain.MonthLayout
@@ -46,9 +47,13 @@ private val GUTTER = 44.dp
 private val ALL_DAY_LANE = 22.dp
 
 /**
- * The week and day views: the days' headers (weekday, number, lunar date), the all-day row, and
- * the hour grid with each event where its clock times put it, side by side where they overlap,
- * and a line at the current time. Tapping an empty hour starts an event there.
+ * The week and day views, as One Calendar and the laptop draw them: the days' headers (week: "Mo
+ * 23" with the lunar day under it, today in the signal colour; day: the lunar date and the week),
+ * the all-day row, and the hour grid at the hour size Options sets, opened at the day's start
+ * (08:00). The gutter writes each hour, and under it that hour in the second time zone when there
+ * is one. Each event sits where its clock times put it, side by side where they overlap, with its
+ * title and then its time range; a line marks the current time. Tapping an empty hour starts an
+ * event there.
  */
 @Composable
 fun TimeGridPage(
@@ -59,29 +64,30 @@ fun TimeGridPage(
     onEvent: (Occurrence) -> Unit,
     onSlot: (LocalDate, Int) -> Unit,
     scroll: ScrollState = rememberScrollState(),
-    hourHeight: Dp = if (days.size == 1) 60.dp else 52.dp,
+    hourHeight: Dp = 40.dp,
 ) {
     val ink = LocalInk.current
     Column(Modifier.fillMaxSize().background(ink.page)) {
         // Headers.
         if (days.size == 1) {
             val d = days.single()
-            Row(Modifier.fillMaxWidth().background(ink.bar).padding(start = 16.dp, end = 16.dp, top = 2.dp, bottom = 8.dp), verticalAlignment = Alignment.Bottom) {
-                Text(Format.dayLong(d), style = type(16, FontWeight.Medium, if (d == look.today) ink.today else ink.text))
+            Row(Modifier.fillMaxWidth().background(ink.bar).padding(start = 12.dp, end = 12.dp, top = 2.dp, bottom = 4.dp), verticalAlignment = Alignment.Bottom) {
+                if (look.lunar) Text(Format.lunarLong(d), style = type(12, color = ink.muted))
                 Spacer(Modifier.weight(1f))
-                if (look.lunar) Text(Format.lunarLong(d), style = type(13, color = ink.muted))
+                if (look.weekNumbers) Text("week ${WeekStart.isoWeekOfRow(WeekStart.startOfWeek(d, java.time.DayOfWeek.MONDAY))}", style = type(13, color = ink.muted))
             }
         } else {
-            Row(Modifier.fillMaxWidth().background(ink.bar).padding(bottom = 6.dp)) {
-                Box(Modifier.width(GUTTER), contentAlignment = Alignment.Center) {
-                    if (look.weekNumbers) Text("${WeekStart.isoWeekOfRow(days.first())}", style = type(12, color = ink.muted))
-                }
+            Row(Modifier.fillMaxWidth().background(ink.bar).padding(top = 2.dp, bottom = 4.dp)) {
+                Spacer(Modifier.width(GUTTER))
                 for (d in days) {
                     val today = d == look.today
                     Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(Format.weekdayShort(d.dayOfWeek), style = type(12, color = if (today) ink.today else ink.muted))
-                        Text("${d.dayOfMonth}", style = type(18, if (today) FontWeight.Bold else FontWeight.Normal, if (today) ink.today else ink.text))
-                        if (look.lunar) Text(Format.lunar(d), style = type(10, color = ink.lunar))
+                        Text(
+                            Format.weekdayTwo(d.dayOfWeek) + " " + d.dayOfMonth,
+                            style = type(14, if (today) FontWeight.Bold else FontWeight.Normal, if (today) ink.today else ink.text),
+                            maxLines = 1,
+                        )
+                        if (look.lunar) Text(Format.lunar(d), style = type(10, color = if (today) ink.today else ink.lunar), maxLines = 1)
                     }
                 }
             }
@@ -93,8 +99,12 @@ fun TimeGridPage(
             Row(Modifier.fillMaxWidth().height(hourHeight * 24)) {
                 Column(Modifier.width(GUTTER)) {
                     for (h in 0 until 24) {
-                        Box(Modifier.height(hourHeight).fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
-                            if (h > 0) Text(Format.hour(h, look.h24), style = type(11, color = ink.muted), modifier = Modifier.offset(y = (-7).dp))
+                        Column(Modifier.height(hourHeight).fillMaxWidth().padding(top = 2.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(Format.hourLabel(h, look.h24), style = type(11, color = ink.muted), maxLines = 1)
+                            look.secondZone?.let { z ->
+                                val there = look.today.atTime(h, 0).atZone(look.zone).withZoneSameInstant(z).toLocalTime()
+                                Text(Format.hourLabel(there.hour, look.h24, there.minute), style = type(9, color = ink.lunar), maxLines = 1)
+                            }
                         }
                     }
                 }
@@ -124,20 +134,25 @@ fun TimeGridPage(
                         for (p in DayLayout.day(d, occurrences, look.zone)) {
                             val w = col / p.columns
                             val bg = look.color(p.occurrence)
+                            val height = hourHeight * ((p.endMin - p.startMin) / 60f) - 2.dp
                             Box(
                                 Modifier
                                     .offset(x = col * i + w * p.column + 1.dp, y = hourHeight * (p.startMin / 60f) + 1.dp)
                                     .width(w - 2.dp)
-                                    .height(hourHeight * ((p.endMin - p.startMin) / 60f) - 2.dp)
+                                    .height(height)
                                     .clip(RoundedCornerShape(3.dp))
                                     .background(bg)
                                     .clickable { onEvent(p.occurrence) }
-                                    .padding(horizontal = 4.dp, vertical = 2.dp),
+                                    .padding(horizontal = 3.dp, vertical = 1.dp),
                             ) {
+                                val single = days.size == 1
+                                val size = if (single) 13 else 11
                                 Column {
-                                    Text(p.occurrence.title.ifBlank { "(no title)" }, style = chip(if (days.size == 1) 14 else 11, onColor(bg)), maxLines = 3, overflow = TextOverflow.Ellipsis)
-                                    if (days.size == 1 && p.endMin - p.startMin >= 45) {
-                                        Text(listOf(segmentLabel(p.occurrence, d, look), p.occurrence.location).filter { it.isNotBlank() }.joinToString("  "), style = type(12, color = onColor(bg).copy(alpha = 0.9f)), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Text(p.occurrence.title.ifBlank { "(no title)" }, style = chip(size, onColor(bg), lineHeight = (size + 2).sp), maxLines = if (single) 2 else 4, overflow = TextOverflow.Ellipsis)
+                                    // The time range under the title, as the laptop's blocks, when there's room.
+                                    if (height >= (if (single) 34.dp else 40.dp)) {
+                                        val time = listOf(segmentLabel(p.occurrence, d, look), if (single) p.occurrence.location else "").filter { it.isNotBlank() }.joinToString("  ")
+                                        Text(time, style = type(if (single) 12 else 9, color = onColor(bg).copy(alpha = 0.9f), lineHeight = (if (single) 14 else 11).sp), maxLines = if (single) 1 else 2, overflow = TextOverflow.Ellipsis)
                                     }
                                 }
                             }
@@ -167,7 +182,7 @@ private fun AllDayRow(days: List<LocalDate>, occurrences: List<Occurrence>, look
         .filter { o -> days.any { !o.firstDay.isAfter(it) && !o.lastDay.isBefore(it) } }
     if (allDay.isEmpty()) return
     if (days.size == 1) {
-        Column(Modifier.fillMaxWidth().background(ink.page).padding(start = GUTTER, end = 8.dp, top = 4.dp, bottom = 4.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Column(Modifier.fillMaxWidth().padding(start = GUTTER, end = 8.dp, top = 4.dp, bottom = 4.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             for (o in DayLayout.allDay(days.single(), allDay)) AllDayChip(o, look, onEvent, Modifier.fillMaxWidth())
         }
         return

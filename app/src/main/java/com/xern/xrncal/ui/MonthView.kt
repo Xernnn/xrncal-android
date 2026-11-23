@@ -21,6 +21,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.outlined.CalendarViewDay
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -30,7 +31,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -43,16 +49,17 @@ import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.YearMonth
 
-private val LANE = 30.dp
+private val LANE = 18.dp
 private val LANE_GAP = 2.dp
-private val DAY_ROW = 24.dp
+private val DAY_ROW = 22.dp
 private val WEEK_NUMBERS = 24.dp
 
 /**
  * One month, One Calendar's way: the weekday row; week numbers on the left; six rows sharing the
- * height; in each cell the day number at the top-left (today's bold and red, the cell tinted), the
- * lunar date at the top-right, "+N" beside the number when not everything fits, and the events as
- * chips in their calendar's colour, two lines tall, title only; events over several days as one bar.
+ * height; in each cell the day number at the top-left (today's in the signal colour, the cell
+ * tinted), the lunar date at the top-right, "+N" beside the number counting what doesn't fit, and
+ * as many one-line chips as the cell holds, in their colour, a timed one led by its start time as
+ * on the laptop; events over several days as one bar.
  */
 @Composable
 fun MonthPage(
@@ -75,7 +82,7 @@ fun MonthPage(
         }
         BoxWithConstraints(Modifier.fillMaxSize()) {
             val rowHeight = maxHeight / weeks.size
-            val lanes = maxOf(1, ((rowHeight - DAY_ROW - 2.dp) / (LANE + LANE_GAP)).toInt())
+            val lanes = MonthLayout.lanes(rowHeight.value - 1f, DAY_ROW.value, LANE.value, LANE_GAP.value)
             Column(Modifier.fillMaxSize()) {
                 for (week in weeks) {
                     WeekRow(week, month, occurrences, lanes, look, onDay, onEvent, Modifier.height(rowHeight))
@@ -109,7 +116,6 @@ private fun WeekRow(days: List<LocalDate>, month: YearMonth, occurrences: List<O
                     val o = bar.occurrence
                     val bg = look.color(o)
                     val span = bar.to - bar.from + 1
-                    val single = !o.multiDay && span == 1
                     Box(
                         Modifier
                             .offset(x = cell * bar.from + 1.dp, y = DAY_ROW + (LANE + LANE_GAP) * bar.lane)
@@ -121,11 +127,16 @@ private fun WeekRow(days: List<LocalDate>, month: YearMonth, occurrences: List<O
                             .padding(horizontal = 3.dp),
                         contentAlignment = Alignment.CenterStart,
                     ) {
+                        val time = look.chipTime(o, days[bar.from])
                         Text(
-                            o.title.ifBlank { "(no title)" },
-                            style = chip(11, onColor(bg), lineHeight = 13.sp),
-                            maxLines = if (single) 2 else 1,
-                            overflow = TextOverflow.Ellipsis,
+                            buildAnnotatedString {
+                                if (time != null) withStyle(SpanStyle(fontSize = 9.sp, fontWeight = FontWeight.Normal)) { append(time + " ") }
+                                append(o.title.ifBlank { "(no title)" })
+                            },
+                            style = type(11, FontWeight.Medium, onColor(bg), lineHeight = 13.sp),
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = TextOverflow.Clip,
                         )
                     }
                 }
@@ -147,7 +158,7 @@ private fun DayCell(d: LocalDate, inMonth: Boolean, today: Boolean, more: Int, l
                     else -> ink.faint
                 }),
             )
-            if (more > 0) Text(" +$more", style = type(11, FontWeight.Medium, ink.muted), maxLines = 1)
+            if (more > 0) Text("+$more", style = type(12, FontWeight.Medium, if (inMonth) ink.text else ink.faint), maxLines = 1, modifier = Modifier.semantics { contentDescription = "$more more" })
             Spacer(Modifier.weight(1f))
             if (look.lunar) {
                 val l = Lunar.label(Lunar.ofSolar(d))
@@ -161,24 +172,37 @@ private fun DayCell(d: LocalDate, inMonth: Boolean, today: Boolean, more: Int, l
     }
 }
 
-/** The pop-up a tapped day opens: its date, its lunar date and its events; `+` starts one on it. */
+/**
+ * One Calendar's day pop-up, opened by tapping a day in the month: the day as a title in the
+ * signal colour ("TUESDAY 24", the lunar date beside it), Add appointment, Day view, then the
+ * day's events as cards in their colours with their times.
+ */
 @Composable
-fun DayPopup(day: LocalDate, events: List<Occurrence>, look: Look, onEvent: (Occurrence) -> Unit, onAdd: () -> Unit, onDismiss: () -> Unit) {
+fun DayPopup(day: LocalDate, events: List<Occurrence>, look: Look, onEvent: (Occurrence) -> Unit, onAdd: () -> Unit, onDayView: () -> Unit, onDismiss: () -> Unit) {
     val ink = LocalInk.current
     Dialog(onDismissRequest = onDismiss) {
-        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(ink.sheet).padding(vertical = 8.dp)) {
-            Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text(Format.dayLong(day), style = type(17, FontWeight.SemiBold, if (day == look.today) ink.today else ink.text))
-                    if (look.lunar) Text(Format.lunarLong(day), style = type(13, color = ink.muted))
+        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(4.dp)).background(ink.sheet).padding(vertical = 12.dp)) {
+            Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 6.dp), verticalAlignment = Alignment.Bottom) {
+                Text(Format.popupDay(day), style = type(20, color = ink.today), modifier = Modifier.weight(1f))
+                if (look.lunar) Text(Format.lunarLong(day), style = type(13, color = ink.muted))
+            }
+            PopupAction(Icons.Filled.Add, "Add appointment", onAdd)
+            PopupAction(Icons.Outlined.CalendarViewDay, "Day view", onDayView)
+            if (events.isNotEmpty()) {
+                LazyColumn(Modifier.fillMaxWidth().heightIn(max = 380.dp).padding(horizontal = 16.dp, vertical = 6.dp).clip(RoundedCornerShape(2.dp)), verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(1.dp)) {
+                    items(events, key = { it.key + it.calendarId }) { o -> EventCard(o, look, day, { onEvent(o) }, RoundedCornerShape(0.dp)) }
                 }
-                IconButton(onClick = onAdd) { Icon(Icons.Filled.Add, contentDescription = null, tint = ink.text) }
             }
-            HorizontalDivider(color = ink.line, modifier = Modifier.padding(top = 6.dp))
-            LazyColumn(Modifier.fillMaxWidth().heightIn(max = 420.dp)) {
-                items(events, key = { it.key + it.calendarId }) { o -> EventRow(o, look, { onEvent(o) }, day = day) }
-            }
-            if (events.isEmpty()) Spacer(Modifier.size(12.dp))
         }
+    }
+}
+
+@Composable
+private fun PopupAction(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit) {
+    val ink = LocalInk.current
+    Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 20.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+        Icon(icon, contentDescription = null, tint = ink.text, modifier = Modifier.size(22.dp))
+        Spacer(Modifier.width(30.dp))
+        Text(label, style = type(16, color = ink.text))
     }
 }

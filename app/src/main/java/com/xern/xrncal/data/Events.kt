@@ -52,8 +52,22 @@ class EventRepository(
         val stored = store.calendars().map { c ->
             CalendarInfo(c.id, c.name, c.color, c.readOnly, c.shown, if (c.local) LOCAL_GROUP else SERVER_GROUP)
         }
-        val holidays = HolidayCalendar.entries.map { CalendarInfo(it.id, it.title, it.color, true, it.id in s.holidays, HOLIDAY_GROUP) }
+        val holidays = HolidayCalendar.entries.map { CalendarInfo(it.id, it.title, s.holidayColors[it.id] ?: it.color, true, it.id in s.holidays, HOLIDAY_GROUP) }
         return stored + holidays
+    }
+
+    /**
+     * A calendar's colour, picked here: a server calendar's is written to the server at the next
+     * sync (CalDAV PROPPATCH), the phone's own and the holiday calendars' stay here.
+     */
+    suspend fun setColor(id: String, color: Int, settingsStore: SettingsStore) {
+        if (HolidayCalendar.of(id) != null) {
+            settingsStore.update { it.copy(holidayColors = it.holidayColors + (id to color)) }
+        } else {
+            val c = store.calendar(id) ?: return
+            store.putCalendar(c.copy(color = color, colorState = if (c.local) CalendarEntity.COLOR_SERVER else CalendarEntity.COLOR_TO_SEND, lastError = null))
+        }
+        changed()
     }
 
     suspend fun setShown(id: String, shown: Boolean, settingsStore: SettingsStore) {
@@ -75,7 +89,9 @@ class EventRepository(
         val cals = store.calendars().filter { !onlyShown || it.shown }.map { it.id }
         val lo = from.atStartOfDay(z).toInstant().toEpochMilli() - DAY
         val hi = to.plusDays(1).atStartOfDay(z).toInstant().toEpochMilli() + DAY
-        val rows = store.inRange(cals, lo, hi)
+        // Options' history: events over before it are not shown (One Calendar keeps three years).
+        val cutoff = settings().historyYears.takeIf { it > 0 }?.let { clock().atZone(z).minusYears(it.toLong()).toInstant().toEpochMilli() } ?: Long.MIN_VALUE
+        val rows = store.inRange(cals, maxOf(lo, cutoff), hi)
         val budgets = HashMap<String, Recurrence.Budget>()
         val out = ArrayList<Occurrence>()
         for (r in rows) {
@@ -86,7 +102,7 @@ class EventRepository(
         val s = settings()
         for (h in HolidayCalendar.entries) {
             if (onlyShown && h.id !in s.holidays) continue
-            for (d in Holidays.between(h, from, to)) out += holiday(h, d, z)
+            for (d in Holidays.between(h, from, to)) out += holiday(h, d, z).let { o -> s.holidayColors[h.id]?.let { o.copy(color = it) } ?: o }
         }
         out.sortWith(compareBy<Occurrence>({ it.firstDay }, { !it.allDay }, { it.start }, { it.title }))
         out
@@ -157,26 +173,91 @@ class EventRepository(
         return moved.id
     }
 
-    suspend fun delete(occ: Occurrence, scope: Scope) = withContext(work) {
-        val r = store.resource(occ.resourceId) ?: return@withContext
-        val cal = store.calendar(r.calendarId) ?: return@withContext
+    /** A resource as it was before a delete, for Undo. */
+    data class Undo(val before: ResourceEntity)
+
+    /** Deletes [occ] (that date, or the whole event); returns what Undo needs to put it back. */
+    suspend fun delete(occ: Occurrence, scope: Scope): Undo? = withContext(work) {
+        val r = store.resource(occ.resourceId) ?: return@withContext null
+        val cal = store.calendar(r.calendarId) ?: return@withContext null
         require(!cal.readOnly) { "read-only calendar" }
         val ics = Edits.delete(r.ics, occ, scope, clock())
         if (ics == null) store.deleteLocal(r.id) else store.saveLocal(r.copy(ics = ics))
         changed()
+        Undo(r)
     }
 
-    /** Events whose title, place or notes have every word typed, each at its date nearest to now. */
-    suspend fun search(query: String): List<Occurrence> = withContext(work) {
+    /**
+     * Puts a deleted event back as it was, as the laptop's Undo does: its resource again if the
+     * delete is still waiting to go to the server, else made again (with the same UID) if it has
+     * gone there or was never sent. Returns the resource's id.
+     */
+    suspend fun undo(u: Undo): String = withContext(work) {
+        val now = store.resource(u.before.id)
+        val id = if (now != null) {
+            store.saveLocal(now.copy(ics = u.before.ics, deleted = false)).id
+        } else {
+            store.saveLocal(ResourceEntity(ResourceEntity.newId(), u.before.calendarId, ics = u.before.ics)).id
+        }
+        changed()
+        id
+    }
+
+    /** The iCalendar text to share for [occ]: its resource, or a holiday written as an event. */
+    suspend fun shareText(occ: Occurrence): String = withContext(work) {
+        store.resource(occ.resourceId)?.ics ?: Edits.create(
+            EventDraft(occ.title, occ.allDay, occ.firstDay, java.time.LocalTime.MIDNIGHT, occ.lastDay, java.time.LocalTime.MIDNIGHT, zone(), notes = occ.notes),
+            occ.uid, clock(),
+        )
+    }
+
+    /**
+     * Events whose title, place or notes have every word typed, as One Calendar's search tabs list
+     * them: [past] false, each at its next date, soonest first (Future); true, each at its last
+     * date before now, latest first (Past), as far back as Options' history.
+     */
+    suspend fun search(query: String, past: Boolean = false): List<Occurrence> = withContext(work) {
         val words = TextFold.forMatch(query).split(' ').filter { it.isNotEmpty() }
         if (words.isEmpty()) return@withContext emptyList()
         val z = zone()
+        val now = clock()
         val cals = store.calendars().map { it.id }
         val rows = store.matching(cals, words.maxBy { it.length }).filter { r -> TextFold.matches(r.search, query) }
-        val found = rows.mapNotNull { r -> parse(r, z)?.let { Occurrences.nearest(it, r.id, r.calendarId, clock(), z) } }
+        val years = settings().historyYears.takeIf { it > 0 }?.toLong() ?: 50L
+        val found = rows.mapNotNull { r ->
+            val res = parse(r, z) ?: return@mapNotNull null
+            if (past) Occurrences.last(res, r.id, r.calendarId, now, z, years) else Occurrences.next(res, r.id, r.calendarId, now, z)
+        }
+        if (past) found.sortedByDescending { it.start } else found.sortedBy { it.start }
+    }
+
+    /** What the editor's suggestions learn from: the titles and the places of the events already there. */
+    data class History(val titles: List<com.xern.xrncal.domain.TitleSample>, val places: List<com.xern.xrncal.domain.LocationSample>)
+
+    /**
+     * Every event of the last two years (the laptop's look-back for places; titles look back one),
+     * as the suggestion rankings take them: an all-day event's days as floating dates, as the
+     * laptop stores them.
+     */
+    suspend fun history(): History = withContext(work) {
+        val z = zone()
         val now = clock()
-        // What is to come first, soonest first; then the past, latest first.
-        found.sortedWith(compareBy<Occurrence>({ it.end.isBefore(now) }, { if (it.end.isBefore(now)) -it.start.toEpochMilli() else it.start.toEpochMilli() }))
+        val since = now.minus(java.time.Duration.ofDays(com.xern.xrncal.domain.LocationSuggestions.LOOKBACK_DAYS)).toEpochMilli()
+        val titles = ArrayList<com.xern.xrncal.domain.TitleSample>()
+        val places = ArrayList<com.xern.xrncal.domain.LocationSample>()
+        for (r in store.live(store.calendars().map { it.id })) {
+            if (r.rangeEnd < since) continue
+            val res = parse(r, z) ?: continue
+            for (e in res.masters) {
+                val s = e.startInstant ?: continue
+                val first = e.start!!.date
+                val start = if (e.allDay) com.xern.xrncal.domain.TitleSuggestions.floatingDay(first) else s
+                val end = if (e.allDay) com.xern.xrncal.domain.TitleSuggestions.floatingDay(first.plusDays(e.extraDays)) else s.plus(e.length)
+                if (e.title.isNotBlank()) titles += com.xern.xrncal.domain.TitleSample(e.title, r.calendarId, start, end, e.allDay, e.location.ifBlank { null }, e.rrule)
+                if (e.location.isNotBlank()) places += com.xern.xrncal.domain.LocationSample(e.location, s, e.rrule)
+            }
+        }
+        History(titles, places)
     }
 
     suspend fun problems(): List<Problem> {

@@ -5,6 +5,7 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.time.ZoneOffset
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -270,5 +271,17 @@ class OccurrencesTest {
         val res = ParsedResource.parse(ics(vevent(*standup, "RRULE:FREQ=WEEKLY;BYDAY=MO")), ZoneOffset.UTC)
         val near = Occurrences.nearest(res, "r1", "c1", Instant.parse("2026-11-24T00:00:00Z"), ZoneOffset.UTC)
         assertEquals("2026-11-30T09:00:00Z", near!!.start.toString())
+    }
+
+    @Test
+    fun aSeriesIsFoundAtItsNextDateAndItsLastOne() {
+        val text = ics(vevent("UID:s", "SUMMARY:Standup", "DTSTART:20261102T020000Z", "DTEND:20261102T023000Z", "RRULE:FREQ=WEEKLY;COUNT=6"))
+        val res = ParsedResource.parse(text, ZoneOffset.UTC)
+        val now = java.time.Instant.parse("2026-11-24T00:00:00Z")
+        assertEquals(LocalDate.parse("2026-11-30"), Occurrences.next(res, "r", "c", now, ZoneOffset.UTC)!!.firstDay)
+        assertEquals(LocalDate.parse("2026-11-23"), Occurrences.last(res, "r", "c", now, ZoneOffset.UTC)!!.firstDay)
+        // After its last date it has no next one; before its first, no last one.
+        assertNull(Occurrences.next(res, "r", "c", java.time.Instant.parse("2026-12-08T00:00:00Z"), ZoneOffset.UTC))
+        assertNull(Occurrences.last(res, "r", "c", java.time.Instant.parse("2026-11-01T00:00:00Z"), ZoneOffset.UTC))
     }
 }

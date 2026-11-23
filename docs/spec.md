@@ -1,4 +1,4 @@
-# xrncal for Android: phase 1 spec
+# xrncal for Android: spec
 
 A native calendar for the phone (Kotlin, Jetpack Compose, minimum Android 12). It is the phone
 side of xrncal, the laptop calendar (`xrncal-desktop`, Electron), and like it is made to look and
@@ -6,8 +6,12 @@ work like **One Calendar** by Code Spark, here its Android phone app. It syncs o
 same way the laptop app does, so both show the same calendars from the same server, and adds the
 Vietnamese lunar date to every day.
 
-Phase 1 is an app to use every day instead of One Calendar on the phone. Widgets and the rest
-come after (see "Phase 2").
+Phase 1 (0.1.0) made an app to use every day instead of One Calendar on the phone. Phase 2 ("Phase
+2: close the gap" below) brings it close to both One Calendar's phone app and the owner's laptop
+xrncal: their look (a wallpaper under see-through views), One Calendar's top bar, filter, year
+view and editor, the laptop's colours, second time zone, emoji and typed dates, widgets, and
+reminders the way One Calendar has them. Where phase 2 changes a phase 1 rule, the phase 2
+section says so and wins.
 
 ## Phase 1: in and out
 
@@ -163,10 +167,11 @@ parameters, TEXT escapes), keeping every component and property it reads. On top
   laptop app's rule: today's yearly rule as an RRULE, earlier changes listed).
 - RRULE, RDATE, EXDATE; overrides by RECURRENCE-ID (moved or cancelled dates); an override whose
   series isn't in the resource shows on its own.
-- VALARM: alarms counted back from the start are reminders. No VALARM at all means the defaults
-  apply (as on the laptop); an event whose reminders were all removed is written with the "none"
-  marker other calendars use (an `ACTION:NONE` alarm at a fixed time in 1976), which the laptop
-  app also reads as none. Alarms this app can't show are kept.
+- VALARM: alarms counted back from the start are reminders. An event with none never rings
+  (phase 2; phase 1 applied the defaults). The "none" marker other calendars write (an
+  `ACTION:NONE` alarm at a fixed time in 1976) is read as none and no longer written. Alarms this
+  app can't show are kept.
+- COLOR (RFC 7986): an event's own colour, a hex value (phase 2).
 
 **Recurrence** uses `org.dmfs:lib-recur` 0.17.1 (Apache-2.0): maintained, pure Java with no
 Android dependence, the whole of RFC 5545's RRULE (BYSETPOS, BYWEEKNO, BYYEARDAY…), and a
@@ -221,14 +226,15 @@ it, under one mutex.
 
 After every sync, every change, a start of the app, a reboot, an update and a change of time or
 zone, the phone works out the next reminders (occurrences of the shown calendars from a day ago to
-eight days ahead; an event's own VALARMs, or the defaults) and sets one exact alarm for the
-soonest. When it goes off, every reminder due then rings, each once (the laptop's rule: one stays
+eight days ahead; an event's own VALARMs only: one without any never rings) and sets one exact
+alarm for the soonest. When it goes off, every reminder due then rings, each once (the laptop's rule: one stays
 due until its event starts, and of several overdue only the latest rings), and the next alarm is
-set. A notification shows the title, the time and the place; tapping it opens the event.
+set. A notification shows the title, the time and the place; tapping it opens the event, and
+its Open and Snooze actions do what they say (phase 2).
 Permissions: `USE_EXACT_ALARM` (Android 13+), `SCHEDULE_EXACT_ALARM` (Android 12),
 `POST_NOTIFICATIONS`, `RECEIVE_BOOT_COMPLETED`, `INTERNET`; `ManifestTest` checks each.
 
-## Settings
+## Settings (phase 1; phase 2 splits them into One Calendar's Options pages, item 11)
 
 - Account: server address, user name, password; Connect; the calendars it found and the last
   sync; Sync now; Sign out (removes the account's calendars from the phone).
@@ -254,7 +260,232 @@ Permissions: `USE_EXACT_ALARM` (Android 13+), `SCHEDULE_EXACT_ALARM` (Android 12
   412 conflict, a series with an override, deletes both ways. `ManifestTest`. Reminder planning.
 - CI (GitHub Actions) installs Radicale 3.8.1 with pip and runs every test and a debug build.
 
-## Phase 2
+## Phase 2: close the gap to One Calendar and the laptop
 
-Widgets (month and agenda); Year view; the colour filter; "this and following"; calendar colours
-and names; a jump-to-date picker; .ics import, export and share; Google and Microsoft accounts.
+The owner used 0.1.0 beside One Calendar on the same data and beside xrncal on the laptop, and
+found it "not really close enough to both". Phase 2 closes those gaps, in the order the owner
+meets them. One Calendar's phone app (seen on the owner's phone, its public listing and help
+pages) sets the layout; the laptop app sets the extras (wallpapers, second zone, emoji, typed
+dates, suggestions, event colours). Its name, logo and artwork stay out.
+
+### Defaults: the owner's laptop and One Calendar
+
+A new install starts as the owner has both set up: dark theme, the "Cyber City" wallpaper with
+overlay darkness 0.15 and blur 2; 24-hour clock; week from Monday; week numbers and lunar dates
+on; second time zone Asia/Ho_Chi_Minh (also first in the editor's zone list); time picker in
+15-minute steps; opens on Week; day starts at 08:00; hour size Medium; month day pop-up on; new
+events an hour long; reminders 15 minutes (timed) and 12 hours (all-day). An update from 0.1.0
+keeps every choice the owner made, except that the two reminder defaults still at 0.1.0's own
+values (10 minutes, none) move to One Calendar's (15 minutes, 12 hours): 0.1.0 saved every
+setting whenever one changed, so the stored values can't say whether they were chosen.
+
+### 1. Wallpaper and translucent chrome
+
+A picture behind every view, as on the laptop and in One Calendar's themes: the picture (cropped
+to fill, blurred on Android 12 and later), a black overlay at the chosen darkness, then the views
+drawn over it with see-through backgrounds: the top bar and the weekday row darker, the grid
+lines faint, the chips solid. The laptop's four presets ship with the app (Misty Forest, Purple
+Sunset, Cyber City, Cosmic Night: Unsplash photos under the Unsplash License, as the laptop notes
+them), plus "No image" (the plain One Calendar themes of phase 1) and **Import from the gallery**
+through Android's photo picker, which needs no permission: the picture is scaled down to 1600 px
+and kept in the app's own files. Settings, Theme: wallpaper, overlay darkness (0 to 0.8), blur
+(0 to 20), app theme (System, Light, Dark; Dark by default) and the signal colour (today's date
+and the time line; One Calendar's red by default).
+
+### 2. Colours
+
+- **Calendar colours** are One Calendar's palette, the Google-style colours (Tomato #D50000,
+  Flamingo, Tangerine #F4511E, Banana #F6BF26, Sage, Basil #0B8043, Peacock #039BE5, Blueberry
+  #3F51B5, Lavender, Grape #8E24AA, Graphite #616161, and Google's calendar colours such as Cocoa
+  #795548, Mango #F09300 and Pistachio #7CB342). Options, Calendar colors lists every calendar as
+  a bar in its colour with a picker, as One Calendar does.
+- **A colour picked for a server calendar is written to the server**: a CalDAV `PROPPATCH` of
+  Apple's `calendar-color` (`#RRGGBBFF`, as Apple and DAVx⁵ write it) on the collection, sent at
+  the start of the next sync. Until it goes through the calendar keeps the new colour here and is
+  marked; the server's colour then wins again at every sync, so the laptop (which reads the same
+  property) and the phone agree. A server that refuses it leaves the colour here and the reason on
+  the calendar. The phone's own calendar and the holiday calendars change here only.
+- **Per-event colour** (One Calendar and the laptop both have it): the colour square beside the
+  editor's calendar row; "Calendar colour" or one of the palette. Written as RFC 7986 `COLOR`
+  with a lower-case `#rrggbb`, as the laptop writes it; read back from any hex value (a CSS name
+  another program wrote is kept and ignored).
+
+### Reminders (owner's decision: like One Calendar)
+
+- **An event with no VALARM of its own never rings.** Phase 1's "no VALARM means the default"
+  is gone, on the phone and (by the owner's same decision) on the laptop.
+- The defaults (timed 15 minutes, all-day 12 hours, in Options, Reminders) only fill in a **new**
+  event's reminder, which is then saved as a real VALARM the laptop sees.
+- An event whose reminders are all removed is written with no VALARM. The `ACTION:NONE` marker
+  of phase 1 no longer means anything to either app and is no longer written; it is still read as
+  "none", and a save that leaves an event with no reminders drops it.
+- After the update the alarm 0.1.0 set for an event with no VALARM is cancelled: the update
+  broadcast, the app's start and every sync work the alarm out again under the new rule.
+- The editor offers One Calendar's list: None, at the start, 5, 10, 15, 30 and 45 minutes, 1, 2,
+  3, 4, 6, 12 and 18 hours, 1 and 2 days, 1 week. Several reminders stay allowed, as on the laptop
+  ("+" adds one).
+
+### 3. Month view like One Calendar's
+
+- Each cell holds as many **one-line chips** as fit its height (about five on the owner's phone),
+  and **"+N" beside the day number** counts the ones left out ("26+1"). No line is kept back for
+  it any more.
+- The lunar day stays at the right of the number (xrncal's own); today's number is in the signal
+  colour and its cell tinted.
+- A chip shows the title only, as One Calendar's month does. Options, Views can lead timed chips
+  with their start time, as the laptop's wider month does ("10:30 Dentist"); off by default,
+  because on a phone the time left 3 or 4 letters of the title.
+- Tapping a day opens One Calendar's **day pop-up** (item 7) when "Month day pop-up" is on (the
+  default), else that day's Day view.
+
+### 4. Week and day views like One Calendar's and the laptop's
+
+- **The day starts at 08:00**: the grid opens scrolled to the "Start time of day" (Options,
+  Views), and **hour size** Small, Medium (the default: 08:00 to 23:00 fill the owner's screen,
+  as One Calendar shows them) or Large sets the hour's height. Pinch zoom of the grid is left out:
+  it fights the pager's swipe, and the setting does the job.
+- **The second time zone** (laptop): under each hour in the gutter, that hour in the second zone,
+  smaller, when it differs from the phone's.
+- Event blocks: the title, then the time range (when the block has room).
+- Week header: One Calendar's "Mo 23" with the lunar day under it; today's in the signal colour.
+
+### 5. Top bar like One Calendar's
+
+- Title and subtitle: Month "November"; Week "November" over "week 48"; Day "Tuesday 24" over
+  "November"; List "November"; Year "2026" (the year is added to a month that isn't this year's).
+  **Tapping the subtitle zooms out** to the month.
+- Buttons: **+** (a menu with "Add appointment"), **Filter** (a pop-up of every calendar with a
+  checkbox in its colour, grouped by account, the holiday calendars last, as One Calendar's
+  filter), and **Today** (today's date in a calendar glyph).
+- The drawer follows One Calendar's: List, Month, Week, Day, **Year**; Search; Sync; Accounts,
+  Options. The calendar switches of phase 1 move to the filter.
+
+### 6. Year view
+
+Twelve mini months, three across (One Calendar and the laptop). Each day with events is tinted
+in the colour of the calendar with the most events that day (a tie goes to the one whose event
+comes first), with the lunar day small under the date; today in the signal colour. Tapping a day
+opens its Day view. Swipe between years.
+
+### 7. Day pop-up
+
+As One Calendar's: the day as a red title ("TUESDAY 24", the lunar date beside it), **Add
+appointment**, **Day view**, then the day's events as cards in their colours with their times.
+Tapping an event opens it.
+
+### 8. Tapping an event opens the editor straight away
+
+As in One Calendar and on the laptop; the detail page of phase 1 is gone.
+
+- The editor's bar: ✕, "Edit", ⋮ (**Copy**: a new event with the same fields; **Share**: the
+  event as an `.ics` file through Android's share sheet), **Delete**, ✓.
+- **Delete** closes the editor and shows "Deleted" with **Undo** for a few seconds, as the laptop
+  does; Undo puts the event back as it was (made again on the server if the delete had already
+  gone there).
+- A date of a repeating event opens with that date's fields; **"This event" or "All events" is
+  asked on ✓ or Delete**, when there is something to save, not before the editor opens.
+- Events that can't be changed (a read-only calendar, a holiday) open the same editor with its
+  fields locked and no ✓ or Delete. An event that couldn't be sent shows why at the top, with
+  Keep mine and Keep theirs.
+- The lunar date shows under the start date.
+
+### 9. Editor like One Calendar's, with the laptop's extras
+
+In One Calendar's order:
+
+1. **Subject**, with an **emoji button** in front: the laptop's panel, the emojis picked most
+   first, then its built-in set by kind; the pick replaces the emoji the title starts with.
+   **Title suggestions** from the events already there (the laptop's ranking) show under the
+   field as it is typed.
+2. **Natural-language entry** for a new event (the laptop's `natural-entry.ts`, ported with its
+   test vectors): a date, time, length or repeat typed into the title ("Lunch with Sam tomorrow at
+   12:30", "Họp 3h chiều thứ 6") fills those fields, and "Saved as …" shows the shorter title it
+   will save.
+3. **Calendar**, with its account under it, and the **event colour** square.
+4. **All day**; **Start** and **End** (date, time, and the time-zone globe; the time list is in
+   the 15-minute steps of Options; the zone list leads with the preferred zones and the phone's).
+5. **Repeat**, One Calendar's compact form: "every [N] [days / weeks / months / years]", "on [M T
+   W T F S S]" for weeks (monthly: on the date or on the nth weekday), "ends [never / on date /
+   after N times]". A rule this form can't show is kept as it is ("Custom").
+6. **Location**, with **suggestions from places used before** (the laptop's ranking).
+7. **Reminder**, One Calendar's list (above), several allowed.
+8. **Description**.
+
+### 10. Search
+
+One Calendar's **Future** and **Past** tabs: Future lists each matching event at its next date,
+soonest first; Past at its last date before now, latest first.
+
+### 11. Options
+
+One Calendar's Options list, each a page:
+
+- **Views**: first day of week, time format, week numbers, startup view, month day pop-up, start
+  time of day, hour size, lunar dates, second time zone, times in month chips.
+- **Appointments**: default calendar, default length, suggestions (titles and places).
+- **Calendar colors**: every calendar's colour (item 2).
+- **Theme**: item 1.
+- **Reminders**: the defaults for timed and all-day events; notifications: hide details on the
+  lock screen, the snooze length, and Android's notification settings for the app.
+- **Synchronisation**: history (how far back events are shown and searched: 1, 2, 3 (the
+  default, as One Calendar), 5 years or all; the phone still keeps the older ones' text, so the
+  sync needs no new rules), and the automatic interval (15 minutes to 6 hours; 30 minutes by
+  default, as in phase 1).
+- **Time zone**: use the phone's (the default), or a chosen zone the app shows everything in.
+- **Widget options**: item 12.
+- **Emoji options**: on or off, and the favourites (the most used, as the laptop counts them;
+  cleared here).
+
+**Accounts** (the drawer, as One Calendar's Accounts): the CalDAV account (address, user,
+password, Connect, Sync now, Sign out), the last sync, and the events that couldn't be sent, each
+with Keep mine and Keep theirs.
+
+### 12. Home-screen widgets
+
+The owner keeps One Calendar's Agenda widget on the home screen. RemoteViews, as the other xrn
+apps' widgets (no Glance: one less library, and the list uses Android 12's
+`RemoteCollectionItems`, so no service is needed):
+
+- **Agenda**: the next 14 days that have events, each under a "Tuesday 24 November" header, each
+  event as a line with its colour, time and title. Tapping an event opens it in the app; tapping
+  a header or the empty part opens the app.
+- **Month**: this month as a grid with each day's events as coloured bars, drawn as a picture of
+  the widget's size; tapping opens the app on the month.
+- **Date icon**: today's weekday and date in a calendar glyph; tapping opens the app.
+- Widget options: theme (dark or light), text colour, background colour and opacity, and which
+  calendars show. Widgets are drawn again after every sync and change, and at midnight.
+
+### 13. Notifications
+
+A reminder's notification has **Open** and **Snooze** (5, 10, 15, 30 minutes or an hour, as the
+laptop offers; the length is chosen in Options, Reminders, 10 minutes by default). A snoozed
+reminder rings again at its new time, even after a reboot.
+
+### 14. Accessibility
+
+Every icon button has a content description ("Menu", "Add", "Filter", "Today", "Delete", …), so
+TalkBack names it and tests can find it.
+
+### Left out (and why)
+
+- One Calendar's Tasks (needs a separate app), Invites, the birthday emoji and Security options.
+- Guests and the PEOPLE tab: later.
+- Lunar-yearly repeats typed into a title ("Giỗ ông 12/8 âm lịch"): the date is filled in, the
+  yearly lunar repeat is not (the phone has no lunar repeat yet; the laptop writes each year's
+  date).
+
+### Tests added in phase 2
+
+- Unit: the month cell's chips and "+N"; the reminder rule (no VALARM, no ring; defaults only on
+  new events; the alarm 0.1.0 set for one is cancelled; snoozing); the settings migration; repeat
+  form round trips to RRULE; natural-language parsing and the suggestion rankings with the
+  laptop's vectors; the year view's tint; the widgets' data; the colour palette.
+- Radicale: a calendar colour set by PROPPATCH read back by a second device; a per-event `COLOR`
+  round trip; a new event's default reminder reaching the server as a VALARM.
+- Previews of every new screen from made-up calendars, rendered to PNGs.
+- `ManifestTest`: the widgets' receivers and the share provider (Snooze is an explicit broadcast to the reminder receiver, which needs no filter).
+
+## Later
+
+"This and following" edits of a series; calendar names, and making calendars on the server; a
+jump-to-date picker; .ics import and export; Google and Microsoft accounts; guests.

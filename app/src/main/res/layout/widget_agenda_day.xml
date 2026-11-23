@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A day's header in the agenda widget: "Wednesday 25 November". -->
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/row_day"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:fontFamily="sans-serif-medium"
+    android:maxLines="1"
+    android:paddingTop="8dp"
+    android:paddingBottom="2dp"
+    android:textSize="13sp" />

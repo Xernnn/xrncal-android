@@ -7,8 +7,11 @@ import com.xern.xrncal.data.MemoryCalendarStore
 import com.xern.xrncal.data.MemoryRungLog
 import com.xern.xrncal.data.ReminderPlanner
 import com.xern.xrncal.data.Settings
+import com.xern.xrncal.data.SettingsMigration
 import com.xern.xrncal.domain.EventDraft
 import com.xern.xrncal.domain.EventReminder
+import com.xern.xrncal.domain.Reminders
+import com.xern.xrncal.ui.newDraft
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
@@ -16,6 +19,7 @@ import java.time.ZoneId
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /** The one alarm on the soonest reminder, and what rings when it goes off (docs/spec.md, "Reminders"). */
@@ -52,13 +56,46 @@ class ReminderPlanTest {
     }
 
     @Test
-    fun anEventWithoutAlarmsTakesTheDefaultAndNoneMeansNone() = runBlocking {
-        event("Default", "2026-11-24", "12:00", "13:00", null)
-        event("Silent", "2026-11-24", "11:00", "12:00", emptyList())
-        assertEquals(at("2026-11-24T11:50").toEpochMilli(), planner.rearm())
-        settings = settings.copy(timedReminder = null)
+    fun anEventWithoutAlarmsNeverRingsWhateverTheDefaults() = runBlocking {
+        settings = settings.copy(timedReminder = 10, allDayReminder = 900)
+        event("No alarm", "2026-11-24", "12:00", "13:00", null)
+        event("Removed", "2026-11-24", "11:00", "12:00", emptyList())
+        event("All day", "2026-11-25", "00:00", "00:00", null, allDay = true)
+        assertNull(planner.rearm())
+        now = at("2026-11-24T11:50")
+        assertEquals(emptyList<Any>(), planner.ringing())
+    }
+
+    @Test
+    fun theAlarm010SetForAnEventWithoutAlarmsIsCancelledAfterTheUpdate() = runBlocking {
+        // 0.1.0 rang its 10-minute default for an event with no VALARM and set the phone's alarm for it.
+        event("No alarm", "2026-11-24", "12:00", "13:00", null)
+        alarm = at("2026-11-24T11:50").toEpochMilli()
+        // The update broadcast (and the app's start, and every sync) works the alarm out again.
         assertNull(planner.rearm())
         assertNull(alarm)
+    }
+
+    @Test
+    fun aNewEventIsSavedWithTheDefaultAsItsOwnAlarm() = runBlocking {
+        store.putCalendar(CalendarEntity("cal", CalendarEntity.LOCAL, "Phone", 0))
+        val defaults = Reminders.Defaults(settings.timedReminder, settings.allDayReminder)
+        val draft = newDraft(LocalDate.parse("2026-11-24"), 12, now, zone, 60, defaults.forNew(false)).copy(title = "Lunch")
+        val id = events.create("cal", draft)
+        assertTrue(store.resource(id)!!.ics.contains("TRIGGER:-PT15M"))
+        assertEquals(at("2026-11-24T11:45").toEpochMilli(), planner.rearm())
+        // Changing the default later changes nothing for it: the alarm is its own.
+        settings = settings.copy(timedReminder = null)
+        assertEquals(at("2026-11-24T11:45").toEpochMilli(), planner.rearm())
+    }
+
+    @Test
+    fun remindersStillAtTheOldDefaultsMoveToOneCalendarsOnUpdate() {
+        assertEquals(15 to 720, SettingsMigration.reminders(1, 10, null))
+        assertEquals(30 to 900, SettingsMigration.reminders(1, 30, 900))
+        assertEquals(null to 720, SettingsMigration.reminders(1, null, null))
+        assertEquals(10 to null, SettingsMigration.reminders(2, 10, null))
+        assertEquals(Settings().timedReminder to Settings().allDayReminder, 15 to 720)
     }
 
     @Test
@@ -94,6 +131,23 @@ class ReminderPlanTest {
     fun holidaysNeverRing() = runBlocking {
         settings = settings.copy(allDayReminder = 0, holidays = setOf("holidays:international"))
         now = at("2026-12-24T08:00")
+        assertNull(planner.rearm())
+    }
+
+    @Test
+    fun aSnoozedReminderRingsAgainAfterItsMinutes() = runBlocking {
+        event("Dentist", "2026-11-24", "10:00", "11:00", listOf(EventReminder(30)))
+        now = at("2026-11-24T09:30")
+        val ring = planner.ringing().single()
+        // Snooze, as the notification's action does: ten minutes on, the alarm is set for it.
+        assertEquals(at("2026-11-24T09:40").toEpochMilli(), planner.snooze(ring.occurrence.resourceId, ring.occurrence.start.toEpochMilli(), 30, 10))
+        assertEquals(alarm, at("2026-11-24T09:40").toEpochMilli())
+        now = at("2026-11-24T09:35")
+        assertEquals(emptyList<Any>(), planner.ringing())
+        now = at("2026-11-24T09:40")
+        assertEquals(listOf("Dentist" to 30), planner.ringing().map { it.occurrence.title to it.minutesBefore })
+        // Rung once more, and then nothing until something else is due.
+        assertEquals(emptyList<Any>(), planner.ringing())
         assertNull(planner.rearm())
     }
 }

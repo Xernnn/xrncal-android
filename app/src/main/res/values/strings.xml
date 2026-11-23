@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">xrncal</string>
+    <string name="widget_agenda">Agenda</string>
+    <string name="widget_month">Month</string>
+    <string name="widget_date">Date</string>
 </resources>

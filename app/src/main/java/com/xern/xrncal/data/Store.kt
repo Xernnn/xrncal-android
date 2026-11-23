@@ -36,6 +36,12 @@ data class CalendarEntity(
     val syncToken: String? = null,
     val sortKey: String = "",
     val lastError: String? = null,
+    /**
+     * Whose [color] this is: the server's ([COLOR_SERVER], taken at every sync), one picked here to
+     * be written to the server ([COLOR_TO_SEND]), or one the server refused, kept here only
+     * ([COLOR_HERE]).
+     */
+    @androidx.room.ColumnInfo(defaultValue = "0") val colorState: Int = COLOR_SERVER,
 ) {
     val local: Boolean get() = account == LOCAL
 
@@ -43,6 +49,9 @@ data class CalendarEntity(
         const val CALDAV = "caldav"
         const val LOCAL = "local"
         const val NO_SYNC_COLLECTION = "-"
+        const val COLOR_SERVER = 0
+        const val COLOR_TO_SEND = 1
+        const val COLOR_HERE = 2
     }
 }
 
@@ -156,13 +165,21 @@ interface ResourceDao {
     suspend fun deleteCalendar(calendarId: String)
 }
 
-@Database(entities = [CalendarEntity::class, ResourceEntity::class], version = 1, exportSchema = true)
+@Database(entities = [CalendarEntity::class, ResourceEntity::class], version = 2, exportSchema = true)
 abstract class CalendarDatabase : RoomDatabase() {
     abstract fun calendars(): CalendarDao
     abstract fun resources(): ResourceDao
 
     companion object {
-        fun open(context: Context): CalendarDatabase = Room.databaseBuilder(context, CalendarDatabase::class.java, "calendar.db").build()
+        /** 2: a calendar's colour can be picked here and sent to the server (phase 2). */
+        val MIGRATION_1_2 = object : androidx.room.migration.Migration(1, 2) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE calendars ADD COLUMN colorState INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
+        fun open(context: Context): CalendarDatabase =
+            Room.databaseBuilder(context, CalendarDatabase::class.java, "calendar.db").addMigrations(MIGRATION_1_2).build()
     }
 }
 

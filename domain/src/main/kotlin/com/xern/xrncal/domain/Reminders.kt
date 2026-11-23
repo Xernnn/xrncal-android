@@ -42,18 +42,34 @@ object Reminders {
         normalize(minutes.filter { it.isFinite() }.map { EventReminder(it.roundToInt(), email) })
 
     /** Minutes before a timed event and before an all-day event's day; null for none. */
-    data class Defaults(val timed: Int?, val allDay: Int?)
+    data class Defaults(val timed: Int?, val allDay: Int?) {
+        /** What a new event's reminder list starts as: the default for its kind, or none. */
+        fun forNew(allDay: Boolean): List<EventReminder> = listOfNotNull((if (allDay) this.allDay else timed)?.let { EventReminder(it) })
+    }
+
+    /** One Calendar's defaults, which the owner's has: 15 minutes before, and 12 hours before an all-day day. */
+    val ONE_CALENDAR_DEFAULTS = Defaults(timed = 15, allDay = 720)
 
     /**
-     * What rings for an event: its own list wins, an empty one included; without one (no VALARM at
-     * all) a timed event takes [defaults].timed and an all-day one [defaults].allDay.
+     * What rings for an event: its own alarms, and nothing when it has none. Like One Calendar (the
+     * owner's decision for phase 2), the defaults only fill in a new event's reminder, which is then
+     * saved as a VALARM; an event without one, from here or anywhere else, stays silent.
      */
-    fun effective(eventReminders: List<EventReminder>?, allDay: Boolean, calendarDefault: List<EventReminder>?, defaults: Defaults): List<EventReminder> {
-        if (eventReminders != null) return eventReminders
-        if (allDay) return if (defaults.allDay == null) emptyList() else listOf(EventReminder(defaults.allDay))
-        if (calendarDefault != null) return calendarDefault
-        return if (defaults.timed == null) emptyList() else listOf(EventReminder(defaults.timed))
+    fun effective(eventReminders: List<EventReminder>?): List<EventReminder> = eventReminders ?: emptyList()
+
+    /** One Calendar's reminder list, in minutes before: at the start, minutes, hours, days and a week. */
+    val ONE_CALENDAR_CHOICES = listOf(0, 5, 10, 15, 30, 45, 60, 120, 180, 240, 360, 720, 1080, 1440, 2880, 10080)
+
+    /** One Calendar's words for a reminder: "None", "0 minutes", "15 minutes", "1 hour", "12 hours", "1 day", "1 week". */
+    fun choiceLabel(minutes: Int?): String = when {
+        minutes == null -> "None"
+        minutes % 10080 == 0 && minutes > 0 -> plural(minutes / 10080, "week")
+        minutes % 1440 == 0 && minutes > 0 -> plural(minutes / 1440, "day")
+        minutes % 60 == 0 && minutes > 0 -> plural(minutes / 60, "hour")
+        else -> plural(minutes, "minute")
     }
+
+    private fun plural(n: Int, unit: String) = if (n == 1) "1 $unit" else "$n ${unit}s"
 
     /** The instant reminders count back from: a timed event's start, or midnight in [zone] on an all-day event's date. */
     fun anchor(start: Instant, allDay: Boolean, date: LocalDate, zone: ZoneId): Instant =

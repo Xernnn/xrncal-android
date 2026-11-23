@@ -1,5 +1,6 @@
 package com.xern.xrncal.data
 
+import com.xern.xrncal.domain.Palette
 import kotlin.coroutines.CoroutineContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
@@ -80,6 +81,7 @@ class SyncEngine(
         if (!account.connected) return SyncReport()
         val dav = client(account)
         val home = account.home ?: dav.findHome().also { account.home = it }
+        pushColors(dav)
         val listed = dav.calendars(home)
         updateCalendars(listed)
         var report = SyncReport(calendars = listed.size)
@@ -103,12 +105,31 @@ class SyncEngine(
         return report
     }
 
+    /**
+     * Colours picked here, written to the server before the calendars are listed, so the listing
+     * reads them back. A refusal keeps the colour here only, with the reason on the calendar.
+     */
+    private suspend fun pushColors(dav: CalDav) {
+        for (c in store.calendars()) {
+            if (c.account != CalendarEntity.CALDAV || c.colorState != CalendarEntity.COLOR_TO_SEND) continue
+            val status = dav.setColor(c.id, Palette.calendarColor(c.color))
+            val now = store.calendar(c.id) ?: continue
+            // Picked again meanwhile: the next sync sends that one.
+            if (now.color != c.color) continue
+            store.putCalendar(
+                if (status in 200..299) now.copy(colorState = CalendarEntity.COLOR_SERVER)
+                else now.copy(colorState = CalendarEntity.COLOR_HERE, lastError = "Colour refused: $status"),
+            )
+        }
+    }
+
     /** The server's calendars here: new ones shown, names and colours as the server has them, gone ones removed. */
     private suspend fun updateCalendars(listed: List<DavCalendar>) {
         val stored = store.calendars().filter { it.account == CalendarEntity.CALDAV }.associateBy { it.id }
         listed.forEachIndexed { i, d ->
             val old = stored[d.href]
-            val color = d.color ?: old?.color ?: Palette.pick(i)
+            // A colour picked here and not yet on the server (or refused by it) stays.
+            val color = if (old != null && old.colorState != CalendarEntity.COLOR_SERVER) old.color else d.color ?: old?.color ?: Palette.pick(i)
             store.putCalendar(
                 old?.copy(name = d.name, color = color, readOnly = d.readOnly)
                     ?: CalendarEntity(d.href, CalendarEntity.CALDAV, d.name, color, d.readOnly, sortKey = "%03d".format(i)),
@@ -230,10 +251,4 @@ class SyncEngine(
         store.putCalendar(now.copy(ctag = ctag, syncToken = token, lastError = null))
         return taken to removed.size
     }
-}
-
-/** Colours for calendars the server gives none: the laptop app's soft palette. */
-object Palette {
-    val COLORS = listOf(0xFF529CCA, 0xFF52B788, 0xFFEA9A5F, 0xFF9A6DD7, 0xFFEB5757, 0xFF4DAB9A, 0xFFE06F9F, 0xFF868E96, 0xFFE3B341).map { it.toInt() }
-    fun pick(i: Int): Int = COLORS[Math.floorMod(i, COLORS.size)]
 }
