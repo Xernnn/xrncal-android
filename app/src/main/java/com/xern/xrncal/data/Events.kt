@@ -116,12 +116,14 @@ class EventRepository(
     suspend fun parsed(id: String): ParsedResource? = store.resource(id)?.let { parse(it, zone()) }
 
     /** The editor's draft for an occurrence: this date as it is, or ([Scope.ALL]) the series. */
-    suspend fun draft(occ: Occurrence, scope: Scope): EventDraft? {
-        val res = parsed(occ.resourceId) ?: return null
-        return if (scope == Scope.ALL && occ.recurrenceId != null) Edits.seriesDraft(res, occ, zone()) else Edits.draftOf(res, occ, zone())
+    suspend fun draft(occ: Occurrence, scope: Scope): EventDraft? = withContext(work) {
+        val res = parsed(occ.resourceId) ?: return@withContext null
+        if (scope == Scope.ALL && occ.recurrenceId != null) Edits.seriesDraft(res, occ, zone()) else Edits.draftOf(res, occ, zone())
     }
 
-    suspend fun create(calendarId: String, draft: EventDraft): String {
+    suspend fun create(calendarId: String, draft: EventDraft): String = withContext(work) { createHere(calendarId, draft) }
+
+    private suspend fun createHere(calendarId: String, draft: EventDraft): String {
         val cal = store.calendar(calendarId) ?: error("no calendar $calendarId")
         require(!cal.readOnly) { "read-only calendar" }
         val uid = UUID.randomUUID().toString()
@@ -134,7 +136,10 @@ class EventRepository(
      * Saves an edit. A different [calendarId] moves the event: the whole resource is written into
      * the new calendar and deleted from the old one (on the server too, at the next sync).
      */
-    suspend fun update(occ: Occurrence, draft: EventDraft, scope: Scope, calendarId: String = occ.calendarId): String {
+    suspend fun update(occ: Occurrence, draft: EventDraft, scope: Scope, calendarId: String = occ.calendarId): String =
+        withContext(work) { updateHere(occ, draft, scope, calendarId) }
+
+    private suspend fun updateHere(occ: Occurrence, draft: EventDraft, scope: Scope, calendarId: String): String {
         val r = store.resource(occ.resourceId) ?: error("gone")
         val from = store.calendar(r.calendarId) ?: error("no calendar")
         require(!from.readOnly) { "read-only calendar" }
@@ -152,9 +157,9 @@ class EventRepository(
         return moved.id
     }
 
-    suspend fun delete(occ: Occurrence, scope: Scope) {
-        val r = store.resource(occ.resourceId) ?: return
-        val cal = store.calendar(r.calendarId) ?: return
+    suspend fun delete(occ: Occurrence, scope: Scope) = withContext(work) {
+        val r = store.resource(occ.resourceId) ?: return@withContext
+        val cal = store.calendar(r.calendarId) ?: return@withContext
         require(!cal.readOnly) { "read-only calendar" }
         val ics = Edits.delete(r.ics, occ, scope, clock())
         if (ics == null) store.deleteLocal(r.id) else store.saveLocal(r.copy(ics = ics))

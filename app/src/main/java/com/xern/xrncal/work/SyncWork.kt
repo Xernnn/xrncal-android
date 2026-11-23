@@ -53,6 +53,12 @@ object SyncWork {
         WorkManager.getInstance(context).enqueueUniquePeriodicWork(EVERY, ExistingPeriodicWorkPolicy.UPDATE, every())
     }
 
+    /** Signed out: no more background syncs. */
+    fun stop(context: Context) {
+        WorkManager.getInstance(context).cancelUniqueWork(EVERY)
+        WorkManager.getInstance(context).cancelUniqueWork(NOW)
+    }
+
     /** One sync as soon as there is a network (after a reboot). */
     fun now(context: Context) {
         WorkManager.getInstance(context).enqueueUniqueWork(NOW, ExistingWorkPolicy.KEEP, once())

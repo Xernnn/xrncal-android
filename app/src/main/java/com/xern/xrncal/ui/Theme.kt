@@ -85,6 +85,12 @@ fun type(size: Int, weight: FontWeight = FontWeight.Normal, color: Color = Color
     lineHeightStyle = LineHeightStyle(LineHeightStyle.Alignment.Center, LineHeightStyle.Trim.None),
 )
 
+/** A chip's title: a word too long for the cell is hyphenated rather than cut anywhere. */
+fun chip(size: Int, color: Color, lineHeight: TextUnit = 1.3.em) = type(size, FontWeight.Medium, color, lineHeight).copy(
+    hyphens = androidx.compose.ui.text.style.Hyphens.Auto,
+    lineBreak = androidx.compose.ui.text.style.LineBreak.Paragraph,
+)
+
 @Composable
 fun XrnTheme(dark: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit) {
     val ink = if (dark) Ink.Dark else Ink.Light

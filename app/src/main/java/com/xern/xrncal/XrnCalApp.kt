@@ -131,6 +131,37 @@ class Graph(
         return end
     }
 
+    /** Signs in: finds the calendars at [address]; returns what went wrong, or null. */
+    suspend fun connect(address: String, user: String, password: String): String? {
+        account.address = address.trim()
+        account.user = user.trim()
+        if (password.isNotEmpty()) account.password = password
+        account.home = null
+        return try {
+            engine.connect()
+            account.lastError = ""
+            syncNow()
+            null
+        } catch (e: DavFailure) {
+            e.text()
+        } catch (e: IllegalArgumentException) {
+            e.message ?: "Check the address"
+        }
+    }
+
+    /** Signs out: the account's calendars leave the phone (the server keeps them); the phone's own stay. */
+    suspend fun signOut() {
+        account.address = ""
+        account.user = ""
+        account.password = ""
+        account.home = null
+        account.lastError = ""
+        account.lastSync = 0
+        for (c in store.calendars()) if (!c.local) store.removeCalendar(c.id)
+        _status.value = SyncStatus()
+        reminders.rearm()
+    }
+
     fun start() {
         scope.launch {
             events.localCalendar()
