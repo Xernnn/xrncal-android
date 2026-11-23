@@ -334,7 +334,7 @@ and the time line; One Calendar's red by default until xrncal's touches made it 
   second line instead of being cut to a few letters ("Quarterly / review" rather than 0.2.0's
   "Quarterl"). The day number is smaller (13 sp, a 16 dp row) to leave room for five.
 - The lunar day stays at the right of the number (xrncal's own); today's number is in the signal
-  colour and its cell tinted.
+  colour and its cell tinted (white on a circle of it since xrncal's touches, below).
 - A chip shows the title only, as One Calendar's month does. Options, Views can lead timed chips
   with their start time, as the laptop's wider month does ("10:30 Dentist"); off by default,
   because on a phone the time left 3 or 4 letters of the title.
@@ -526,6 +526,11 @@ xrncal's signature touches over it.
   view's header is the same stack in the gutter's width, with the lunar date and the week level
   with the date beside it. The header is taller than One Calendar's line; the grid's room below
   midnight still lets it open at the day's start.
+- **Today on a filled circle** everywhere a date is drawn in a grid, as the laptop draws it: the
+  week and day headers, the month cell's number (a circle a little taller than the 16 dp number
+  row, so the cell keeps its five lines of chips) and the year's today, tinted day or not.
+- **Weekend names in the today colour**: Saturday and Sunday in the month's weekday row, as in the
+  week header.
 
 ## Later
 
