@@ -68,6 +68,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -143,7 +144,64 @@ class EditorState(draft: EventDraft, calendarId: String) {
     var notes by mutableStateOf(draft.notes)
     var color by mutableStateOf(draft.color)
 
-    fun draft() = EventDraft(title, allDay, startDate, startTime, endDate, endTime, zone, rule?.let { RepeatRules.fitUntil(it, allDay, zone) }, reminders, location, notes, color)
+    /** What a date, time or repeat typed into a new event's title said (the laptop's natural entry). */
+    var entry by mutableStateOf<com.xern.xrncal.domain.ParsedEntry?>(null)
+        private set
+    /** The fields as they were before the title said anything, to go back to when it no longer does. */
+    private var entryBase: EventDraft? = null
+
+    /** The title saved: the typed one without the date and time it gave. */
+    val savedTitle: String get() = entry?.title ?: title
+
+    fun draft() = EventDraft(savedTitle, allDay, startDate, startTime, endDate, endTime, zone, rule?.let { RepeatRules.fitUntil(it, allDay, zone) }, reminders, location, notes, color)
+
+    /**
+     * The title typed: for a new event ([context] given) the date, time, length and repeat it
+     * names fill those fields, from what they were before it named any (so typing on re-reads it).
+     */
+    fun typeTitle(text: String, context: com.xern.xrncal.domain.EntryContext?, minutes: Int) {
+        title = text
+        if (context == null) return
+        val e = com.xern.xrncal.domain.NaturalEntry.parse(text, context)
+        val base = entryBase
+        if (e == null) {
+            if (base != null) setTimes(base)
+            entryBase = null
+            entry = null
+            return
+        }
+        val from = base ?: draft().copy(title = text).also { entryBase = it }
+        val d = com.xern.xrncal.domain.NaturalEntry.applyEntry(from, e, minutes)
+        setTimes(d.copy(rrule = e.repeat?.toRepeat(d.startDate)?.let { RepeatRules.rule(it, d.startDate, d.allDay, d.zone) } ?: from.rrule))
+        entry = e
+    }
+
+    private fun setTimes(d: EventDraft) {
+        allDay = d.allDay
+        startDate = d.startDate
+        startTime = d.startTime
+        endDate = d.endDate
+        endTime = d.endTime
+        rule = d.rrule
+    }
+
+    /** A title suggestion picked: its title (keeping an emoji typed), and its calendar, kind, length and place. */
+    fun takeSuggestion(s: com.xern.xrncal.domain.TitleSuggestion, calendars: List<String>) {
+        title = com.xern.xrncal.domain.TitleEmoji.fromSuggestion(title, s.title)
+        entry = null
+        entryBase = null
+        if (s.calendarId in calendars) calendarId = s.calendarId
+        if (location.isBlank()) s.location?.let { location = it }
+        allDay = s.allDay
+        if (s.allDay) {
+            if (endDate.isBefore(startDate)) endDate = startDate
+        } else {
+            val start = java.time.LocalDateTime.of(startDate, startTime)
+            val end = start.plusMinutes((s.durationMinutes ?: java.time.Duration.between(start, java.time.LocalDateTime.of(endDate, endTime)).toMinutes().takeIf { it > 0 }?.toInt() ?: 60).toLong())
+            endDate = end.toLocalDate()
+            endTime = end.toLocalTime()
+        }
+    }
 
     /** Whether anything differs from what the editor opened with. */
     fun changed(): Boolean = calendarId != initialCalendar || draft() != initial.copy(rrule = initial.rrule?.let { RepeatRules.fitUntil(it, initial.allDay, initial.zone) })
@@ -188,9 +246,13 @@ fun EditorScreen(
     onShare: (() -> Unit)? = null,
     onKeepMine: () -> Unit = {},
     onKeepTheirs: () -> Unit = {},
+    aids: EditorAids = EditorAids(),
 ) {
     val ink = LocalInk.current
     val cal = calendars.firstOrNull { it.id == state.calendarId }
+    var emojiOpen by remember { mutableStateOf(false) }
+    var titleFocus by remember { mutableStateOf(false) }
+    var placeFocus by remember { mutableStateOf(false) }
     val bar = Color(state.color ?: cal?.color ?: 0xFF308FFE.toInt())
     val fg = onColor(bar)
     val problem = state.draft().problem()
@@ -230,7 +292,21 @@ fun EditorScreen(
                     }
                 }
                 Label("Subject")
-                Field(state.title, { state.title = it }, Modifier.padding(horizontal = 16.dp))
+                Row(Modifier.padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    if (aids.emoji) {
+                        EmojiButton { emojiOpen = true }
+                        Spacer(Modifier.width(10.dp))
+                    }
+                    Field(state.title, { state.typeTitle(it, if (adding) aids.entry else null, aids.eventMinutes) }, Modifier.weight(1f), onFocus = { titleFocus = it })
+                }
+                // "Saved as …": the title without the date and time typed into it (the laptop's).
+                state.entry?.let { e -> Text("Saved as \u201c${e.title}\u201d", style = type(13, color = ink.muted), modifier = Modifier.padding(start = 20.dp, top = 4.dp)) }
+                if (adding && titleFocus && !locked) {
+                    val found = remember(state.title, state.startDate, state.startTime, state.allDay) { aids.titles(state.title) }
+                    SuggestionRows(found.map { it.title to calendars.firstOrNull { c -> c.id == it.calendarId }?.color }) { i ->
+                        state.takeSuggestion(found[i], calendars.map { it.id })
+                    }
+                }
                 Label("Calendar")
                 var colorOpen by remember { mutableStateOf(false) }
                 Row(Modifier.padding(end = 16.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -252,6 +328,7 @@ fun EditorScreen(
                 }
                 Divider()
                 SwitchRow("All day", state.allDay) { on ->
+                    aids.reminderDefaults?.let { d -> if (state.reminders.orEmpty() == d.forNew(state.allDay)) state.reminders = d.forNew(on) }
                     state.allDay = on
                     if (on && state.endDate.isBefore(state.startDate)) state.endDate = state.startDate
                     if (!on && java.time.LocalDateTime.of(state.endDate, state.endTime) <= java.time.LocalDateTime.of(state.startDate, state.startTime)) {
@@ -268,10 +345,17 @@ fun EditorScreen(
                 if (problem != null) Text(problem, style = type(13, color = ink.warn), modifier = Modifier.padding(start = 20.dp, top = 4.dp))
                 if (!state.allDay && state.zone != look.zone) Text(state.zone.id, style = type(13, color = ink.muted), modifier = Modifier.padding(start = 20.dp, top = 4.dp))
                 Divider()
-                RepeatSection(state)
+                SwitchRow("Repeat", state.rule != null) { on ->
+                    state.rule = if (on) RepeatRules.rule(com.xern.xrncal.domain.Repeat(Frequency.WEEKLY, weekdays = setOf(state.startDate.dayOfWeek)), state.startDate, state.allDay, state.zone) else null
+                }
+                RepeatForm(state) { picking = "until" }
                 Divider()
                 Label("Location")
-                Field(state.location, { state.location = it }, Modifier.padding(horizontal = 16.dp))
+                Field(state.location, { state.location = it }, Modifier.padding(horizontal = 16.dp), onFocus = { placeFocus = it })
+                if (placeFocus && !locked && state.location.isNotBlank()) {
+                    val places = remember(state.location) { aids.places(state.location) }
+                    SuggestionRows(places.map { it.location to null }) { i -> state.location = places[i].location }
+                }
                 Label("Reminder")
                 ReminderSection(state)
                 Label("Description")
@@ -282,9 +366,26 @@ fun EditorScreen(
     when (picking) {
         "startDate" -> DatePick(state.startDate, { picking = null }) { state.moveStart(it, state.startTime) }
         "endDate" -> DatePick(state.endDate, { picking = null }) { state.endDate = it }
-        "startTime" -> TimePick(state.startTime, look.h24, { picking = null }) { state.moveStart(state.startDate, it) }
-        "endTime" -> TimePick(state.endTime, look.h24, { picking = null }) { state.endTime = it }
-        "zone" -> ZonePick(state.zone, { picking = null }) { state.zone = it }
+        "startTime" -> TimeListPick(state.startTime, aids.timeStep, look.h24, { picking = null }) { state.moveStart(state.startDate, it) }
+        "endTime" -> TimeListPick(state.endTime, aids.timeStep, look.h24, { picking = null }) { state.endTime = it }
+        "zone" -> ZonePick(state.zone, aids.preferredZones, { picking = null }) { state.zone = it }
+        "until" -> {
+            val r = state.rule?.let { RepeatRules.parse(it, state.startDate) }
+            DatePick(r?.end?.until ?: state.startDate, { picking = null }) { u ->
+                if (r != null) state.rule = RepeatRules.rule(r.copy(end = RepeatEnd(until = u)), state.startDate, state.allDay, state.zone)
+            }
+        }
+    }
+    if (emojiOpen) {
+        val lead = com.xern.xrncal.domain.TitleEmoji.leading(state.title)
+        EmojiPanel(lead?.emoji, aids.emojiFavorites, onPick = { e ->
+            state.title = com.xern.xrncal.domain.TitleEmoji.withLeading(state.title, e)
+            aids.onEmoji(e)
+            emojiOpen = false
+        }, onRemove = {
+            state.title = com.xern.xrncal.domain.TitleEmoji.withoutLeading(state.title).trimStart()
+            emojiOpen = false
+        }, onDismiss = { emojiOpen = false })
     }
 }
 
@@ -297,7 +398,7 @@ private fun Label(text: String) {
 private fun Divider() = HorizontalDivider(color = LocalInk.current.line, modifier = Modifier.padding(top = 14.dp))
 
 @Composable
-fun Field(value: String, onChange: (String) -> Unit, modifier: Modifier = Modifier, singleLine: Boolean = true, number: Boolean = false, password: Boolean = false) {
+fun Field(value: String, onChange: (String) -> Unit, modifier: Modifier = Modifier, singleLine: Boolean = true, number: Boolean = false, password: Boolean = false, onFocus: (Boolean) -> Unit = {}) {
     val ink = LocalInk.current
     TextField(
         value = value,
@@ -317,7 +418,7 @@ fun Field(value: String, onChange: (String) -> Unit, modifier: Modifier = Modifi
             focusedIndicatorColor = Color.Transparent, unfocusedIndicatorColor = Color.Transparent,
             cursorColor = ink.accent,
         ),
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth().onFocusChanged { onFocus(it.isFocused) },
     )
 }
 
@@ -379,123 +480,6 @@ private fun WhenRow(date: LocalDate, time: LocalTime, allDay: Boolean, look: Loo
                 Icon(Icons.Outlined.Language, contentDescription = "Time zone", tint = ink.muted)
             }
         }
-    }
-}
-
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun RepeatSection(state: EditorState) {
-    val ink = LocalInk.current
-    SwitchRow("Repeat", state.rule != null) { on -> state.rule = if (on) "FREQ=WEEKLY" else null }
-    val rule = state.rule ?: return
-    val preset = RepeatRules.preset(rule, state.startDate)
-    var custom by remember { mutableStateOf(preset == RepeatRules.Preset.CUSTOM) }
-    val presets = listOf(
-        RepeatRules.Preset.DAILY to "Every day", RepeatRules.Preset.WEEKDAYS to "Weekdays", RepeatRules.Preset.WEEKLY to "Every week",
-        RepeatRules.Preset.MONTHLY to "Every month", RepeatRules.Preset.YEARLY to "Every year", RepeatRules.Preset.CUSTOM to "Custom",
-    )
-    FlowRow(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        for ((p, label) in presets) {
-            val on = if (custom) p == RepeatRules.Preset.CUSTOM else p == preset
-            Text(
-                label,
-                style = type(14, FontWeight.Medium, if (on) Color.White else ink.text),
-                modifier = Modifier.clip(RoundedCornerShape(16.dp)).background(if (on) ink.accent else ink.field).clickable {
-                    if (p == RepeatRules.Preset.CUSTOM) {
-                        custom = true
-                    } else {
-                        custom = false
-                        state.rule = RepeatRules.rule(RepeatRules.ofPreset(p, state.startDate)!!, state.startDate, state.allDay, state.zone)
-                    }
-                }.padding(horizontal = 14.dp, vertical = 8.dp),
-            )
-        }
-    }
-    if (custom) CustomRepeat(state, rule)
-}
-
-private fun unit(f: Frequency, plural: Boolean) = when (f) {
-    Frequency.DAILY -> "day"
-    Frequency.WEEKLY -> "week"
-    Frequency.MONTHLY -> "month"
-    Frequency.YEARLY -> "year"
-} + if (plural) "s" else ""
-
-/** Every N days, weeks (on which days), months (on the date or the nth weekday) or years, and the end. */
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun CustomRepeat(state: EditorState, rule: String) {
-    val ink = LocalInk.current
-    val r = RepeatRules.parse(rule, state.startDate)
-    if (r == null) {
-        Text(rule, style = type(13, color = ink.muted), modifier = Modifier.padding(horizontal = 20.dp))
-        return
-    }
-    fun set(next: Repeat) {
-        state.rule = RepeatRules.rule(next, state.startDate, state.allDay, state.zone)
-    }
-    var unitOpen by remember { mutableStateOf(false) }
-    Row(Modifier.padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text("Every", style = type(16, color = ink.text))
-        Field(r.interval.toString(), { t -> t.filter(Char::isDigit).take(3).toIntOrNull()?.takeIf { it >= 1 }?.let { set(r.copy(interval = it)) } }, Modifier.width(72.dp), number = true)
-        Box(Modifier.weight(1f)) {
-            Picker(unit(r.frequency, r.interval > 1), { unitOpen = true })
-            DropdownMenu(expanded = unitOpen, onDismissRequest = { unitOpen = false }) {
-                for (f in Frequency.entries) {
-                    DropdownMenuItem(text = { Text(unit(f, r.interval > 1), style = type(15)) }, onClick = {
-                        unitOpen = false
-                        set(r.copy(frequency = f, weekdays = if (f == Frequency.WEEKLY) setOf(state.startDate.dayOfWeek) else emptySet(), monthlyByWeekday = false))
-                    })
-                }
-            }
-        }
-    }
-    if (r.frequency == Frequency.WEEKLY) {
-        Row(Modifier.padding(horizontal = 16.dp, vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            for (d in DayOfWeek.entries) {
-                val on = d in r.weekdays
-                Box(
-                    Modifier.size(38.dp).clip(CircleShape).background(if (on) ink.accent else ink.field).clickable {
-                        val days = if (on) r.weekdays - d else r.weekdays + d
-                        if (days.isNotEmpty()) set(r.copy(weekdays = days))
-                    },
-                    contentAlignment = Alignment.Center,
-                ) { Text(Format.weekdayLetter(d), style = type(14, FontWeight.Medium, if (on) Color.White else ink.text)) }
-            }
-        }
-    }
-    if (r.frequency == Frequency.MONTHLY) {
-        val nth = (state.startDate.dayOfMonth - 1) / 7 + 1
-        val ord = listOf("first", "second", "third", "fourth", "last").getOrElse(nth - 1) { "last" }
-        Choice("On day ${state.startDate.dayOfMonth}", !r.monthlyByWeekday) { set(r.copy(monthlyByWeekday = false)) }
-        Choice("On the $ord ${state.startDate.dayOfWeek.getDisplayName(java.time.format.TextStyle.FULL, java.util.Locale.ENGLISH)}", r.monthlyByWeekday) { set(r.copy(monthlyByWeekday = true)) }
-    }
-    Label("Ends")
-    var untilPick by remember { mutableStateOf(false) }
-    Choice("Never", r.end == RepeatEnd()) { set(r.copy(end = RepeatEnd())) }
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Choice("On", r.end.until != null, Modifier.width(124.dp)) { set(r.copy(end = RepeatEnd(until = r.end.until ?: state.startDate.plusMonths(1)))) }
-        r.end.until?.let { u -> Picker(Format.dateButton(u), { untilPick = true }, Modifier.padding(end = 16.dp).weight(1f)) }
-    }
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Choice("After", r.end.count != null, Modifier.width(124.dp)) { set(r.copy(end = RepeatEnd(count = r.end.count ?: 10))) }
-        r.end.count?.let { count ->
-            Field(count.toString(), { t -> t.filter(Char::isDigit).take(4).toIntOrNull()?.takeIf { it >= 1 }?.let { set(r.copy(end = RepeatEnd(count = it))) } }, Modifier.width(88.dp), number = true)
-            Text("  times", style = type(16, color = ink.text))
-        }
-    }
-    if (untilPick) DatePick(r.end.until ?: state.startDate, { untilPick = false }) { set(r.copy(end = RepeatEnd(until = it))) }
-}
-
-@Composable
-private fun Choice(text: String, on: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
-    val ink = LocalInk.current
-    Row(modifier.clickable(onClick = onClick).padding(horizontal = 20.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.size(18.dp).clip(CircleShape).background(if (on) ink.accent else ink.field), contentAlignment = Alignment.Center) {
-            if (on) Box(Modifier.size(7.dp).clip(CircleShape).background(Color.White))
-        }
-        Spacer(Modifier.width(12.dp))
-        Text(text, style = type(16, color = ink.text))
     }
 }
 
@@ -566,25 +550,25 @@ private fun TimePick(initial: LocalTime, h24: Boolean, onDismiss: () -> Unit, on
     )
 }
 
-/** Every zone the phone knows, found by any part of its name. */
+/** Every zone the phone knows, found by any part of its name; the preferred ones and the phone's first. */
 @Composable
-private fun ZonePick(current: ZoneId, onDismiss: () -> Unit, onPick: (ZoneId) -> Unit) {
+private fun ZonePick(current: ZoneId, preferred: List<String>, onDismiss: () -> Unit, onPick: (ZoneId) -> Unit) {
     val ink = LocalInk.current
     var query by remember { mutableStateOf("") }
     val all = remember { ZoneId.getAvailableZoneIds().filter { it.contains('/') && !it.startsWith("Etc/") && !it.startsWith("SystemV/") }.sorted() + "UTC" }
-    val shown = all.filter { it.replace('_', ' ').contains(query.trim(), ignoreCase = true) }
+    val ordered = remember(preferred, current) { zoneChoices(preferred, current, all) }
+    val shown = ordered.filter { it.replace('_', ' ').contains(query.trim(), ignoreCase = true) }
     Dialog(onDismissRequest = onDismiss) {
         Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(ink.sheet).padding(vertical = 12.dp)) {
             Field(query, { query = it }, Modifier.padding(horizontal = 12.dp))
             LazyColumn(Modifier.fillMaxWidth().heightIn(max = 420.dp).padding(top = 8.dp)) {
                 items(shown) { id ->
-                    val offset = ZoneId.of(id).rules.getOffset(Instant.now())
                     Row(Modifier.fillMaxWidth().clickable {
                         onPick(ZoneId.of(id))
                         onDismiss()
                     }.padding(horizontal = 16.dp, vertical = 12.dp)) {
                         Text(id.replace('_', ' '), style = type(15, if (id == current.id) FontWeight.SemiBold else FontWeight.Normal, ink.text), modifier = Modifier.weight(1f))
-                        Text(if (offset.totalSeconds == 0) "UTC" else "UTC$offset", style = type(13, color = ink.muted))
+                        Text(offsetLabel(id), style = type(13, color = ink.muted))
                     }
                 }
             }

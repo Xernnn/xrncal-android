@@ -51,6 +51,10 @@ import com.xern.xrncal.data.EventRepository
 import com.xern.xrncal.data.Problem
 import com.xern.xrncal.data.View
 import com.xern.xrncal.domain.Agenda
+import com.xern.xrncal.domain.EntryContext
+import com.xern.xrncal.domain.LocationSuggestions
+import com.xern.xrncal.domain.TitleEmoji
+import com.xern.xrncal.domain.TitleSuggestions
 import com.xern.xrncal.domain.HolidayCalendar
 import com.xern.xrncal.domain.MonthLayout
 import com.xern.xrncal.domain.Occurrence
@@ -333,6 +337,27 @@ fun App(graph: Graph) {
             // A date of a series stays in its calendar unless the whole series is saved; the
             // event's own calendar is offered even when it can't take changes (to show it).
             val choices = if (top.locked) calendars.filter { it.id == state.calendarId } else writable
+            // The laptop's suggestions learn from the events already there, read once the editor opens.
+            val history by produceState<EventRepository.History?>(null, top) { value = graph.events.history() }
+            val aids = EditorAids(
+                emoji = settings.emoji,
+                emojiFavorites = TitleEmoji.favorites(settings.emojiUse),
+                onEmoji = { e -> graph.settings.update { it.copy(emojiUse = TitleEmoji.recordUse(it.emojiUse, e)) } },
+                titles = { q ->
+                    val h = history
+                    if (!settings.suggestions || h == null) emptyList()
+                    else {
+                        val at = if (state.allDay) TitleSuggestions.floatingDay(state.startDate) else java.time.LocalDateTime.of(state.startDate, state.startTime).atZone(state.zone).toInstant()
+                        TitleSuggestions.rank(h.titles, q, at, state.allDay, now, zone)
+                    }
+                },
+                places = { q -> history?.takeIf { settings.suggestions }?.let { LocationSuggestions.rank(it.places, q, now) }.orEmpty() },
+                entry = EntryContext(today, firstDay),
+                preferredZones = settings.preferredZones,
+                timeStep = settings.timeStep,
+                eventMinutes = settings.eventMinutes,
+                reminderDefaults = if (occ == null) defaults else null,
+            )
             EditorScreen(
                 state, occ == null, choices, look,
                 onCancel = { stack.removeAt(stack.lastIndex) },
@@ -385,6 +410,7 @@ fun App(graph: Graph) {
                         }
                     }
                 },
+                aids = aids,
             )
         }
         Screen.Search -> {

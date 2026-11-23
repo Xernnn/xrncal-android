@@ -68,4 +68,27 @@ class RepeatRulesTest {
         assertEquals("Every month on the fourth Tuesday", RepeatRules.describe("FREQ=MONTHLY;BYDAY=4TU", tue))
         assertEquals("Every year on 24 Nov, until 31 Dec 2030", RepeatRules.describe("FREQ=YEARLY;UNTIL=20301231T165959Z", tue))
     }
+
+    /** One Calendar's compact form: every [N] [unit] on [days] ends [never / on a date / after N], to an RRULE and back. */
+    @Test
+    fun theRepeatFormRoundTripsToAnRrule() {
+        val forms = listOf(
+            Repeat(Frequency.DAILY, 3) to "FREQ=DAILY;INTERVAL=3",
+            Repeat(Frequency.WEEKLY, 1, setOf(DayOfWeek.TUESDAY)) to "FREQ=WEEKLY",
+            Repeat(Frequency.WEEKLY, 2, setOf(DayOfWeek.MONDAY, DayOfWeek.WEDNESDAY), end = RepeatEnd(count = 5)) to "FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,WE;COUNT=5",
+            Repeat(Frequency.MONTHLY, 1, monthlyByWeekday = true) to "FREQ=MONTHLY;BYDAY=4TU",
+            Repeat(Frequency.MONTHLY, 6) to "FREQ=MONTHLY;INTERVAL=6",
+            Repeat(Frequency.YEARLY, end = RepeatEnd(until = LocalDate.parse("2030-11-24"))) to "FREQ=YEARLY;UNTIL=20301124T165959Z",
+        )
+        for ((form, rule) in forms) {
+            assertEquals(rule, RepeatRules.rule(form, tue, false, hcm))
+            assertEquals(form, RepeatRules.parse(rule, tue))
+        }
+        // An all-day series ends on a date.
+        val allDay = Repeat(Frequency.WEEKLY, 1, setOf(DayOfWeek.TUESDAY), end = RepeatEnd(until = LocalDate.parse("2026-12-29")))
+        assertEquals("FREQ=WEEKLY;UNTIL=20261229", RepeatRules.rule(allDay, tue, true, hcm))
+        assertEquals(allDay, RepeatRules.parse("FREQ=WEEKLY;UNTIL=20261229", tue))
+        // A rule the form can't show is not one of its forms.
+        assertNull(RepeatRules.parse("FREQ=MONTHLY;BYDAY=MO,TU;BYSETPOS=-1", tue))
+    }
 }

@@ -213,13 +213,27 @@ fun EditorPreview() = Themed(dark = false) {
         EventDraft("Phở with Tuấn", false, LocalDate.of(2026, 11, 27), LocalTime.of(18, 30), LocalDate.of(2026, 11, 27), LocalTime.of(20, 0), ZONE, "FREQ=WEEKLY;INTERVAL=2;BYDAY=FR", listOf(EventReminder(30)), "Phở Made-up, District 3", ""),
         "family",
     )
-    EditorScreen(state, false, CALENDARS.filter { !it.readOnly }, look(), {}, {}, onDelete = {}, onCopy = {}, onShare = {})
+    EditorScreen(state, false, CALENDARS.filter { !it.readOnly }, look(), {}, {}, onDelete = {}, onCopy = {}, onShare = {}, aids = EditorAids(emoji = true))
 }
 
 @Preview(name = "Add", widthDp = 400, heightDp = 860)
 @Composable
 fun AddPreview() = Themed(dark = true) {
     EditorScreen(EditorState(newDraft(TODAY, null, NOW, ZONE, 60, Reminders.ONE_CALENDAR_DEFAULTS.forNew(false)), "home"), true, CALENDARS.filter { !it.readOnly }, look(), {}, {}, onCopy = {})
+}
+
+@Preview(name = "Add, typed date", widthDp = 400, heightDp = 860)
+@Composable
+fun TypedPreview() = Themed(dark = true) {
+    val state = EditorState(newDraft(TODAY, null, NOW, ZONE, 60, Reminders.ONE_CALENDAR_DEFAULTS.forNew(false)), "home")
+    state.typeTitle("🍜 Phở with Sam tomorrow 6:30pm every week", com.xern.xrncal.domain.EntryContext(TODAY), 60)
+    EditorScreen(state, true, CALENDARS.filter { !it.readOnly }, look(), {}, {}, onCopy = {}, aids = EditorAids(emoji = true, entry = com.xern.xrncal.domain.EntryContext(TODAY)))
+}
+
+@Preview(name = "Emoji", widthDp = 400, heightDp = 860)
+@Composable
+fun EmojiPreview() = Themed(dark = true) {
+    EmojiPanel("🍜", listOf("🍜", "☕", "🏊", "🎂"), {}, {}, {})
 }
 
 @Preview(name = "Year", widthDp = 400, heightDp = 860)
