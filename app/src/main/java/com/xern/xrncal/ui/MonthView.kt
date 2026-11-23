@@ -30,7 +30,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -43,16 +48,17 @@ import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.YearMonth
 
-private val LANE = 30.dp
+private val LANE = 18.dp
 private val LANE_GAP = 2.dp
-private val DAY_ROW = 24.dp
+private val DAY_ROW = 22.dp
 private val WEEK_NUMBERS = 24.dp
 
 /**
  * One month, One Calendar's way: the weekday row; week numbers on the left; six rows sharing the
- * height; in each cell the day number at the top-left (today's bold and red, the cell tinted), the
- * lunar date at the top-right, "+N" beside the number when not everything fits, and the events as
- * chips in their calendar's colour, two lines tall, title only; events over several days as one bar.
+ * height; in each cell the day number at the top-left (today's in the signal colour, the cell
+ * tinted), the lunar date at the top-right, "+N" beside the number counting what doesn't fit, and
+ * as many one-line chips as the cell holds, in their colour, a timed one led by its start time as
+ * on the laptop; events over several days as one bar.
  */
 @Composable
 fun MonthPage(
@@ -75,7 +81,7 @@ fun MonthPage(
         }
         BoxWithConstraints(Modifier.fillMaxSize()) {
             val rowHeight = maxHeight / weeks.size
-            val lanes = maxOf(1, ((rowHeight - DAY_ROW - 2.dp) / (LANE + LANE_GAP)).toInt())
+            val lanes = MonthLayout.lanes(rowHeight.value - 1f, DAY_ROW.value, LANE.value, LANE_GAP.value)
             Column(Modifier.fillMaxSize()) {
                 for (week in weeks) {
                     WeekRow(week, month, occurrences, lanes, look, onDay, onEvent, Modifier.height(rowHeight))
@@ -109,7 +115,6 @@ private fun WeekRow(days: List<LocalDate>, month: YearMonth, occurrences: List<O
                     val o = bar.occurrence
                     val bg = look.color(o)
                     val span = bar.to - bar.from + 1
-                    val single = !o.multiDay && span == 1
                     Box(
                         Modifier
                             .offset(x = cell * bar.from + 1.dp, y = DAY_ROW + (LANE + LANE_GAP) * bar.lane)
@@ -121,11 +126,16 @@ private fun WeekRow(days: List<LocalDate>, month: YearMonth, occurrences: List<O
                             .padding(horizontal = 3.dp),
                         contentAlignment = Alignment.CenterStart,
                     ) {
+                        val time = look.chipTime(o, days[bar.from])
                         Text(
-                            o.title.ifBlank { "(no title)" },
-                            style = chip(11, onColor(bg), lineHeight = 13.sp),
-                            maxLines = if (single) 2 else 1,
-                            overflow = TextOverflow.Ellipsis,
+                            buildAnnotatedString {
+                                if (time != null) withStyle(SpanStyle(fontSize = 9.sp, fontWeight = FontWeight.Normal)) { append(time + " ") }
+                                append(o.title.ifBlank { "(no title)" })
+                            },
+                            style = type(11, FontWeight.Medium, onColor(bg), lineHeight = 13.sp),
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = TextOverflow.Clip,
                         )
                     }
                 }
@@ -147,7 +157,7 @@ private fun DayCell(d: LocalDate, inMonth: Boolean, today: Boolean, more: Int, l
                     else -> ink.faint
                 }),
             )
-            if (more > 0) Text(" +$more", style = type(11, FontWeight.Medium, ink.muted), maxLines = 1)
+            if (more > 0) Text("+$more", style = type(12, FontWeight.Medium, if (inMonth) ink.text else ink.faint), maxLines = 1, modifier = Modifier.semantics { contentDescription = "$more more" })
             Spacer(Modifier.weight(1f))
             if (look.lunar) {
                 val l = Lunar.label(Lunar.ofSolar(d))

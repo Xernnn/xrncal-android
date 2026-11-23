@@ -52,7 +52,7 @@ data class Ink(
      * theme), the lines faint, as the laptop and One Calendar's themes draw them.
      */
     fun overWallpaper(dark: Boolean): Ink = if (dark) {
-        copy(page = Color(0x47000000), bar = Color(0x73000000), line = Color(0x2EFFFFFF), todayCell = Color(0x1FFFFFFF), faint = Color(0x80FFFFFF), lunar = Color(0xB3FFFFFF), muted = Color(0xD9FFFFFF), screen = page, wallpaper = true)
+        copy(page = Color(0x6B000000), bar = Color(0x8C000000), line = Color(0x2EFFFFFF), todayCell = Color(0x1FFFFFFF), faint = Color(0x80FFFFFF), lunar = Color(0xB3FFFFFF), muted = Color(0xD9FFFFFF), screen = page, wallpaper = true)
     } else {
         copy(page = Color(0x8CFFFFFF), bar = Color(0xB3F5F5F5), line = Color(0x33000000), todayCell = Color(0x1A000000), screen = page, wallpaper = true)
     }

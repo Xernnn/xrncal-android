@@ -96,7 +96,7 @@ fun App(graph: Graph) {
     val revision by graph.store.revision.collectAsState()
     val status by graph.status.collectAsState()
     val now = rememberNow()
-    val zone = ZoneId.systemDefault()
+    val zone = settings.zoneId()
     val today = now.atZone(zone).toLocalDate()
     val firstDay = firstDayOf(settings.weekStart)
     val calendars by produceState(emptyList<CalendarInfo>(), revision, settings.holidays) { value = graph.events.calendars() }
@@ -104,6 +104,8 @@ fun App(graph: Graph) {
         colors = calendars.associate { it.id to it.color }, today = today, h24 = Format.is24(context, settings.clock),
         lunar = settings.lunar, weekNumbers = settings.weekNumbers, zone = zone,
         readOnly = calendars.filter { it.readOnly }.map { it.id }.toSet(),
+        monthTimes = settings.monthTimes,
+        secondZone = settings.secondZone?.let { runCatching { ZoneId.of(it) }.getOrNull() }?.takeIf { it.rules != zone.rules },
     )
     val scope = rememberCoroutineScope()
     val stack = remember { mutableStateListOf<Screen>() }

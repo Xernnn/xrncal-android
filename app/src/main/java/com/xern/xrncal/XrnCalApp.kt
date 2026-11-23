@@ -173,9 +173,12 @@ class Graph(
     companion object {
         fun android(context: Context): Graph {
             val db = CalendarDatabase.open(context)
+            val settings = PrefsSettings(context.getSharedPreferences("settings", Context.MODE_PRIVATE))
             return Graph(
                 store = RoomCalendarStore(db),
-                settings = PrefsSettings(context.getSharedPreferences("settings", Context.MODE_PRIVATE)),
+                settings = settings,
+                // Options, Time zone: the phone's, or one chosen there.
+                zone = { settings.value.zoneId() },
                 account = PrefsAccount(context.getSharedPreferences("account", Context.MODE_PRIVATE)),
                 alarms = AndroidAlarmScheduler(context),
                 rungLog = PrefsRungLog(context.getSharedPreferences("reminders", Context.MODE_PRIVATE)),

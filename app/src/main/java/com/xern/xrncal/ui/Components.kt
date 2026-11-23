@@ -54,8 +54,20 @@ data class Look(
     val weekNumbers: Boolean = true,
     val zone: ZoneId = ZoneId.systemDefault(),
     val readOnly: Set<String> = emptySet(),
+    /** A timed chip in the month leads with its start time. */
+    val monthTimes: Boolean = true,
+    /** Shown under each hour in the day and week gutters, when it differs from [zone]. */
+    val secondZone: ZoneId? = null,
 ) {
     fun color(o: Occurrence): Color = Color(o.color ?: colors[o.calendarId] ?: 0xFF529CCA.toInt())
+
+    /** A month chip's start time, as the laptop leads a timed event's chip with it ("10:30"), or null. */
+    fun chipTime(o: Occurrence, day: LocalDate): String? =
+        if (!monthTimes || o.allDay || o.firstDay != day) null else Format.time(o.start.atZone(zone).toLocalTime(), h24)
+
+    /** A month chip's text: "10:30 Dentist" for a timed event on its first day, else the title. */
+    fun chipText(o: Occurrence, day: LocalDate): String =
+        listOfNotNull(chipTime(o, day), o.title.ifBlank { "(no title)" }).joinToString(" ")
 }
 
 /** Now, moving on every minute: today and the time line follow the clock while the app stays open. */

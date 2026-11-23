@@ -26,11 +26,21 @@ object MonthLayout {
     data class Week(val days: List<LocalDate>, val bars: List<Bar>, val more: List<Int>)
 
     /**
+     * How many one-line chips fit a month cell [cellHeight] tall under its [header] (the day's
+     * number), [lane] tall each with [gap] between: One Calendar fills the cell, about five on the
+     * owner's phone. At least one.
+     */
+    fun lanes(cellHeight: Float, header: Float, lane: Float, gap: Float): Int =
+        maxOf(1, ((cellHeight - header + gap) / (lane + gap)).toInt())
+
+    /**
      * Lays out one week row with [lanes] lines a day. Events that span days come first, longest
      * first, then the day's all-day events, then timed ones by start, each on the first line free
-     * across its days. A day with more than fit keeps its last line for "+N".
+     * across its days. What doesn't fit is counted in [Week.more]: One Calendar shows "+N" beside
+     * the day's number, so no line is kept back for it unless [keepLineForMore] (a "+N" drawn on
+     * the last line instead).
      */
-    fun week(days: List<LocalDate>, occurrences: List<Occurrence>, lanes: Int): Week {
+    fun week(days: List<LocalDate>, occurrences: List<Occurrence>, lanes: Int, keepLineForMore: Boolean = false): Week {
         val first = days.first()
         val last = days.last()
         val items = occurrences.filter { !it.firstDay.isAfter(last) && !it.lastDay.isBefore(first) }
@@ -53,7 +63,7 @@ object MonthLayout {
         }
         val total = IntArray(7)
         placed.forEach { p -> for (c in p.from..p.to) total[c]++ }
-        val limit = IntArray(7) { if (total[it] > lanes) maxOf(0, lanes - 1) else lanes }
+        val limit = IntArray(7) { if (keepLineForMore && total[it] > lanes) maxOf(0, lanes - 1) else lanes }
         val bars = mutableListOf<Bar>()
         val shown = IntArray(7)
         for (p in placed) {

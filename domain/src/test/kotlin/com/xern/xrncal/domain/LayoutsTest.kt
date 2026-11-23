@@ -60,11 +60,26 @@ class LayoutsTest {
     }
 
     @Test
-    fun aFullDayKeepsItsLastLineForTheCountOfTheRest() {
+    fun aMonthCellFillsWithOneLineChipsAsOneCalendarDoes() {
+        // The owner's phone: a 126 dp row under a 22 dp day number, 18 dp chips 2 dp apart.
+        assertEquals(5, MonthLayout.lanes(126f, 22f, 18f, 2f))
+        assertEquals(4, MonthLayout.lanes(100f, 22f, 18f, 2f))
+        assertEquals(1, MonthLayout.lanes(20f, 22f, 18f, 2f))
+        // Seven events on a day of five lines: five chips, and "+2" beside the number.
+        val seven = (1..7).map { timed("E$it", "2026-11-24", "0$it:00", "0$it:30") }
+        val w = MonthLayout.week(week, seven, lanes = 5)
+        assertEquals(5, w.bars.size)
+        assertEquals(listOf(0, 2, 0, 0, 0, 0, 0), w.more)
+        assertEquals((1..5).map { "E$it" }, w.bars.sortedBy { it.lane }.map { it.occurrence.title })
+    }
+
+    @Test
+    fun aFullDayCanKeepItsLastLineForTheCountOfTheRest() {
         val many = (1..5).map { timed("E$it", "2026-11-24", "0$it:00", "0$it:30") }
-        val w = MonthLayout.week(week, many, lanes = 3)
+        val w = MonthLayout.week(week, many, lanes = 3, keepLineForMore = true)
         assertEquals(2, w.bars.size)
         assertEquals(listOf(0, 3, 0, 0, 0, 0, 0), w.more)
+        assertEquals(listOf(0, 2, 0, 0, 0, 0, 0), MonthLayout.week(week, many, lanes = 3).more)
         // A day with as many as fit shows them all.
         val three = MonthLayout.week(week, many.take(3), lanes = 3)
         assertEquals(3, three.bars.size)
@@ -78,7 +93,7 @@ class LayoutsTest {
         val w = MonthLayout.week(week, busy + trip, lanes = 3)
         val trips = w.bars.filter { it.occurrence.title == "Trip" }.map { it.from to it.to }
         assertEquals(listOf(0 to 2), trips)
-        assertEquals(3, w.more[1])
+        assertEquals(2, w.more[1])
     }
 
     @Test
