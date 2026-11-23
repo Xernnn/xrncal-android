@@ -59,6 +59,7 @@ class Graph(
     val account: Account,
     alarms: AlarmScheduler,
     rungLog: RungLog,
+    snoozes: com.xern.xrncal.data.SnoozeLog = com.xern.xrncal.data.MemorySnoozeLog(),
     private val zone: () -> ZoneId = ZoneId::systemDefault,
     private val clock: () -> Instant = Instant::now,
     client: (Account) -> CalDav = { OkCalDav(it.address, it.user, it.password) },
@@ -71,7 +72,7 @@ class Graph(
 
     val engine = SyncEngine(store, account, client = client)
     val events = EventRepository(store, { settings.value }, zone, clock, changed = { changedHere() })
-    val reminders = ReminderPlanner(events, { settings.value }, rungLog, alarms, zone, clock)
+    val reminders = ReminderPlanner(events, { settings.value }, rungLog, alarms, zone, clock, snoozes)
 
     private var pending: Job? = null
 
@@ -187,6 +188,7 @@ class Graph(
                 account = PrefsAccount(context.getSharedPreferences("account", Context.MODE_PRIVATE)),
                 alarms = AndroidAlarmScheduler(context),
                 rungLog = PrefsRungLog(context.getSharedPreferences("reminders", Context.MODE_PRIVATE)),
+                snoozes = com.xern.xrncal.work.PrefsSnoozeLog(context.getSharedPreferences("reminders", Context.MODE_PRIVATE)),
                 refreshWidgets = { com.xern.xrncal.work.Widgets.refresh(context) },
             )
         }

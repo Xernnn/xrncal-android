@@ -482,7 +482,7 @@ TalkBack names it and tests can find it.
 - Radicale: a calendar colour set by PROPPATCH read back by a second device; a per-event `COLOR`
   round trip; a new event's default reminder reaching the server as a VALARM.
 - Previews of every new screen from made-up calendars, rendered to PNGs.
-- `ManifestTest`: the widgets' receivers, the share provider, the snooze action.
+- `ManifestTest`: the widgets' receivers and the share provider (Snooze is an explicit broadcast to the reminder receiver, which needs no filter).
 
 ## Later
 

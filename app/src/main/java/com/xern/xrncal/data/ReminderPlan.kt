@@ -33,6 +33,18 @@ class MemoryRungLog : RungLog {
     override var rung: Map<String, Long> = emptyMap()
 }
 
+/** A reminder snoozed: which date of which event, how long before it, and when it rings again. */
+data class Snooze(val resourceId: String, val start: Long, val minutesBefore: Int, val at: Long)
+
+/** The snoozed reminders (key -> snooze), kept across a reboot. */
+interface SnoozeLog {
+    var snoozed: Map<String, Snooze>
+}
+
+class MemorySnoozeLog : SnoozeLog {
+    override var snoozed: Map<String, Snooze> = emptyMap()
+}
+
 /**
  * Keeps the phone's one alarm on the soonest reminder to come (docs/spec.md, "Reminders"), and says
  * what to show when it goes off. Reminders are an event's own VALARMs: one without any never rings,
@@ -45,6 +57,7 @@ class ReminderPlanner(
     private val scheduler: AlarmScheduler,
     private val zone: () -> ZoneId = ZoneId::systemDefault,
     private val clock: () -> Instant = Instant::now,
+    private val snoozes: SnoozeLog = MemorySnoozeLog(),
 ) {
     private val mutex = Mutex()
 
@@ -74,9 +87,26 @@ class ReminderPlanner(
                 if (due != null && (next == null || due < next)) next = due
             }
         }
+        // A snoozed reminder rings again at its time (or now, if the phone slept through it).
+        for (z in snoozes.snoozed.values) {
+            val due = maxOf(z.at, now)
+            if (next == null || due < next) next = due
+        }
         log.rung = rung.filterValues { it > now - KEEP_MS }
         if (next == null) scheduler.cancel() else scheduler.set(next)
         next
+    }
+
+    /**
+     * A reminder's Snooze (the laptop's 5, 10, 15, 30 minutes or an hour): it rings again
+     * [minutes] from now, then the alarm is set for whatever comes first.
+     */
+    suspend fun snooze(resourceId: String, start: Long, minutesBefore: Int, minutes: Int): Long? {
+        mutex.withLock {
+            val at = clock().toEpochMilli() + minutes * 60_000L
+            snoozes.snoozed = snoozes.snoozed + ("$resourceId|$start|$minutesBefore" to Snooze(resourceId, start, minutesBefore, at))
+        }
+        return rearm()
     }
 
     /**
@@ -94,6 +124,14 @@ class ReminderPlanner(
             due.ring?.let { out += Ring(o, it.minutesBefore, it.fireAt) }
         }
         log.rung = rung
+        // Snoozed ones now due, for an event still there.
+        val (due, later) = snoozes.snoozed.entries.partition { it.value.at <= now }
+        snoozes.snoozed = later.associate { it.key to it.value }
+        for ((_, z) in due) {
+            val o = events.find(z.resourceId, z.start) ?: continue
+            if (o.start.toEpochMilli() != z.start) continue
+            out += Ring(o, z.minutesBefore, z.at)
+        }
         out
     }
 

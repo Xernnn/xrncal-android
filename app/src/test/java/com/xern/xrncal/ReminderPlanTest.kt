@@ -133,4 +133,21 @@ class ReminderPlanTest {
         now = at("2026-12-24T08:00")
         assertNull(planner.rearm())
     }
+
+    @Test
+    fun aSnoozedReminderRingsAgainAfterItsMinutes() = runBlocking {
+        event("Dentist", "2026-11-24", "10:00", "11:00", listOf(EventReminder(30)))
+        now = at("2026-11-24T09:30")
+        val ring = planner.ringing().single()
+        // Snooze, as the notification's action does: ten minutes on, the alarm is set for it.
+        assertEquals(at("2026-11-24T09:40").toEpochMilli(), planner.snooze(ring.occurrence.resourceId, ring.occurrence.start.toEpochMilli(), 30, 10))
+        assertEquals(alarm, at("2026-11-24T09:40").toEpochMilli())
+        now = at("2026-11-24T09:35")
+        assertEquals(emptyList<Any>(), planner.ringing())
+        now = at("2026-11-24T09:40")
+        assertEquals(listOf("Dentist" to 30), planner.ringing().map { it.occurrence.title to it.minutesBefore })
+        // Rung once more, and then nothing until something else is due.
+        assertEquals(emptyList<Any>(), planner.ringing())
+        assertNull(planner.rearm())
+    }
 }
