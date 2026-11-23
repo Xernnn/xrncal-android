@@ -47,6 +47,26 @@
             <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/shared_files" />
         </provider>
 
+        <!-- The home-screen widgets: drawn by the app after a sync or a change and at midnight. -->
+        <receiver android:name=".work.AgendaWidget" android:exported="false" android:label="@string/widget_agenda">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_agenda_info" />
+        </receiver>
+        <receiver android:name=".work.MonthWidget" android:exported="false" android:label="@string/widget_month">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_month_info" />
+        </receiver>
+        <receiver android:name=".work.DateWidget" android:exported="false" android:label="@string/widget_date">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_date_info" />
+        </receiver>
+
         <!-- A reminder's alarm, and the moments the alarms are set again. HyperOS delivers the boot
              and update ones only with Autostart on. -->
         <receiver android:name=".work.ReminderReceiver" android:exported="false">

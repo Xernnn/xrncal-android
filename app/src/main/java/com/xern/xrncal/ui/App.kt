@@ -433,6 +433,7 @@ fun App(graph: Graph) {
                 val after = graph.settings.value
                 if (after.syncMinutes != before.syncMinutes && graph.account.connected) SyncWork.keep(context, after.syncMinutes)
                 scope.launch { graph.reminders.rearm() }
+                graph.refreshWidgets()
             },
             onColor = { id, color -> scope.launch { graph.events.setColor(id, color, graph.settings) } },
             onBack = { stack.removeAt(stack.lastIndex) },

@@ -57,6 +57,20 @@ class ManifestTest {
         assertTrue(paths, paths.contains("<cache-path name=\"shared\" path=\"shared/\" />") && !paths.contains("root-path") && !paths.contains("files-path"))
     }
 
+    /** Each widget's receiver hears the launcher's update and names its provider file, which exists. */
+    @Test
+    fun everyWidgetHasItsReceiverAndProvider() {
+        for ((name, info) in listOf(".work.AgendaWidget" to "widget_agenda_info", ".work.MonthWidget" to "widget_month_info", ".work.DateWidget" to "widget_date_info")) {
+            val receiver = named("receiver").single { it.getAttributeNS(ANDROID, "name") == name }
+            val actions = receiver.getElementsByTagName("action").let { n -> (0 until n.length).map { (n.item(it) as org.w3c.dom.Element).getAttributeNS(ANDROID, "name") } }
+            assertEquals(name, listOf("android.appwidget.action.APPWIDGET_UPDATE"), actions)
+            val meta = receiver.getElementsByTagName("meta-data").item(0) as org.w3c.dom.Element
+            assertEquals("android.appwidget.provider", meta.getAttributeNS(ANDROID, "name"))
+            assertEquals("@xml/$info", meta.getAttributeNS(ANDROID, "resource"))
+            assertTrue(info, File("src/main/res/xml/$info.xml").readText().contains("<appwidget-provider"))
+        }
+    }
+
     @Test
     fun nothingLeavesThePhoneInABackup() {
         val app = named("application").single()

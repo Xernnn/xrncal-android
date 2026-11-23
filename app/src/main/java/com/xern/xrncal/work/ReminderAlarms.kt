@@ -124,6 +124,7 @@ class ReminderReceiver : BroadcastReceiver() {
                     }
                     else -> {
                         graph.reminders.rearm() // boot, update, time, zone
+                        Widgets.refresh(context)
                         if (intent.action == Intent.ACTION_BOOT_COMPLETED && graph.account.connected) SyncWork.now(context)
                     }
                 }

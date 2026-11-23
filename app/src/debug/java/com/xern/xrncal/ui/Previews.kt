@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Menu
@@ -16,6 +17,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -312,6 +315,54 @@ fun AccountsPreview() = Themed(dark = true) {
         AccountView("https://caldav.example.com/", "alex", true, SyncStatus(lastSync = NOW.toEpochMilli()), 4),
         listOf(Problem("p1", "Dentist", "Home", "conflict")), look(), false, null, {}, { _, _, _ -> }, {}, {}, {}, {},
     )
+}
+
+// ---- widgets, at the sizes a Redmi Note 14's home screen gives four by two and one by one ----
+
+private fun widgetInput(s: Settings = Settings()) = com.xern.xrncal.work.WidgetInput(
+    s, TODAY, NOW, true, CALENDARS.associate { it.id to it.color },
+    agenda = between(TODAY, TODAY.plusDays(13)), month = between(LocalDate.of(2026, 10, 26), LocalDate.of(2026, 12, 6)), zone = ZONE,
+)
+
+@Composable
+private fun OnHomeScreen(content: @Composable () -> Unit) = Themed(dark = true) {
+    Box(Modifier.fillMaxSize().padding(12.dp), contentAlignment = Alignment.TopCenter) { content() }
+}
+
+@Preview(name = "Agenda widget", widthDp = 400, heightDp = 330)
+@Composable
+fun AgendaWidgetPreview() = OnHomeScreen {
+    val input = widgetInput()
+    val s = input.settings
+    Column(
+        Modifier.size(376.dp, 300.dp).clip(androidx.compose.foundation.shape.RoundedCornerShape(16.dp))
+            .background(androidx.compose.ui.graphics.Color(s.widgetBackground).copy(alpha = s.widgetOpacity)).padding(start = 12.dp, end = 12.dp, top = 10.dp),
+    ) {
+        Text(com.xern.xrncal.work.Widgets.dayTitle(TODAY), style = type(16, androidx.compose.ui.text.font.FontWeight.Medium, androidx.compose.ui.graphics.Color(s.widgetText)), modifier = Modifier.padding(bottom = 4.dp))
+        for ((_, rv) in com.xern.xrncal.work.Widgets.agendaRows(androidx.compose.ui.platform.LocalContext.current, input).take(14)) {
+            androidx.compose.ui.viewinterop.AndroidView(factory = { ctx -> rv.apply(ctx, android.widget.FrameLayout(ctx)) }, modifier = Modifier.fillMaxWidth())
+        }
+    }
+}
+
+@Preview(name = "Month widget", widthDp = 400, heightDp = 320)
+@Composable
+fun MonthWidgetPreview() = OnHomeScreen {
+    val input = widgetInput()
+    val s = input.settings
+    val picture = com.xern.xrncal.work.Widgets.monthPicture(input, 376, 280, androidx.compose.ui.platform.LocalDensity.current.density)
+    Box(Modifier.size(376.dp, 280.dp).clip(androidx.compose.foundation.shape.RoundedCornerShape(16.dp)).background(androidx.compose.ui.graphics.Color(s.widgetBackground).copy(alpha = s.widgetOpacity))) {
+        androidx.compose.foundation.Image(picture.asImageBitmap(), contentDescription = null, modifier = Modifier.fillMaxSize())
+    }
+}
+
+@Preview(name = "Date widget", widthDp = 120, heightDp = 120)
+@Composable
+fun DateWidgetPreview() = OnHomeScreen {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    Box(Modifier.size(90.dp)) {
+        androidx.compose.ui.viewinterop.AndroidView(factory = { ctx -> com.xern.xrncal.work.Widgets.date(context, widgetInput(), clicks = false).apply(ctx, android.widget.FrameLayout(ctx)) }, modifier = Modifier.fillMaxSize())
+    }
 }
 
 @Suppress("unused")

@@ -62,6 +62,8 @@ class Graph(
     private val zone: () -> ZoneId = ZoneId::systemDefault,
     private val clock: () -> Instant = Instant::now,
     client: (Account) -> CalDav = { OkCalDav(it.address, it.user, it.password) },
+    /** The home-screen widgets drawn again (after a sync, a change, or new Options). */
+    val refreshWidgets: () -> Unit = {},
 ) {
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val _status = MutableStateFlow(SyncStatus(lastSync = account.lastSync, error = account.lastError))
@@ -86,6 +88,7 @@ class Graph(
     private fun changedHere() {
         syncSoon()
         scope.launch { reminders.rearm() }
+        refreshWidgets()
     }
 
     /** A sync in [delayMs] (2 seconds after changes stop), if an account is set. */
@@ -128,6 +131,7 @@ class Graph(
         if (error != null) account.lastError = error
         _status.value = SyncStatus(false, account.lastSync, account.lastError)
         reminders.rearm()
+        refreshWidgets()
         return end
     }
 
@@ -160,6 +164,7 @@ class Graph(
         for (c in store.calendars()) if (!c.local) store.removeCalendar(c.id)
         _status.value = SyncStatus()
         reminders.rearm()
+        refreshWidgets()
     }
 
     fun start() {
@@ -182,6 +187,7 @@ class Graph(
                 account = PrefsAccount(context.getSharedPreferences("account", Context.MODE_PRIVATE)),
                 alarms = AndroidAlarmScheduler(context),
                 rungLog = PrefsRungLog(context.getSharedPreferences("reminders", Context.MODE_PRIVATE)),
+                refreshWidgets = { com.xern.xrncal.work.Widgets.refresh(context) },
             )
         }
     }
