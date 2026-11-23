@@ -8,6 +8,7 @@ import java.time.ZoneId
 import java.time.ZoneOffset
 import java.time.ZonedDateTime
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -127,6 +128,19 @@ class LayoutsTest {
         val night = occurrence(Instant.parse("2026-11-24T22:00:00Z"), Instant.parse("2026-11-25T02:00:00Z"), d("2026-11-24"), "Night", lastDay = d("2026-11-25"))
         assertEquals(22 * 60 to 24 * 60, DayLayout.day(d("2026-11-24"), listOf(night), utc).single().let { it.startMin to it.endMin })
         assertEquals(0 to 2 * 60, DayLayout.day(d("2026-11-25"), listOf(night), utc).single().let { it.startMin to it.endMin })
+    }
+
+    @Test
+    fun theDayAndWeekGridsOpenAtTheDaysStartEvenWhenTheFirstLayoutIsShort() {
+        val eight = 8 * 112 // 08:00 at a Medium hour of 112 px
+        // The first layout's range was short: the grid can only go as far as it allows...
+        assertEquals(450, DayLayout.openAt(max = 450, value = 0, placed = null, target = eight))
+        // ...and when the real range comes, it goes on to 08:00, nothing having moved it.
+        assertEquals(eight, DayLayout.openAt(max = 1_900, value = 450, placed = 450, target = eight))
+        // Once the owner has scrolled, a later change of range leaves it where they put it.
+        assertNull(DayLayout.openAt(max = 2_000, value = 300, placed = eight, target = eight))
+        // No range yet: nothing to do.
+        assertNull(DayLayout.openAt(max = 0, value = 0, placed = null, target = eight))
     }
 }
 
