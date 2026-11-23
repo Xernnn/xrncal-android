@@ -35,8 +35,9 @@ the server is back. Sync runs on opening the app, after each change and every 30
 background. The password is kept sealed with an Android Keystore key.
 
 xrncal on the laptop and this app agree on what they write: events in their own time zone with a
-`VTIMEZONE`, reminders as `VALARM`s (no `VALARM` means "the default reminder"; an event set to
-none carries the "none" alarm both read), and everything another program wrote kept as it was.
+`VTIMEZONE`, reminders as `VALARM`s (as in One Calendar, an event without one never rings; the
+default reminders only fill in a new event's), and everything another program wrote kept as it
+was.
 
 ## Build and test
 

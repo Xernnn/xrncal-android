@@ -35,8 +35,8 @@ class MemoryRungLog : RungLog {
 
 /**
  * Keeps the phone's one alarm on the soonest reminder to come (docs/spec.md, "Reminders"), and says
- * what to show when it goes off. Reminders are an event's own VALARMs, or the defaults in Settings
- * when it has none; holidays never ring.
+ * what to show when it goes off. Reminders are an event's own VALARMs: one without any never rings,
+ * as in One Calendar, and holidays never ring.
  */
 class ReminderPlanner(
     private val events: EventRepository,
@@ -48,10 +48,8 @@ class ReminderPlanner(
 ) {
     private val mutex = Mutex()
 
-    private fun effective(o: Occurrence): List<EventReminder> {
-        val s = settings()
-        return Reminders.effective(o.reminders, o.allDay, null, Reminders.Defaults(s.timedReminder, s.allDayReminder))
-    }
+    /** An event's own alarms: one with none never rings (the defaults only fill in new events). */
+    private fun effective(o: Occurrence): List<EventReminder> = Reminders.effective(o.reminders)
 
     private fun anchor(o: Occurrence): Long = Reminders.anchor(o.start, o.allDay, o.firstDay, zone()).toEpochMilli()
 

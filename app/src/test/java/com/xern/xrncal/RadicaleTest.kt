@@ -384,7 +384,22 @@ class RadicaleTest {
         val o = other.week().single { it.title == "Phở with Tuấn" }
         assertEquals(Instant.parse("2026-11-28T11:30:00Z"), o.start)
         assertTrue(o.recurring)
-        assertEquals(emptyList<Any>(), o.reminders)
+        // Set to none: no VALARM at all, which never rings on either app.
+        assertNull(o.reminders)
         assertEquals("Bring the made-up voucher", o.notes)
+    }
+
+    @Test
+    fun aNewEventsDefaultReminderReachesTheServerAsItsOwnAlarm() {
+        val phone = Phone()
+        phone.sync()
+        val defaults = com.xern.xrncal.domain.Reminders.ONE_CALENDAR_DEFAULTS
+        val id = runBlocking { phone.events.create(home, draft("Dentist", "2026-11-26", "09:00", "10:00").copy(reminders = defaults.forNew(false))) }
+        phone.sync()
+        val server = laptopGet(runBlocking { phone.store.resource(id) }!!.href!!)!!
+        assertTrue(server, server.contains("BEGIN:VALARM") && server.contains("TRIGGER:-PT15M") && !server.contains("ACTION:NONE"))
+        val other = Phone()
+        other.sync()
+        assertEquals(listOf(com.xern.xrncal.domain.EventReminder(15)), other.one("Dentist").reminders)
     }
 }

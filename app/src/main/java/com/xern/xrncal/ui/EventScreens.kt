@@ -301,7 +301,7 @@ fun EditorScreen(
             Label("Location")
             Field(state.location, { state.location = it }, Modifier.padding(horizontal = 16.dp))
             Label("Reminders")
-            ReminderSection(state, defaults)
+            ReminderSection(state)
             Label("Notes")
             Field(state.notes, { state.notes = it }, Modifier.padding(horizontal = 16.dp).heightIn(min = 96.dp), singleLine = false)
         }
@@ -525,35 +525,30 @@ private fun Choice(text: String, on: Boolean, modifier: Modifier = Modifier, onC
 }
 
 @Composable
-private fun ReminderSection(state: EditorState, defaults: Reminders.Defaults) {
+private fun ReminderSection(state: EditorState) {
     val ink = LocalInk.current
-    val default = if (state.allDay) defaults.allDay else defaults.timed
-    val list = state.reminders
+    // No VALARM and none chosen are the same here: neither rings.
+    val list = state.reminders.orEmpty()
     var adding by remember { mutableStateOf(false) }
     Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        if (list == null) {
+        if (list.isEmpty()) {
             Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(4.dp)).background(ink.field).padding(start = 12.dp, end = 4.dp).height(48.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text("Default", style = type(16, color = ink.muted), modifier = Modifier.width(80.dp))
-                Text(default?.let { Reminders.label(it, state.allDay) } ?: "None", style = type(16, color = ink.text), modifier = Modifier.weight(1f))
-                IconButton(onClick = { state.reminders = emptyList() }) { Icon(Icons.Filled.Close, contentDescription = null, tint = ink.muted) }
+                Text("None", style = type(16, color = ink.text), modifier = Modifier.weight(1f))
             }
-        } else {
-            for (r in list) {
-                Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(4.dp)).background(ink.field).padding(start = 12.dp, end = 4.dp).height(48.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text(Reminders.label(r.minutesBefore, state.allDay) + if (r.email) " (email)" else "", style = type(16, color = ink.text), modifier = Modifier.weight(1f))
-                    IconButton(onClick = { state.reminders = list - r }) { Icon(Icons.Filled.Close, contentDescription = null, tint = ink.muted) }
-                }
+        }
+        for (r in list) {
+            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(4.dp)).background(ink.field).padding(start = 12.dp, end = 4.dp).height(48.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(Reminders.choiceLabel(r.minutesBefore) + if (r.email) " (email)" else "", style = type(16, color = ink.text), modifier = Modifier.weight(1f))
+                IconButton(onClick = { state.reminders = list - r }) { Icon(Icons.Filled.Close, contentDescription = "Remove reminder", tint = ink.muted) }
             }
         }
         Box {
             Text("+ Reminder", style = type(15, FontWeight.Medium, ink.accent), modifier = Modifier.clickable { adding = true }.padding(vertical = 8.dp, horizontal = 4.dp))
             DropdownMenu(expanded = adding, onDismissRequest = { adding = false }) {
-                val presets = if (state.allDay) Reminders.ALL_DAY_PRESETS.sorted() + 0 else Reminders.TIMED_PRESETS
-                for (m in presets) {
-                    DropdownMenuItem(text = { Text(Reminders.label(m, state.allDay), style = type(15)) }, onClick = {
+                for (m in Reminders.ONE_CALENDAR_CHOICES) {
+                    DropdownMenuItem(text = { Text(Reminders.choiceLabel(m), style = type(15)) }, onClick = {
                         adding = false
-                        val base = list ?: listOfNotNull(default?.let { EventReminder(it) })
-                        state.reminders = Reminders.normalize(base + EventReminder(m))
+                        state.reminders = Reminders.normalize(list + EventReminder(m))
                     })
                 }
             }

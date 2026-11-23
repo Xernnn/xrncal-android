@@ -12,7 +12,6 @@ import org.junit.Test
 /** The laptop app's reminders.test.ts. */
 class RemindersTest {
     private val MIN = 60_000L
-    private val defaults = Reminders.Defaults(timed = 10, allDay = null)
 
     @Test
     fun normalizesWholeMinutesNoDuplicatesNoNegativesSoonestFirst() {
@@ -24,12 +23,28 @@ class RemindersTest {
     }
 
     @Test
-    fun resolvesWhatRings() {
-        assertEquals(emptyList<EventReminder>(), Reminders.effective(emptyList(), false, listOf(EventReminder(30)), defaults))
-        assertEquals(listOf(EventReminder(30)), Reminders.effective(null, false, listOf(EventReminder(30)), defaults))
-        assertEquals(listOf(EventReminder(10)), Reminders.effective(null, false, null, defaults))
-        assertEquals(emptyList<EventReminder>(), Reminders.effective(null, true, listOf(EventReminder(30)), defaults))
-        assertEquals(listOf(EventReminder(900)), Reminders.effective(null, true, null, Reminders.Defaults(null, 900)))
+    fun anEventRingsOnlyForItsOwnAlarms() {
+        // The owner's decision for phase 2, as One Calendar: no VALARM, no ring, whatever the defaults.
+        assertEquals(emptyList<EventReminder>(), Reminders.effective(null))
+        assertEquals(emptyList<EventReminder>(), Reminders.effective(emptyList()))
+        assertEquals(listOf(EventReminder(30)), Reminders.effective(listOf(EventReminder(30))))
+    }
+
+    @Test
+    fun theDefaultsOnlyFillInANewEvent() {
+        val d = Reminders.ONE_CALENDAR_DEFAULTS
+        assertEquals(listOf(EventReminder(15)), d.forNew(allDay = false))
+        assertEquals(listOf(EventReminder(720)), d.forNew(allDay = true))
+        assertEquals(emptyList<EventReminder>(), Reminders.Defaults(null, null).forNew(false))
+    }
+
+    @Test
+    fun offersOneCalendarsReminderList() {
+        assertEquals(
+            listOf("0 minutes", "5 minutes", "10 minutes", "15 minutes", "30 minutes", "45 minutes", "1 hour", "2 hours", "3 hours", "4 hours", "6 hours", "12 hours", "18 hours", "1 day", "2 days", "1 week"),
+            Reminders.ONE_CALENDAR_CHOICES.map { Reminders.choiceLabel(it) },
+        )
+        assertEquals("None", Reminders.choiceLabel(null))
     }
 
     @Test

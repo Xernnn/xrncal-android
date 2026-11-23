@@ -15,8 +15,9 @@ import java.time.ZoneOffset
 object Alarms {
     /**
      * The "none" marker other calendars write for an event set to ring never: an alarm at a fixed
-     * time in 1976 that does nothing. Written here for an event whose reminders were all removed,
-     * since no VALARM at all means "the defaults apply". The laptop app reads it as none too.
+     * time in 1976 that does nothing. Read as no reminders. Phase 1 wrote it for an event whose
+     * reminders were all removed, when no VALARM meant "the defaults"; since an event without a
+     * VALARM never rings (on the laptop too), it says nothing any more and is not written.
      */
     const val NONE_TRIGGER = "19760401T005545Z"
 
@@ -41,9 +42,10 @@ object Alarms {
     }
 
     /**
-     * Writes [reminders] as the VEVENT's alarms. Null removes them all (the defaults apply). An
-     * alarm already there for a minute still wanted is kept as it is, with its sound or whatever
-     * else another client put in it; email alarms and ones this app can't read are kept as well.
+     * Writes [reminders] as the VEVENT's alarms. Null removes them all. An alarm already there for a
+     * minute still wanted is kept as it is, with its sound or whatever else another client put in
+     * it; email alarms and ones this app can't read are kept as well. The "none" marker goes: an
+     * event left with no reminders simply has no VALARM, which never rings.
      */
     fun write(vevent: Component, reminders: List<EventReminder>?, title: String) {
         val alarms = vevent.children("VALARM")
@@ -67,10 +69,6 @@ object Alarms {
         }
         vevent.components.removeAll { it.name.equals("VALARM", true) && it !in keep }
         for (m in wanted.sorted()) vevent.components += display(m, title)
-        if (vevent.children("VALARM").none { reminderOf(it)?.email == false } && Reminders.forCalDav(reminders).isEmpty()) {
-            vevent.components.removeAll { it.name.equals("VALARM", true) && isNoneMarker(it) }
-            vevent.components += noneMarker()
-        }
     }
 
     fun display(minutes: Int, title: String) = Component(
@@ -79,14 +77,6 @@ object Alarms {
             Property("ACTION", value = "DISPLAY"),
             Property("DESCRIPTION", value = com.xern.xrncal.domain.ical.ICalText.escape(title.ifBlank { "Reminder" })),
             Property("TRIGGER", value = IcalDuration.before(minutes)),
-        ),
-    )
-
-    fun noneMarker() = Component(
-        "VALARM",
-        mutableListOf(
-            Property("ACTION", value = "NONE"),
-            Property("TRIGGER", mutableListOf(com.xern.xrncal.domain.ical.Param("VALUE", "DATE-TIME")), NONE_TRIGGER),
         ),
     )
 

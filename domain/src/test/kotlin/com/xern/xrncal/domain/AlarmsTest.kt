@@ -48,14 +48,26 @@ class AlarmsTest {
     }
 
     @Test
-    fun writesNoneAsTheNoneMarkerAndTheDefaultAsNoAlarm() {
+    fun writesNoneAsNoAlarmAndDropsTheOldNoneMarker() {
         val ev = vevent("BEGIN:VALARM\r\nACTION:DISPLAY\r\nTRIGGER:-PT10M\r\nEND:VALARM\r\n")
         Alarms.write(ev, emptyList(), "x")
-        assertEquals(emptyList<EventReminder>(), Alarms.read(ev))
-        assertEquals(1, ev.children("VALARM").size)
+        assertEquals(0, ev.children("VALARM").size)
+        assertNull(Alarms.read(ev))
         Alarms.write(ev, listOf(EventReminder(5)), "x")
         assertEquals(listOf(EventReminder(5)), Alarms.read(ev))
         assertEquals(1, ev.children("VALARM").size)
+        // Phase 1's marker, read as none, goes when the event is saved with no reminders...
+        val marked = vevent("BEGIN:VALARM\r\nACTION:NONE\r\nTRIGGER;VALUE=DATE-TIME:19760401T005545Z\r\nEND:VALARM\r\n")
+        Alarms.write(marked, emptyList(), "x")
+        assertEquals(0, marked.children("VALARM").size)
+        // ...and when it gets one, while an alarm this app can't read stays.
+        val mixed = vevent(
+            "BEGIN:VALARM\r\nACTION:NONE\r\nTRIGGER;VALUE=DATE-TIME:19760401T005545Z\r\nEND:VALARM\r\n",
+            "BEGIN:VALARM\r\nACTION:DISPLAY\r\nTRIGGER;RELATED=END:-PT5M\r\nEND:VALARM\r\n",
+        )
+        Alarms.write(mixed, listOf(EventReminder(15)), "x")
+        val text = ICalWriter.write(mixed)
+        assertTrue(text, !text.contains("ACTION:NONE") && text.contains("RELATED=END") && text.contains("TRIGGER:-PT15M"))
         Alarms.write(ev, null, "x")
         assertNull(Alarms.read(ev))
     }

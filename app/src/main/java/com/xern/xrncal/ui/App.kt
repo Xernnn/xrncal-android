@@ -121,7 +121,7 @@ fun App(graph: Graph) {
 
     fun add(day: LocalDate, hour: Int? = null) {
         val cal = defaultCalendar() ?: return
-        stack += Screen.Edit(EditorState(newDraft(day, hour, now, zone, settings.eventMinutes), cal), null, Scope.ALL)
+        stack += Screen.Edit(EditorState(newDraft(day, hour, now, zone, settings.eventMinutes, defaults.forNew(false)), cal), null, Scope.ALL)
     }
 
     fun open(o: Occurrence) {
@@ -404,7 +404,7 @@ private fun DetailRoute(
             start.utc -> ZoneOffset.UTC
             else -> Zones.ianaFor(start.tzid ?: "")
         }
-        val reminders = if (holiday) emptyList() else Reminders.effective(occ.reminders, occ.allDay, null, defaults)
+        val reminders = if (holiday) emptyList() else Reminders.effective(occ.reminders)
         value = DetailInfo(cal, zone, master?.rrule, reminders, row?.problem)
     }
     val editable = !holiday && occ.calendarId !in look.readOnly

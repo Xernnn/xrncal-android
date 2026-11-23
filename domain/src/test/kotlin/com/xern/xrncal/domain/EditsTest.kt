@@ -120,14 +120,16 @@ class EditsTest {
     }
 
     @Test
-    fun removingEveryReminderWritesTheNoneMarker() {
+    fun removingEveryReminderLeavesNoAlarm() {
         val o = occ(foreign, "2026-10-05")
         val d = Edits.seriesDraft(ParsedResource.parse(foreign, sydney), o, sydney)
         assertEquals(listOf(EventReminder(5)), d.reminders)
+        // No VALARM never rings, on this app and the laptop: nothing to mark.
         val text = Edits.update(foreign, o, d.copy(reminders = emptyList()), Scope.ALL, now)
-        assertEquals(emptyList<EventReminder>(), expand(text, "2026-10-05", "2026-10-05", sydney).single().reminders)
-        val back = Edits.update(text, o, d.copy(reminders = null), Scope.ALL, now)
-        assertNull(expand(back, "2026-10-05", "2026-10-05", sydney).single().reminders)
+        assertTrue(text, !text.contains("BEGIN:VALARM"))
+        assertNull(expand(text, "2026-10-05", "2026-10-05", sydney).single().reminders)
+        val back = Edits.update(text, o, d.copy(reminders = listOf(EventReminder(30))), Scope.ALL, now)
+        assertEquals(listOf(EventReminder(30)), expand(back, "2026-10-05", "2026-10-05", sydney).single().reminders)
     }
 
     @Test

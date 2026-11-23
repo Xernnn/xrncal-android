@@ -25,10 +25,10 @@ data class Settings(
     /** Null: the phone's own first day of the week. */
     val weekStart: DayOfWeek? = null,
     val defaultView: View = View.MONTH,
-    /** Minutes before a timed event; null for none. */
-    val timedReminder: Int? = 10,
-    /** Minutes before an all-day event's day; null for none. */
-    val allDayReminder: Int? = null,
+    /** A new timed event's reminder, minutes before; null for none. One Calendar's 15 minutes. */
+    val timedReminder: Int? = 15,
+    /** A new all-day event's reminder, minutes before its day; null for none. One Calendar's 12 hours. */
+    val allDayReminder: Int? = 720,
     val eventMinutes: Int = EventLength.DEFAULT,
     val clock: Clock = Clock.SYSTEM,
     val weekNumbers: Boolean = true,
@@ -38,6 +38,23 @@ data class Settings(
     /** The holiday calendars shown. */
     val holidays: Set<String> = setOf(HolidayCalendar.VIETNAM.id),
 )
+
+/** What changes when settings saved by an older version are read. */
+object SettingsMigration {
+    /** 1: 0.1.0, which saved every setting whenever one changed. 2: phase 2. */
+    const val VERSION = 2
+
+    /**
+     * The reminder defaults as read from version [from]: 0.1.0's own defaults (10 minutes, none)
+     * become One Calendar's (15 minutes, 12 hours), since 0.1.0 wrote them back with any other
+     * change and they can't say whether the owner chose them; anything else was chosen and stays.
+     */
+    fun reminders(from: Int, timed: Int?, allDay: Int?): Pair<Int?, Int?> {
+        if (from >= 2) return timed to allDay
+        val d = Settings()
+        return (if (timed == 10) d.timedReminder else timed) to (if (allDay == null) d.allDayReminder else allDay)
+    }
+}
 
 /** Where [Settings] are kept: preferences on the phone, memory in the tests. */
 abstract class SettingsStore {
@@ -65,11 +82,18 @@ class MemorySettings(initial: Settings = Settings()) : SettingsStore() {
 class PrefsSettings(private val prefs: SharedPreferences) : SettingsStore() {
     init {
         val d = Settings()
+        // Saved by 0.1.0 when there is something saved and no version: it wrote none.
+        val from = prefs.getInt("version", if (prefs.contains("defaultView")) 1 else SettingsMigration.VERSION)
+        val (timed, allDay) = SettingsMigration.reminders(
+            from,
+            if (prefs.contains("timedReminder")) prefs.getInt("timedReminder", -1).takeIf { it >= 0 } else d.timedReminder,
+            if (prefs.contains("allDayReminder")) prefs.getInt("allDayReminder", -1).takeIf { it >= 0 } else d.allDayReminder,
+        )
         state.value = Settings(
             weekStart = prefs.getString("weekStart", null)?.let { runCatching { DayOfWeek.valueOf(it) }.getOrNull() },
             defaultView = prefs.getString("defaultView", null)?.let { runCatching { View.valueOf(it) }.getOrNull() } ?: d.defaultView,
-            timedReminder = if (prefs.contains("timedReminder")) prefs.getInt("timedReminder", 10).takeIf { it >= 0 } else d.timedReminder,
-            allDayReminder = if (prefs.contains("allDayReminder")) prefs.getInt("allDayReminder", -1).takeIf { it >= 0 } else d.allDayReminder,
+            timedReminder = timed,
+            allDayReminder = allDay,
             eventMinutes = EventLength.minutes(prefs.getInt("eventMinutes", d.eventMinutes)),
             clock = prefs.getString("clock", null)?.let { runCatching { Clock.valueOf(it) }.getOrNull() } ?: d.clock,
             weekNumbers = prefs.getBoolean("weekNumbers", d.weekNumbers),
@@ -77,10 +101,12 @@ class PrefsSettings(private val prefs: SharedPreferences) : SettingsStore() {
             defaultCalendar = prefs.getString("defaultCalendar", null),
             holidays = prefs.getStringSet("holidays", null)?.toSet() ?: d.holidays,
         )
+        if (from < SettingsMigration.VERSION) save(state.value)
     }
 
     override fun save(s: Settings) {
         prefs.edit()
+            .putInt("version", SettingsMigration.VERSION)
             .putString("weekStart", s.weekStart?.name)
             .putString("defaultView", s.defaultView.name)
             .putInt("timedReminder", s.timedReminder ?: -1)
