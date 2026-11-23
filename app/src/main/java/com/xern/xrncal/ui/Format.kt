@@ -29,9 +29,12 @@ object Format {
     /** An hour label on the grid: `09`, or `9a`. */
     fun hour(h: Int, h24: Boolean): String = if (h24) "%02d".format(h) else "%d%s".format(if (h % 12 == 0) 12 else h % 12, if (h < 12) "a" else "p")
 
-    /** The gutter's hour, as the laptop writes it: `08:00`, or `8a`; a second zone off the hour `14:30`. */
+    /**
+     * The gutter's hour, the number only: `08`, or One Calendar's `8a` on the 12-hour clock. A
+     * second zone off the whole hour keeps its minutes: `14:30`, `2:30p`.
+     */
     fun hourLabel(h: Int, h24: Boolean, minute: Int = 0): String =
-        if (h24) "%02d:%02d".format(h, minute) else if (minute == 0) hour(h, false) else time(java.time.LocalTime.of(h, minute), false)
+        if (minute == 0) hour(h, h24) else time(LocalTime.of(h, minute), h24)
 
     /** One Calendar's week header: `Mo`, `Tu`. */
     fun weekdayTwo(d: java.time.DayOfWeek): String = d.getDisplayName(TextStyle.SHORT, L).take(2)

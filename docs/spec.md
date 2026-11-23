@@ -350,8 +350,11 @@ and the time line; One Calendar's red by default).
 - **Hour size** Small (30 dp), Medium (45 dp, the default: One Calendar's hour on the owner's
   phone, so 08:00 to midnight about fills the screen as it does there) or Large (56 dp). Pinch zoom of the grid is left out:
   it fights the pager's swipe, and the setting does the job.
+- **The gutter writes the hour as a number only** (the owner's choice): `08`, `09` … `23`, or
+  One Calendar's `8a` on the 12-hour clock.
 - **The second time zone** (laptop): under each hour in the gutter, that hour in the second zone,
-  smaller, when it differs from the phone's.
+  smaller, when it differs from the phone's, written the same way (`04`); a zone off the whole
+  hour keeps its minutes (`02:30`).
 - Event blocks: the title, then the time range (when the block has room).
 - Week header: One Calendar's "Mo 23" with the lunar day under it; today's in the signal colour.
 
