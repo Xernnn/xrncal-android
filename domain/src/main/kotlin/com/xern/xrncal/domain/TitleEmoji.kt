@@ -256,31 +256,6 @@ object TitleEmoji {
 
     private data class EmojiUse(val emoji: String, val count: Int)
 
-    private val DECIMAL = Regex("[+-]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][+-]?\\d+)?")
-
-    /** What JavaScript's Number() makes of [text]: NaN for what is not a number. */
-    private fun jsNumber(text: String): Double {
-        val s = JsText.trim(text)
-        if (s.isEmpty()) return 0.0
-        if (DECIMAL.matches(s)) return s.toDouble()
-        val radix = when (s.take(2).lowercase()) {
-            "0x" -> 16
-            "0o" -> 8
-            "0b" -> 2
-            else -> 0
-        }
-        if (radix != 0) {
-            val digits = s.substring(2)
-            if (digits.isNotEmpty() && digits.all { Character.digit(it, radix) >= 0 }) return digits.toBigInteger(radix).toDouble()
-            return Double.NaN
-        }
-        return when (s) {
-            "Infinity", "+Infinity" -> Double.POSITIVE_INFINITY
-            "-Infinity" -> Double.NEGATIVE_INFINITY
-            else -> Double.NaN
-        }
-    }
-
     /**
      * The favourites setting read back: "🍴:5 🎂:2", most recently picked first. A setting holds
      * only plain values, hence one string. Anything in it that is not an emoji the picker offers with
@@ -293,7 +268,7 @@ object TitleEmoji {
             val colon = entry.lastIndexOf(':')
             if (colon <= 0) continue
             val emoji = entry.substring(0, colon)
-            val count = jsNumber(entry.substring(colon + 1))
+            val count = JsText.number(entry.substring(colon + 1))
             if (emoji !in OFFERED || !count.isFinite() || floor(count) != count || count < 1) continue
             if (uses.any { it.emoji == emoji }) continue
             uses += EmojiUse(emoji, minOf(count, MAX_COUNT.toDouble()).toInt())

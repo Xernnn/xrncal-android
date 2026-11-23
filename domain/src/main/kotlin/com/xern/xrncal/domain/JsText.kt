@@ -26,4 +26,23 @@ internal object JsText {
 
     /** Every run of white space as one plain space: `replace(/\s+/g, ' ')`. */
     fun collapse(s: CharSequence): String = RUNS.replace(s, " ")
+
+    private val DECIMAL = Regex("[+-]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][+-]?\\d+)?")
+    private val PREFIXED = Regex("0(?:[xX](?<hex>[0-9a-fA-F]+)|[oO](?<oct>[0-7]+)|[bB](?<bin>[01]+))")
+
+    /** What JavaScript's `Number(text)` makes of a string: 0 for blank, NaN for what is not a number. */
+    fun number(text: String): Double {
+        val s = trim(text)
+        if (s.isEmpty()) return 0.0
+        if (DECIMAL.matches(s)) return s.toDouble()
+        PREFIXED.matchEntire(s)?.let { m ->
+            val (digits, radix) = m.groups["hex"]?.let { it.value to 16 } ?: m.groups["oct"]?.let { it.value to 8 } ?: (m.groups["bin"]!!.value to 2)
+            return digits.toBigInteger(radix).toDouble()
+        }
+        return when (s) {
+            "Infinity", "+Infinity" -> Double.POSITIVE_INFINITY
+            "-Infinity" -> Double.NEGATIVE_INFINITY
+            else -> Double.NaN
+        }
+    }
 }
