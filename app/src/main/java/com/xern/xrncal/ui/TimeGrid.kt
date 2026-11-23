@@ -95,7 +95,7 @@ fun TimeGridPage(
         if (days.size == 1) {
             val d = days.single()
             Row(Modifier.fillMaxWidth().background(ink.bar).padding(start = 12.dp, end = 12.dp, top = 2.dp, bottom = 4.dp), verticalAlignment = Alignment.Bottom) {
-                if (look.lunar) Text(Format.lunarLong(d), style = type(12, color = ink.muted))
+                if (look.lunar) DayLunar(d, type(12, color = ink.muted))
                 Spacer(Modifier.weight(1f))
                 if (look.weekNumbers) Text("week ${WeekStart.isoWeekOfRow(WeekStart.startOfWeek(d, java.time.DayOfWeek.MONDAY))}", style = type(13, color = ink.muted))
             }
@@ -110,7 +110,7 @@ fun TimeGridPage(
                             style = type(14, if (today) FontWeight.Bold else FontWeight.Normal, if (today) ink.today else ink.text),
                             maxLines = 1,
                         )
-                        if (look.lunar) Text(Format.lunar(d), style = type(10, color = if (today) ink.today else ink.lunar), maxLines = 1)
+                        if (look.lunar) LunarMark(d, Format.lunar(d), type(10, color = if (today) ink.today else ink.lunar))
                     }
                 }
             }
@@ -200,6 +200,21 @@ fun TimeGridPage(
                 }
             }
         }
+    }
+}
+
+/** The day view's lunar date: `16/10 Bính Ngọ`, or on mùng 1 and rằm the moon's chip before the year. */
+@Composable
+private fun DayLunar(d: LocalDate, style: androidx.compose.ui.text.TextStyle) {
+    val lunar = com.xern.xrncal.domain.Lunar.ofSolar(d)
+    val mark = com.xern.xrncal.domain.Lunar.moon(lunar)
+    if (mark == null) {
+        Text(Format.lunarLong(d), style = style, maxLines = 1)
+        return
+    }
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        MoonChip(mark, style)
+        Text(" " + lunar.canChiYear, style = style, maxLines = 1)
     }
 }
 

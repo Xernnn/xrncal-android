@@ -14,6 +14,15 @@ data class LunarDate(val day: Int, val month: Int, val year: Int, val leap: Bool
 /** A lunar anniversary: the same lunar day and month every year (a giỗ). */
 data class LunarSpec(val day: Int, val month: Int, val leap: Boolean = false)
 
+/** Mùng 1 is the new moon, rằm (the 15th) the full moon. */
+enum class Moon { NEW, FULL }
+
+/**
+ * The marker a mùng 1 or a rằm carries in place of the plain lunar date, as the laptop's
+ * LunarLabel draws it: which moon, and its text (`1/10`, `15/7*` in a leap month, `Tết`).
+ */
+data class MoonMark(val moon: Moon, val text: String, val tet: Boolean = false)
+
 object Lunar {
     private val CAN = listOf("Giáp", "Ất", "Bính", "Đinh", "Mậu", "Kỷ", "Canh", "Tân", "Nhâm", "Quý")
     private val CHI = listOf("Tý", "Sửu", "Dần", "Mão", "Thìn", "Tỵ", "Ngọ", "Mùi", "Thân", "Dậu", "Tuất", "Hợi")
@@ -157,7 +166,21 @@ object Lunar {
             full -> "15/${d.month}$leap"
             else -> "${d.day}"
         }
-        return Label(text, first, full, first && d.month == 1)
+        return Label(text, first, full, first && d.month == 1 && !d.leap)
+    }
+
+    /**
+     * The moon marker of [d], or null on an ordinary day, which keeps its plain label. Tết, the
+     * mùng 1 of the year, is marked as one, with the laptop's "Tết" for its text.
+     */
+    fun moon(d: LunarDate): MoonMark? {
+        val l = label(d)
+        return when {
+            l.isTet -> MoonMark(Moon.NEW, "Tết", tet = true)
+            l.isFirstDay -> MoonMark(Moon.NEW, l.label)
+            l.isFullMoon -> MoonMark(Moon.FULL, l.label)
+            else -> null
+        }
     }
 
     /** The long form for a day header and an event's detail: `6/7 Bính Ngọ`, `15/6* Ất Tỵ` for a leap month. */

@@ -508,6 +508,16 @@ xrncal's signature touches over it.
   Calendar's red (#f44336), the old default, move to the new one, since every save wrote it
   whether or not it was picked; any other colour stays, and so does One Calendar's red picked
   after the update.
+- **Moon markers.** Mùng 1 (the new moon) and rằm (the full moon), the lunar days people keep,
+  are marked as the laptop's LunarLabel marks them, in place of the plain lunar date: a small chip
+  tinted in the moon's colour (15% of it for the ground) holding a ring ○ for the new moon or a
+  dot ● for the full moon, and the date with its month ("1/10", "15/10", "15/7*" in a leap month).
+  The shapes differ, so the colour is not the only sign. The colours are the laptop's, never
+  today's red: teal #4fd1c1 and gold #f2c14e in the dark theme, #0b7166 and #8a5a00 in the light.
+  Tết is marked as a mùng 1, with the laptop's "Tết" for its text. The week header's lunar line,
+  the day header (the chip, then the year's name), the month cell (the glyph and the coloured
+  date without the chip's ground, which a seventh of a phone can't hold; a "+N" beside the number
+  gives way to it) and the list's day headers carry them. Other days keep the plain lunar date.
 
 ## Later
 

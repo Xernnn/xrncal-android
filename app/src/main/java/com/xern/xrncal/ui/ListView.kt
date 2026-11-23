@@ -77,7 +77,7 @@ fun AgendaList(listEvents: List<Occurrence>, from: LocalDate, to: LocalDate, loo
                 Row(Modifier.fillMaxWidth().padding(start = 24.dp, end = 20.dp, top = 14.dp, bottom = 6.dp), verticalAlignment = Alignment.Bottom) {
                     Text(Format.listDay(day.date), style = type(15, FontWeight.Medium, if (day.date == look.today) ink.today else ink.text))
                     Spacer(Modifier.weight(1f))
-                    if (look.lunar) Text(Format.lunar(day.date), style = type(12, color = ink.lunar))
+                    if (look.lunar) LunarMark(day.date, Format.lunar(day.date), type(12, color = ink.lunar))
                 }
             }
             item(key = "e${day.date}") {

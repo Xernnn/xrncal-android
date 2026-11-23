@@ -4,6 +4,7 @@ import java.time.LocalDate
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -89,6 +90,38 @@ class LunarTest {
         assertTrue(d.leap)
         assertEquals("15/7*", Lunar.label(d).label)
         assertEquals("15/7* Ất Tỵ", Lunar.longLabel(d))
+    }
+
+    @Test
+    fun mungMotCarriesTheNewMoonWithItsMonth() {
+        assertEquals(MoonMark(Moon.NEW, "1/10"), Lunar.moon(Lunar.ofSolar(LocalDate.of(2026, 11, 9))))
+    }
+
+    @Test
+    fun ramCarriesTheFullMoonWithItsMonth() {
+        assertEquals(MoonMark(Moon.FULL, "15/10"), Lunar.moon(Lunar.ofSolar(LocalDate.of(2026, 11, 23))))
+        assertEquals(MoonMark(Moon.FULL, "15/8"), Lunar.moon(Lunar.ofSolar(LocalDate.of(2026, 9, 25))))
+    }
+
+    @Test
+    fun tetIsMarkedAsAMungMot() {
+        assertEquals(MoonMark(Moon.NEW, "Tết", tet = true), Lunar.moon(Lunar.ofSolar(LocalDate.of(2026, 2, 17))))
+        assertEquals(Moon.NEW, Lunar.moon(Lunar.ofSolar(LocalDate.of(2025, 1, 29)))!!.moon)
+    }
+
+    @Test
+    fun anOrdinaryDayHasNoMarker() {
+        assertNull(Lunar.moon(Lunar.ofSolar(LocalDate.of(2026, 11, 24))))
+        assertNull(Lunar.moon(Lunar.ofSolar(LocalDate.of(2026, 11, 22)))) // 14/10, the eve of rằm
+        assertNull(Lunar.moon(Lunar.ofSolar(LocalDate.of(2026, 11, 10)))) // 2/10
+    }
+
+    @Test
+    fun aLeapMonthsMoonsCarryItsStar() {
+        assertEquals(MoonMark(Moon.NEW, "1/7*"), Lunar.moon(Lunar.ofSolar(LocalDate.of(2025, 8, 23))))
+        assertEquals(MoonMark(Moon.FULL, "15/7*"), Lunar.moon(Lunar.ofSolar(LocalDate.of(2025, 9, 6))))
+        // The ordinary 7th month's, a month before.
+        assertEquals(MoonMark(Moon.FULL, "15/7"), Lunar.moon(Lunar.ofSolar(LocalDate.of(2025, 8, 8))))
     }
 
     private val gio = LunarSpec(3, 2)

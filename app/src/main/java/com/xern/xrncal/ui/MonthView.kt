@@ -151,7 +151,7 @@ private fun WeekRow(days: List<LocalDate>, month: YearMonth, occurrences: List<O
 private fun DayCell(d: LocalDate, inMonth: Boolean, today: Boolean, more: Int, look: Look, modifier: Modifier) {
     val ink = LocalInk.current
     Box(modifier.background(if (today) ink.todayCell else Color.Transparent)) {
-        Row(Modifier.fillMaxWidth().height(DAY_ROW).padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth().height(DAY_ROW).padding(start = 4.dp, end = 3.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(
                 "${d.dayOfMonth}",
                 style = type(13, if (today) FontWeight.Bold else FontWeight.Normal, when {
@@ -160,16 +160,12 @@ private fun DayCell(d: LocalDate, inMonth: Boolean, today: Boolean, more: Int, l
                     else -> ink.faint
                 }),
             )
-            if (more > 0) Text("+$more", style = type(11, FontWeight.Medium, if (inMonth) ink.text else ink.faint), maxLines = 1, modifier = Modifier.semantics { contentDescription = "$more more" })
-            Spacer(Modifier.weight(1f))
-            if (look.lunar) {
-                val l = Lunar.label(Lunar.ofSolar(d))
-                Text(
-                    l.label,
-                    style = type(9, if (l.isFirstDay || l.isFullMoon) FontWeight.SemiBold else FontWeight.Normal, if (l.isFirstDay || l.isFullMoon) ink.muted else ink.lunar),
-                    maxLines = 1,
-                )
+            // "+N" takes what the number and the lunar date leave, so that a moon's "15/10" is never cut to "15/1".
+            Box(Modifier.weight(1f)) {
+                if (more > 0) Text("+$more", style = type(11, FontWeight.Medium, if (inMonth) ink.text else ink.faint), maxLines = 1, softWrap = false, modifier = Modifier.semantics { contentDescription = "$more more" })
             }
+            // Mùng 1 and rằm as the moon's glyph and coloured date: a chip doesn't fit a seventh of a phone.
+            if (look.lunar) LunarMark(d, Lunar.label(Lunar.ofSolar(d)).label, type(9, color = ink.lunar), compact = true)
         }
     }
 }
