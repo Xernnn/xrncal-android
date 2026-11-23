@@ -123,7 +123,7 @@ fun DetailScreen(
     val bar = look.color(o)
     val fg = onColor(bar)
     var menu by remember { mutableStateOf(false) }
-    Column(Modifier.fillMaxSize().background(ink.page)) {
+    Column(Modifier.fillMaxSize().background(ink.screen)) {
         Column(Modifier.fillMaxWidth().background(bar).statusBarsPadding()) {
             Row(Modifier.fillMaxWidth().height(56.dp), verticalAlignment = Alignment.CenterVertically) {
                 BarIcon(Icons.AutoMirrored.Filled.ArrowBack, onBack, fg)
@@ -271,7 +271,7 @@ fun EditorScreen(
     val fg = onColor(bar)
     val problem = state.draft().problem()
     var picking by remember { mutableStateOf<String?>(null) }
-    Column(Modifier.fillMaxSize().background(ink.page).imePadding()) {
+    Column(Modifier.fillMaxSize().background(ink.screen).imePadding()) {
         Row(Modifier.fillMaxWidth().background(bar).statusBarsPadding().height(56.dp), verticalAlignment = Alignment.CenterVertically) {
             BarIcon(Icons.Filled.Close, onCancel, fg)
             Text(if (adding) "Add" else "Edit", style = type(20, FontWeight.SemiBold, fg), modifier = Modifier.padding(start = 8.dp).weight(1f))

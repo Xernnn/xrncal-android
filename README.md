@@ -66,6 +66,9 @@ repository; elsewhere a debug build uses the machine's debug key.
 - [lib-recur](https://github.com/dmfs/lib-recur) (Apache-2.0) expands recurrence rules.
 - [OkHttp](https://square.github.io/okhttp/) (Apache-2.0) carries the CalDAV requests.
 - MiSans by Xiaomi is the font.
+- The four wallpapers are the laptop app's: photos from [Unsplash](https://unsplash.com) (ids
+  photo-1506703719100-a0f3a48c0f86, -1448375240586-882707db888b, -1518495973542-4542c06a5843 and
+  -1519501025264-65ba15a82390), used under the Unsplash License, not this repository's MIT licence.
 - The lunar calendar follows Hồ Ngọc Đức's astronomical method.
 - The layout follows One Calendar by Code Spark; none of its name, logo or artwork is used.
 

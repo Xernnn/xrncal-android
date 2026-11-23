@@ -149,6 +149,7 @@ fun App(graph: Graph) {
     var title by remember { mutableStateOf("") }
     var todayAction by remember { mutableStateOf<() -> Unit>({}) }
 
+    LocalBackdrop.current()
     ModalNavigationDrawer(
         drawerState = drawer,
         gesturesEnabled = stack.isEmpty(),
@@ -175,7 +176,7 @@ fun App(graph: Graph) {
             )
         },
     ) {
-        Column(Modifier.fillMaxSize().background(ink.page)) {
+        Column(Modifier.fillMaxSize()) {
             Row(Modifier.fillMaxWidth().background(ink.bar).statusBarsPadding().height(56.dp), verticalAlignment = Alignment.CenterVertically) {
                 BarIcon(Icons.Filled.Menu, { scope.launch { drawer.open() } })
                 Text(title, style = type(24, color = ink.text), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(start = 12.dp).weight(1f))
@@ -238,6 +239,7 @@ fun App(graph: Graph) {
                                 TimeGridPage(week, occurrences(graph, week.first(), week.last(), revision, settings.holidays), look, now, ::open, { d, h -> add(d, h) }, scroll)
                             }
                         }
+                        View.YEAR -> Unit
                         View.DAY -> {
                             val pager = rememberPagerState(initialPage = MID + ChronoUnit.DAYS.between(days, anchor).toInt()) { 2 * MID }
                             Follow(pager) { p -> anchor = days.plusDays((p - MID).toLong()) }

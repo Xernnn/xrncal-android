@@ -130,6 +130,7 @@ private fun DrawerItem(icon: ImageVector, label: String, selected: Boolean, onCl
 @Composable
 fun SearchScreen(query: String, onQuery: (String) -> Unit, results: List<Occurrence>, look: Look, onBack: () -> Unit, onEvent: (Occurrence) -> Unit) {
     val ink = LocalInk.current
+    Box(Modifier.fillMaxSize()) { LocalBackdrop.current() }
     Column(Modifier.fillMaxSize().background(ink.page)) {
         Row(Modifier.fillMaxWidth().background(ink.bar).statusBarsPadding().padding(end = 12.dp, top = 4.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             BarIcon(Icons.AutoMirrored.Filled.ArrowBack, onBack)
@@ -165,7 +166,7 @@ fun SettingsScreen(
     onColor: (String, Int) -> Unit = { _, _ -> },
 ) {
     val ink = LocalInk.current
-    Column(Modifier.fillMaxSize().background(ink.page)) {
+    Column(Modifier.fillMaxSize().background(ink.screen)) {
         Row(Modifier.fillMaxWidth().background(ink.accent).statusBarsPadding().height(56.dp), verticalAlignment = Alignment.CenterVertically) {
             BarIcon(Icons.AutoMirrored.Filled.ArrowBack, onBack, Color.White)
             Text("Settings", style = type(20, FontWeight.SemiBold, Color.White), modifier = Modifier.padding(start = 8.dp))
@@ -217,6 +218,7 @@ fun SettingsScreen(
 
             Section("Calendar colours")
             CalendarColors(calendars, onColor)
+            ThemeOptions(s, onChange)
 
             Section("Calendar")
             val weekStarts = listOf(null to "Phone", DayOfWeek.MONDAY to "Monday", DayOfWeek.SUNDAY to "Sunday", DayOfWeek.SATURDAY to "Saturday")
@@ -240,18 +242,18 @@ fun SettingsScreen(
 }
 
 @Composable
-private fun Section(title: String) {
+fun Section(title: String) {
     val ink = LocalInk.current
     Text(title, style = type(14, FontWeight.SemiBold, ink.accent), modifier = Modifier.padding(start = 20.dp, top = 22.dp, bottom = 4.dp))
 }
 
 @Composable
-private fun SmallLabel(text: String) {
+fun SmallLabel(text: String) {
     Text(text, style = type(13, color = LocalInk.current.muted), modifier = Modifier.padding(start = 20.dp, top = 10.dp, bottom = 4.dp))
 }
 
 @Composable
-private fun Choose(label: String, value: String, options: List<String>, onPick: (Int) -> Unit) {
+fun Choose(label: String, value: String, options: List<String>, onPick: (Int) -> Unit) {
     val ink = LocalInk.current
     var open by remember { mutableStateOf(false) }
     Box {
@@ -271,7 +273,7 @@ private fun Choose(label: String, value: String, options: List<String>, onPick: 
 }
 
 @Composable
-private fun Toggle(label: String, on: Boolean, onChange: (Boolean) -> Unit) {
+fun Toggle(label: String, on: Boolean, onChange: (Boolean) -> Unit) {
     val ink = LocalInk.current
     Row(Modifier.fillMaxWidth().clickable { onChange(!on) }.padding(horizontal = 20.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(label, style = type(16, color = ink.text), modifier = Modifier.weight(1f))
