@@ -70,8 +70,11 @@ data class Settings(
     val secondZone: String? = "Asia/Ho_Chi_Minh",
     /** First in the editor's zone list. */
     val preferredZones: List<String> = listOf("Asia/Ho_Chi_Minh"),
-    /** A timed chip in the month leads with its start time, as the laptop's month. */
-    val monthTimes: Boolean = true,
+    /**
+     * A timed chip in the month leads with its start time, as the laptop's month. Off by default:
+     * a phone's month cell is a seventh of the screen, and the time left 3 or 4 letters of a title.
+     */
+    val monthTimes: Boolean = false,
     /** Minutes between the times the editor's time list offers. */
     val timeStep: Int = 15,
 

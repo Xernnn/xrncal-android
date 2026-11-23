@@ -332,8 +332,9 @@ and the time line; One Calendar's red by default).
   it any more.
 - The lunar day stays at the right of the number (xrncal's own); today's number is in the signal
   colour and its cell tinted.
-- A timed chip leads with its start time, as the laptop's month does ("10:30 Dentist"); Options,
-  Views can turn that off.
+- A chip shows the title only, as One Calendar's month does. Options, Views can lead timed chips
+  with their start time, as the laptop's wider month does ("10:30 Dentist"); off by default,
+  because on a phone the time left 3 or 4 letters of the title.
 - Tapping a day opens One Calendar's **day pop-up** (item 7) when "Month day pop-up" is on (the
   default), else that day's Day view.
 

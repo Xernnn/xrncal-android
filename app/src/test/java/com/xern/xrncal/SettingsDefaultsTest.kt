@@ -8,6 +8,7 @@ import com.xern.xrncal.data.View
 import com.xern.xrncal.ui.Wallpapers
 import java.time.DayOfWeek
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -28,7 +29,9 @@ class SettingsDefaultsTest {
     fun theViewsAreTheLaptopsAndOneCalendars() {
         assertEquals(Clock.H24, s.clock)
         assertEquals(DayOfWeek.MONDAY, s.weekStart)
-        assertTrue(s.weekNumbers && s.lunar && s.monthPopup && s.monthTimes)
+        assertTrue(s.weekNumbers && s.lunar && s.monthPopup)
+        // One Calendar's month chips are titles only; the laptop's times fit its wider cells.
+        assertFalse(s.monthTimes)
         assertEquals("Asia/Ho_Chi_Minh", s.secondZone)
         assertEquals(listOf("Asia/Ho_Chi_Minh"), s.preferredZones)
         assertEquals(15, s.timeStep)
