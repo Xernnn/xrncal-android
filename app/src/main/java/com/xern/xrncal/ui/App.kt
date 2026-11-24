@@ -115,7 +115,8 @@ fun App(graph: Graph) {
     val hourHeight = settings.hourSize.dp.dp
     val stack = remember { mutableStateListOf<Screen>() }
     var view by rememberSaveable { mutableStateOf(settings.defaultView) }
-    var anchor by remember { mutableStateOf(today) }
+    val anchorState = remember { Anchor(today) }
+    var anchor by anchorState::date
     var popup by remember { mutableStateOf<LocalDate?>(null) }
     var asking by remember { mutableStateOf<Pair<String, (Scope) -> Unit>?>(null) }
     var undo by remember { mutableStateOf<EventRepository.Undo?>(null) }
@@ -157,16 +158,14 @@ fun App(graph: Graph) {
         }
     }
 
-    // Another app's time link: the Day view on its date, over anything open. [jump] makes the
+    // Another app's time link: the Day view on its date, over anything open. The jump makes the
     // pager again at that date when the Day view is already showing.
-    var jump by remember { mutableStateOf(0) }
     LaunchedEffect(Unit) {
         graph.dayAsked.collect { d ->
             stack.clear()
             popup = null
-            anchor = d
+            anchorState.jump(d)
             view = View.DAY
-            jump++
             drawer.close()
         }
     }
@@ -222,11 +221,11 @@ fun App(graph: Graph) {
                 onToggle = { id, on -> scope.launch { graph.events.setShown(id, on, graph.settings) } },
             )
             Box(Modifier.fillMaxSize().navigationBarsPadding()) {
-                key(view, firstDay, jump) {
+                key(view, firstDay, anchorState.turn) {
                     when (view) {
                         View.MONTH -> {
                             val pager = rememberPagerState(initialPage = MID + ChronoUnit.MONTHS.between(months, YearMonth.from(anchor)).toInt()) { 2 * MID }
-                            Follow(pager) { p -> anchor = months.plusMonths((p - MID).toLong()).let { if (it == YearMonth.from(today)) today else it.atDay(1) } }
+                            Follow(pager, anchorState) { p -> anchor = months.plusMonths((p - MID).toLong()).let { if (it == YearMonth.from(today)) today else it.atDay(1) } }
                             title = Format.month(months.plusMonths((pager.currentPage - MID).toLong()), today)
                             subtitle = null
                             todayAction = { scope.launch { pager.animateScrollToPage(MID + ChronoUnit.MONTHS.between(months, YearMonth.from(today)).toInt()) } }
@@ -249,7 +248,7 @@ fun App(graph: Graph) {
                             title = Format.month(ym, today)
                             subtitle = null
                             var from by remember { mutableStateOf(anchor) }
-                            Follow(pager) { p ->
+                            Follow(pager, anchorState) { p ->
                                 val m = months.plusMonths((p - MID).toLong())
                                 val start = if (m == YearMonth.from(today)) today else m.atDay(1)
                                 if (YearMonth.from(from) != m) from = start
@@ -273,7 +272,7 @@ fun App(graph: Graph) {
                         }
                         View.WEEK -> {
                             val pager = rememberPagerState(initialPage = MID + ChronoUnit.WEEKS.between(weeks, WeekStart.startOfWeek(anchor, firstDay)).toInt()) { 2 * MID }
-                            Follow(pager) { p -> anchor = weeks.plusWeeks((p - MID).toLong()).let { if (WeekStart.startOfWeek(today, firstDay) == it) today else it } }
+                            Follow(pager, anchorState) { p -> anchor = weeks.plusWeeks((p - MID).toLong()).let { if (WeekStart.startOfWeek(today, firstDay) == it) today else it } }
                             val start = weeks.plusWeeks((pager.currentPage - MID).toLong())
                             title = Format.month(YearMonth.from(start.plusDays(3)), today)
                             subtitle = "week ${WeekStart.isoWeekOfRow(start)}"
@@ -288,7 +287,7 @@ fun App(graph: Graph) {
                         }
                         View.YEAR -> {
                             val pager = rememberPagerState(initialPage = MID + (anchor.year - today.year)) { 2 * MID }
-                            Follow(pager) { p -> anchor = (today.year + p - MID).let { y -> if (y == today.year) today else LocalDate.of(y, 1, 1) } }
+                            Follow(pager, anchorState) { p -> anchor = (today.year + p - MID).let { y -> if (y == today.year) today else LocalDate.of(y, 1, 1) } }
                             title = "${today.year + pager.currentPage - MID}"
                             subtitle = null
                             todayAction = { scope.launch { pager.animateScrollToPage(MID) } }
@@ -303,7 +302,7 @@ fun App(graph: Graph) {
                         }
                         View.DAY -> {
                             val pager = rememberPagerState(initialPage = MID + ChronoUnit.DAYS.between(days, anchor).toInt()) { 2 * MID }
-                            Follow(pager) { p -> anchor = days.plusDays((p - MID).toLong()) }
+                            Follow(pager, anchorState) { p -> anchor = days.plusDays((p - MID).toLong()) }
                             val shown = days.plusDays((pager.currentPage - MID).toLong())
                             title = Format.dayTitle(shown, today)
                             subtitle = Format.month(YearMonth.from(shown), today)
@@ -550,10 +549,14 @@ private suspend fun shareEvent(context: android.content.Context, title: String, 
     context.startActivity(android.content.Intent.createChooser(send, "Share"))
 }
 
-/** Calls [onPage] whenever the pager settles on a page. */
+/**
+ * Calls [onPage] whenever the pager settles on a page, the first one included, unless [anchor] has
+ * jumped since the pager was made: that pager is on its way out (see [Anchor]).
+ */
 @Composable
-private fun Follow(pager: PagerState, onPage: (Int) -> Unit) {
-    LaunchedEffect(pager) { snapshotFlow { pager.settledPage }.collect(onPage) }
+private fun Follow(pager: PagerState, anchor: Anchor, onPage: (Int) -> Unit) {
+    val turn = anchor.turn
+    LaunchedEffect(pager) { snapshotFlow { pager.settledPage }.collect { p -> anchor.settled(turn) { onPage(p) } } }
 }
 
 /** The events from [from] to [to], read again when anything changes; the last ones stay until then. */
