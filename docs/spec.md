@@ -231,7 +231,9 @@ eight days ahead; an event's own VALARMs only: one without any never rings) and 
 alarm for the soonest. When it goes off, every reminder due then rings, each once (the laptop's rule: one stays
 due until its event starts, and of several overdue only the latest rings), and the next alarm is
 set. A notification shows the title, the time and the place; tapping it opens the event, and
-its Open and Snooze actions do what they say (phase 2).
+its Open and Snooze actions do what they say (phase 2). The tap opens the event also when the app
+was closed, as does an agenda widget's event: the request waits until the calendar collects it,
+and is handled once (0.3.1 dropped one made before the calendar's first frame).
 Permissions: `USE_EXACT_ALARM` (Android 13+), `SCHEDULE_EXACT_ALARM` (Android 12),
 `POST_NOTIFICATIONS`, `RECEIVE_BOOT_COMPLETED`, `INTERNET`; `ManifestTest` checks each.
 

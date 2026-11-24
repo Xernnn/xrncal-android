@@ -162,8 +162,6 @@ fun App(graph: Graph) {
     var jump by remember { mutableStateOf(0) }
     LaunchedEffect(Unit) {
         graph.dayAsked.collect { d ->
-            if (d == null) return@collect
-            graph.dayShown()
             stack.clear()
             popup = null
             anchor = d
