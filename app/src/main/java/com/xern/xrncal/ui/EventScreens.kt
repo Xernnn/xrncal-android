@@ -35,6 +35,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Language
+import androidx.compose.material.icons.outlined.Map
 import androidx.compose.material.icons.outlined.NotificationsNone
 import androidx.compose.material.icons.outlined.Place
 import androidx.compose.material.icons.outlined.Repeat
@@ -93,7 +94,6 @@ import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
 import java.time.ZoneOffset
-import java.time.temporal.ChronoUnit
 
 // ---------------- shared ----------------
 
@@ -352,7 +352,17 @@ fun EditorScreen(
                 RepeatForm(state) { picking = "until" }
                 Divider()
                 Label("Location")
-                Field(state.location, { state.location = it }, Modifier.padding(horizontal = 16.dp), onFocus = { placeFocus = it })
+                Row(Modifier.padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Field(state.location, { state.location = it }, Modifier.weight(1f), onFocus = { placeFocus = it })
+                    // One Calendar's "Navigation": the place in the owner's maps app (locked or not).
+                    if (state.location.isNotBlank()) {
+                        val context = androidx.compose.ui.platform.LocalContext.current
+                        Box(
+                            Modifier.padding(start = 10.dp).size(52.dp).clip(RoundedCornerShape(4.dp)).background(ink.field).clickable { openMap(context, state.location) },
+                            contentAlignment = Alignment.Center,
+                        ) { Icon(Icons.Outlined.Map, contentDescription = "Map", tint = ink.muted) }
+                    }
+                }
                 if (placeFocus && !locked && state.location.isNotBlank()) {
                     val places = remember(state.location) { aids.places(state.location) }
                     SuggestionRows(places.map { it.location to null }) { i -> state.location = places[i].location }
@@ -437,7 +447,7 @@ private fun Picker(text: String, onClick: () -> Unit, modifier: Modifier = Modif
 }
 
 @Composable
-private fun CalendarPicker(calendars: List<CalendarInfo>, selected: String, onPick: (String) -> Unit) {
+fun CalendarPicker(calendars: List<CalendarInfo>, selected: String, onPick: (String) -> Unit) {
     var open by remember { mutableStateOf(false) }
     val cal = calendars.firstOrNull { it.id == selected }
     Box(Modifier.padding(horizontal = 16.dp)) {
@@ -578,14 +588,5 @@ fun ZonePick(current: ZoneId, preferred: List<String>, onDismiss: () -> Unit, on
 }
 
 /** A new event's draft: the next whole hour (or [hour] on [day]), as long as Settings say. */
-fun newDraft(day: LocalDate, hour: Int?, now: Instant, zone: ZoneId, minutes: Int, reminders: List<EventReminder>? = null): EventDraft {
-    val local = now.atZone(zone)
-    val startTime = when {
-        hour != null -> LocalTime.of(hour, 0)
-        day == local.toLocalDate() -> local.toLocalTime().truncatedTo(ChronoUnit.HOURS).plusHours(1)
-        else -> LocalTime.of(12, 0)
-    }
-    val start = if (hour == null && day == local.toLocalDate() && startTime == LocalTime.MIDNIGHT) day.plusDays(1).atTime(0, 0) else day.atTime(startTime)
-    val end = start.plusMinutes(minutes.toLong())
-    return EventDraft("", false, start.toLocalDate(), start.toLocalTime(), end.toLocalDate(), end.toLocalTime(), zone, reminders = reminders)
-}
+fun newDraft(day: LocalDate, hour: Int?, now: Instant, zone: ZoneId, minutes: Int, reminders: List<EventReminder>? = null): EventDraft =
+    com.xern.xrncal.domain.NewEvents.draft(day, hour, now, zone, minutes, reminders)

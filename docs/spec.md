@@ -231,7 +231,9 @@ eight days ahead; an event's own VALARMs only: one without any never rings) and 
 alarm for the soonest. When it goes off, every reminder due then rings, each once (the laptop's rule: one stays
 due until its event starts, and of several overdue only the latest rings), and the next alarm is
 set. A notification shows the title, the time and the place; tapping it opens the event, and
-its Open and Snooze actions do what they say (phase 2).
+its Open and Snooze actions do what they say (phase 2). The tap opens the event also when the app
+was closed, as does an agenda widget's event: the request waits until the calendar collects it,
+and is handled once (0.3.1 dropped one made before the calendar's first frame).
 Permissions: `USE_EXACT_ALARM` (Android 13+), `SCHEDULE_EXACT_ALARM` (Android 12),
 `POST_NOTIFICATIONS`, `RECEIVE_BOOT_COMPLETED`, `INTERNET`; `ManifestTest` checks each.
 
@@ -446,6 +448,8 @@ One Calendar's Options list, each a page:
 - **Widget options**: item 12.
 - **Emoji options**: on or off, and the favourites (the most used, as the laptop counts them;
   cleared here).
+- **About** (xrncal's own, after One Calendar's list): the version and the app id ("Other apps",
+  item 5).
 
 **Accounts** (the drawer, as One Calendar's Accounts): the CalDAV account (address, user,
 password, Connect, Sync now, Sign out), the last sync, and the events that couldn't be sent, each
@@ -532,7 +536,68 @@ xrncal's signature touches over it.
 - **Weekend names in the today colour**: Saturday and Sunday in the month's weekday row, as in the
   week header.
 
+## Other apps
+
+One Calendar answers what other apps ask of a calendar on the phone; xrncal takes that over, so
+that once One Calendar is gone, "Add to calendar" in Gmail, a browser or Messages comes here and
+not to another calendar app.
+
+1. **"Add to calendar"**: Android's insert intent for `CalendarContract.Events` (`INSERT`, and the
+   older `EDIT`, for `vnd.android.cursor.dir/event` and `vnd.android.cursor.item/event`) opens the
+   editor on a new event in the default calendar, filled in from the request's extras: title,
+   description, location, begin and end, all-day, repeat rule (one lib-recur can't read is left
+   out), time zone (the event's own when the zone database knows it, else the app's) and guests
+   (`Intent.EXTRA_EMAIL`, a string or a list), which go into the notes as a "Guests:" line since
+   the editor has no guests field. Missing times are a new event's: the next whole hour, as long
+   as Options say; an all-day event covers the days its times fall on, whether the app sent
+   midnight UTC (Android's own way) or the phone's midnight. The new event's reminder is the
+   default for its kind. Nothing is saved until ✓. It is an activity of its own, not the
+   calendar's singleTask one, so it opens in the asking app's task and ✓ or ✕ goes back there.
+   The request gave the times, so a title typed over isn't read for a date. An `EDIT` of an event
+   in Android's own calendar store (which xrncal doesn't use) opens a new event with whatever the
+   request carries.
+
+2. **.ics files** (a tap in Files, a mail's attachment, a download): `VIEW` for `text/calendar`,
+   `text/x-vcalendar` and `application/ics`, from `content:` and `file:` addresses, and a name
+   ending in `.ics` for one sent untyped or as `application/octet-stream`. The file is read
+   through the content resolver with the read the sending app grants, so no storage permission
+   is asked; it is parsed by `domain/ical` (to ICalParser's 8 MB).
+   - **One VEVENT** opens the editor as in item 1, with the event's fields: times in its own zone
+     when the zone database knows it, else (UTC, floating, a zone only the file's VTIMEZONE
+     explains) the same moment in the app's zone; its repeat rule; its reminders, or the
+     defaults when it has none; its attendees as the "Guests:" line.
+   - **Several** open the import: how many events (a UID's VEVENTs, a series and its changed
+     dates, are one), the dates they span, the calendar to import into (the default first), and
+     Import. Each event becomes a resource of its own in that calendar, written as the file has
+     it (its VEVENTs and the VTIMEZONEs they name; no METHOD), and is sent at the next sync. An
+     event whose UID the calendar holds is there already and skipped, so opening the same file
+     twice adds nothing; one whose UID another calendar on the phone holds is saved under a UID
+     made from the calendar and its own (the same at every import), so no two calendars share a
+     UID; one without a UID gets a new one. Then the counts: Added, Already there.
+   - A file that won't parse, or holds no event, says so in one line ("Not a calendar file", "No
+     events", "Can't open this file").
+3. **Time links**: `VIEW` of `content://com.android.calendar/time/<millis>`, which clock widgets
+   and other apps send to "open the calendar at this time" (typed `time/epoch` by Android's
+   calendar provider, or untyped), opens the calendar (its singleTask activity) on the Day view of
+   the date that moment falls on in the app's zone, over whatever was open. The day is kept until
+   the calendar shows it, so a link that starts the app is not lost.
+4. **Places in a maps app**, as One Calendar's "Navigation": when Location isn't empty, a map
+   button beside it in the editor (also on a locked event), and one on each day pop-up card with
+   a place, send `ACTION_VIEW` of `geo:0,0?q=<place>` (the place on one line, percent-encoded as
+   UTF-8) to the system: the owner's default maps app, or Android's chooser. No app is named and
+   there is no setting; with no maps app, "No maps app".
+5. **About**, the last Options entry: the version as "0.3.1 (6)" (BuildConfig's name and code) and
+   the app id, figures only, so the owner can tell which build the phone has.
+
+Tests: the extras (a map in) to a draft (`InsertRequestTest`); an .ics with one event to a draft,
+with several to an import plan, skipping a UID already there (`IcsFilesTest`); the time link to
+a date (`TimeLinkTest`); the place to a `geo:` address (`PlacesTest`), in `domain/`; the
+extras' names against Android's own and an import into the store (`OtherAppsTest`);
+`ManifestTest` for the filters and that no storage permission is asked; About's lines
+(`AboutTest`); previews of the import and of About.
+
 ## Later
 
 "This and following" edits of a series; calendar names, and making calendars on the server; a
-jump-to-date picker; .ics import and export; Google and Microsoft accounts; guests.
+jump-to-date picker; a whole calendar exported as .ics (one event is shared as one); Google and
+Microsoft accounts; guests.

@@ -38,6 +38,11 @@ holds, what is left for later, and which of One Calendar's layouts it copies.
   worked out on the phone.
 - **Search** with One Calendar's Future and Past tabs, accents ignored; **Options** laid out as
   One Calendar's.
+- **Other apps**: "Add to calendar" in Gmail, a browser or Messages opens the editor on a new
+  event, filled in and saved only on ✓; an **.ics file** opens its event the same way, or imports
+  several into a calendar (skipping those already there); a clock widget's "open the calendar
+  at this time" opens that day. An event's **place** opens in the maps app, from the editor or
+  the day pop-up.
 
 ## Sync
 

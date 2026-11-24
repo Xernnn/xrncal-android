@@ -1,5 +1,11 @@
 package com.xern.xrncal.ui
 
+import android.app.Activity
+import android.content.ActivityNotFoundException
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.widget.Toast
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -14,7 +20,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.outlined.Map
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -40,6 +48,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.xern.xrncal.domain.Occurrence
+import com.xern.xrncal.domain.Places
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -111,22 +120,45 @@ fun Swatch(color: Color, size: Dp = 14.dp) {
     Box(Modifier.size(size).clip(RoundedCornerShape(3.dp)).background(color))
 }
 
-/** An event as a full-width card in its colour: title, then the time and the place (the list's rows). */
+/**
+ * An event as a full-width card in its colour: title, then the time and the place (the list's
+ * rows). With [onMap], a card with a place has a map button that sends the place to a maps app.
+ */
 @Composable
-fun EventCard(o: Occurrence, look: Look, day: LocalDate, onClick: () -> Unit, shape: RoundedCornerShape = RoundedCornerShape(4.dp)) {
+fun EventCard(o: Occurrence, look: Look, day: LocalDate, onClick: () -> Unit, shape: RoundedCornerShape = RoundedCornerShape(4.dp), onMap: (() -> Unit)? = null) {
     val bg = look.color(o)
     val fg = onColor(bg)
-    Column(
+    Row(
         Modifier.fillMaxWidth().clip(shape).background(bg).clickable(onClick = onClick).padding(horizontal = 14.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(o.title.ifBlank { "(no title)" }, style = type(17, FontWeight.Medium, fg), maxLines = 2, overflow = TextOverflow.Ellipsis)
-        val time = when {
-            o.allDay -> if (o.multiDay) Format.span(o, look.h24, look.zone) else ""
-            o.multiDay -> segmentLabel(o, day, look)
-            else -> Format.span(o, look.h24, look.zone)
+        Column(Modifier.weight(1f)) {
+            Text(o.title.ifBlank { "(no title)" }, style = type(17, FontWeight.Medium, fg), maxLines = 2, overflow = TextOverflow.Ellipsis)
+            val time = when {
+                o.allDay -> if (o.multiDay) Format.span(o, look.h24, look.zone) else ""
+                o.multiDay -> segmentLabel(o, day, look)
+                else -> Format.span(o, look.h24, look.zone)
+            }
+            val line = listOf(time, o.location).filter { it.isNotBlank() }.joinToString("  ")
+            if (line.isNotEmpty()) Text(line, style = type(14, color = fg.copy(alpha = 0.92f)), maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
-        val line = listOf(time, o.location).filter { it.isNotBlank() }.joinToString("  ")
-        if (line.isNotEmpty()) Text(line, style = type(14, color = fg.copy(alpha = 0.92f)), maxLines = 1, overflow = TextOverflow.Ellipsis)
+        if (onMap != null && o.location.isNotBlank()) {
+            IconButton(onClick = onMap, modifier = Modifier.size(40.dp)) { Icon(Icons.Outlined.Map, contentDescription = "Map", tint = fg) }
+        }
+    }
+}
+
+/**
+ * [location] in the owner's maps app, as One Calendar's "Navigation": Android's `geo:` address,
+ * to the default app for it or the chooser; none is named here.
+ */
+fun openMap(context: Context, location: String) {
+    val uri = Places.geoUri(location) ?: return
+    val view = Intent(Intent.ACTION_VIEW, Uri.parse(uri)).apply { if (context !is Activity) addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
+    try {
+        context.startActivity(view)
+    } catch (e: ActivityNotFoundException) {
+        Toast.makeText(context, "No maps app", Toast.LENGTH_SHORT).show()
     }
 }
 

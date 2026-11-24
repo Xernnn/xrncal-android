@@ -71,6 +71,98 @@ class ManifestTest {
         }
     }
 
+    /** An activity's intent filters: their actions, categories and data, each attribute's values. */
+    private data class Filter(val actions: Set<String>, val categories: Set<String>, val data: Map<String, Set<String>>) {
+        fun of(attribute: String): Set<String> = data[attribute].orEmpty()
+    }
+
+    private fun activity(name: String) = named("activity").single { it.getAttributeNS(ANDROID, "name") == name }
+
+    private fun filters(activity: String): List<Filter> {
+        val nodes = activity(activity).getElementsByTagName("intent-filter")
+        return (0 until nodes.length).map { i ->
+            val f = nodes.item(i) as org.w3c.dom.Element
+            fun names(tag: String) = f.getElementsByTagName(tag).let { n -> (0 until n.length).map { (n.item(it) as org.w3c.dom.Element).getAttributeNS(ANDROID, "name") }.toSet() }
+            val data = HashMap<String, MutableSet<String>>()
+            val d = f.getElementsByTagName("data")
+            for (j in 0 until d.length) {
+                val attrs = (d.item(j) as org.w3c.dom.Element).attributes
+                for (k in 0 until attrs.length) {
+                    val a = attrs.item(k)
+                    if (a.namespaceURI == ANDROID) data.getOrPut(a.localName) { mutableSetOf() } += a.nodeValue
+                }
+            }
+            Filter(names("action"), names("category"), data)
+        }
+    }
+
+    /**
+     * Other apps' "add to calendar" finds xrncal's editor: CalendarContract's insert intent, and the
+     * older edit form, for the events folder and one event. Exported, and not singleTask, so it runs
+     * in the asking app's task and ✓ goes back there.
+     */
+    @Test
+    fun otherAppsCanAddAnEvent() {
+        val add = activity(".AddEventActivity")
+        assertEquals("true", add.getAttributeNS(ANDROID, "exported"))
+        assertTrue(add.getAttributeNS(ANDROID, "launchMode").isEmpty())
+        val f = filters(".AddEventActivity").single { "android.intent.action.INSERT" in it.actions }
+        assertEquals(setOf("android.intent.action.INSERT", "android.intent.action.EDIT"), f.actions)
+        assertEquals(setOf("android.intent.category.DEFAULT"), f.categories)
+        assertEquals(setOf("vnd.android.cursor.dir/event", "vnd.android.cursor.item/event"), f.of("mimeType"))
+    }
+
+    /**
+     * An .ics file opens in xrncal by its type (the three calendars are sent with), or by its name
+     * when it comes untyped or as plain bytes; from a content address or a file.
+     */
+    @Test
+    fun icsFilesOpenByTypeOrName() {
+        val views = filters(".AddEventActivity").filter { "android.intent.action.VIEW" in it.actions }
+        views.forEach {
+            assertEquals(setOf("android.intent.action.VIEW"), it.actions)
+            assertEquals(setOf("android.intent.category.DEFAULT"), it.categories)
+            assertEquals(setOf("content", "file"), it.of("scheme"))
+        }
+        val typed = views.single { "text/calendar" in it.of("mimeType") }
+        assertEquals(setOf("text/calendar", "text/x-vcalendar", "application/ics"), typed.of("mimeType"))
+        val named = views.filter { ".ics" in it.of("pathSuffix") }
+        assertEquals(setOf(emptySet(), setOf("application/octet-stream")), named.map { it.of("mimeType") }.toSet())
+        named.forEach {
+            assertEquals(setOf(".ics", ".ICS"), it.of("pathSuffix"))
+            assertEquals(setOf("*"), it.of("host"))
+        }
+    }
+
+    /** A file is read with the grant its app hands over: no storage permission, nor the phone's calendar store. */
+    @Test
+    fun noStorageOrCalendarPermissionIsAsked() {
+        val none = setOf(
+            "android.permission.READ_EXTERNAL_STORAGE", "android.permission.WRITE_EXTERNAL_STORAGE", "android.permission.MANAGE_EXTERNAL_STORAGE",
+            "android.permission.READ_MEDIA_IMAGES", "android.permission.READ_MEDIA_VIDEO", "android.permission.READ_MEDIA_AUDIO",
+            "android.permission.READ_MEDIA_VISUAL_USER_SELECTED", "android.permission.READ_CALENDAR", "android.permission.WRITE_CALENDAR",
+        )
+        assertEquals(emptySet<String>(), asked intersect none)
+    }
+
+    /**
+     * A clock widget's "open the calendar at this time" reaches the calendar: typed as the calendar
+     * provider types it (time/epoch), or untyped by its path.
+     */
+    @Test
+    fun timeLinksOpenTheCalendar() {
+        val views = filters(".MainActivity").filter { "android.intent.action.VIEW" in it.actions }
+        assertEquals(2, views.size)
+        views.forEach {
+            assertEquals(setOf("android.intent.category.DEFAULT"), it.categories)
+            assertEquals(setOf("content"), it.of("scheme"))
+            assertEquals(setOf("com.android.calendar"), it.of("host"))
+        }
+        assertEquals(setOf(setOf("time/epoch"), emptySet()), views.map { it.of("mimeType") }.toSet())
+        assertEquals(setOf("/time"), views.single { it.of("mimeType").isEmpty() }.of("pathPrefix"))
+        assertEquals("singleTask", activity(".MainActivity").getAttributeNS(ANDROID, "launchMode"))
+    }
+
     @Test
     fun nothingLeavesThePhoneInABackup() {
         val app = named("application").single()

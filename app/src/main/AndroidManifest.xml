@@ -36,6 +36,73 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- "Open the calendar at this time" (content://com.android.calendar/time/<millis>, as a
+                 clock widget sends it): the Day view on that date. Android gives the link the
+                 calendar provider's type, time/epoch; without that provider it comes untyped. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" />
+                <data android:host="com.android.calendar" />
+                <data android:mimeType="time/epoch" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" />
+                <data android:host="com.android.calendar" />
+                <data android:pathPrefix="/time" />
+            </intent-filter>
+        </activity>
+
+        <!-- What other apps hand the calendar: "add to calendar" (CalendarContract's insert intent)
+             opens the editor on a new event; an .ics file its one event, or an import of several.
+             Not singleTask: it runs in the asking app's task, so ✓ or ✕ goes back to that app;
+             started as a new task, it is a task of its own. -->
+        <activity
+            android:name=".AddEventActivity"
+            android:exported="true"
+            android:taskAffinity=""
+            android:screenOrientation="portrait"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.INSERT" />
+                <action android:name="android.intent.action.EDIT" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="vnd.android.cursor.dir/event" />
+                <data android:mimeType="vnd.android.cursor.item/event" />
+            </intent-filter>
+            <!-- An .ics file (Files, a mail's attachment, a download), read through the content
+                 resolver with the read the sending app grants: no storage permission. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+                <data android:mimeType="text/calendar" />
+                <data android:mimeType="text/x-vcalendar" />
+                <data android:mimeType="application/ics" />
+            </intent-filter>
+            <!-- One sent without its type, or as plain bytes, known by its name. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+                <data android:host="*" />
+                <data android:pathSuffix=".ics" />
+                <data android:pathSuffix=".ICS" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+                <data android:host="*" />
+                <data android:mimeType="application/octet-stream" />
+                <data android:pathSuffix=".ics" />
+                <data android:pathSuffix=".ICS" />
+            </intent-filter>
         </activity>
 
         <!-- Share: an event as an .ics file, read once by the app it is shared with. -->

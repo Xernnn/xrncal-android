@@ -92,7 +92,7 @@ private val EVENTS: List<Occurrence> by lazy {
         timed("Lunch with Sam", "home", "2026-11-25", "12:00", "13:00", "Cơm Tấm (made up)"),
         timed("Dentist", "home", "2026-11-26", "16:00", "17:00", "12 Made-up Street"),
         timed("Phở with Tuấn", "family", "2026-11-27", "18:30", "20:00"),
-        timed("Design review", "work", "2026-11-24", "14:00", "15:30"),
+        timed("Design review", "work", "2026-11-24", "14:00", "15:30", "Room 3.44"),
         timed("Call the bank", "phone", "2026-11-24", "11:00", "11:20"),
         timed("Project sync", "work", "2026-11-24", "14:30", "15:00"),
         allDay("Trip to Huế", "family", "2026-11-28", "2026-11-30"),
@@ -344,6 +344,10 @@ fun ReminderOptionsPreview() = Page(OptionPage.REMINDERS)
 @Composable
 fun WidgetOptionsPreview() = Page(OptionPage.WIDGET)
 
+@Preview(name = "Options, About", widthDp = 400, heightDp = 860)
+@Composable
+fun AboutPreview() = Page(OptionPage.ABOUT)
+
 @Preview(name = "Accounts", widthDp = 400, heightDp = 860)
 @Composable
 fun AccountsPreview() = Themed(dark = true) {
@@ -351,6 +355,20 @@ fun AccountsPreview() = Themed(dark = true) {
         AccountView("https://caldav.example.com/", "alex", true, SyncStatus(lastSync = NOW.toEpochMilli()), 4),
         listOf(Problem("p1", "Dentist", "Home", "conflict")), look(), false, null, {}, { _, _, _ -> }, {}, {}, {}, {},
     )
+}
+
+// ---- what other apps hand over: an .ics file with several events ----
+
+@Preview(name = "Import", widthDp = 400, heightDp = 860)
+@Composable
+fun ImportPreview() = Themed(dark = true) {
+    ImportScreen(12, LocalDate.of(2026, 12, 3), LocalDate.of(2027, 1, 20), CALENDARS.filter { !it.readOnly && it.group != EventRepository.HOLIDAY_GROUP }, "home", {}, false, null, {}, {})
+}
+
+@Preview(name = "Imported", widthDp = 400, heightDp = 860)
+@Composable
+fun ImportedPreview() = Themed(dark = true) {
+    ImportScreen(12, LocalDate.of(2026, 12, 3), LocalDate.of(2027, 1, 20), CALENDARS.filter { !it.readOnly && it.group != EventRepository.HOLIDAY_GROUP }, "home", {}, false, EventRepository.ImportResult(added = 11, alreadyThere = 1), {}, {})
 }
 
 // ---- widgets, at the sizes a Redmi Note 14's home screen gives four by two and one by one ----

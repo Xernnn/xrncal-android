@@ -21,6 +21,7 @@ import com.xern.xrncal.work.AndroidAlarmScheduler
 import com.xern.xrncal.work.PrefsRungLog
 import com.xern.xrncal.work.SyncWork
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneId
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -28,10 +29,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
 
 class XrnCalApp : Application() {
@@ -51,6 +52,25 @@ data class SyncStatus(val running: Boolean = false, val lastSync: Long = 0, val 
 
 /** How a sync ended: through, failed (the sync line says why), or refused the network by Android. */
 enum class SyncEnd { DONE, FAILED, REFUSED }
+
+/**
+ * Requests made of the calendar screen (open this event, show this day) that wait for it: one
+ * asked before anything collects is kept, not dropped as a SharedFlow without subscribers drops
+ * it, and each is handed to one collector once. A request asked while another still waits
+ * replaces it: the last tap wins.
+ */
+class Requests<T : Any> {
+    private val held = MutableStateFlow<T?>(null)
+
+    fun ask(request: T) {
+        held.value = request
+    }
+
+    /** Each request once, as it comes, a held one first. */
+    val flow: Flow<T> = flow {
+        held.collect { r -> if (r != null && held.compareAndSet(r, null)) emit(r) }
+    }
+}
 
 /** Everything the screens use, made once (manual wiring, as in the other xrn apps). */
 class Graph(
@@ -76,14 +96,23 @@ class Graph(
 
     private var pending: Job? = null
 
-    private val _open = MutableSharedFlow<Pair<String, Long?>>(extraBufferCapacity = 4)
+    private val opens = Requests<Pair<String, Long?>>()
 
-    /** An event a reminder's notification asks to open: its resource and the start of its date. */
-    val open: SharedFlow<Pair<String, Long?>> = _open
+    /**
+     * An event a reminder's notification or the agenda widget asks to open: its resource and the
+     * start of its date. Held until the calendar collects it, since a tap that starts the app asks
+     * before the calendar's first frame; each is handled once.
+     */
+    val open: Flow<Pair<String, Long?>> = opens.flow
 
-    fun open(resourceId: String, start: Long?) {
-        _open.tryEmit(resourceId to start)
-    }
+    fun open(resourceId: String, start: Long?) = opens.ask(resourceId to start)
+
+    private val days = Requests<LocalDate>()
+
+    /** A day another app asked to see (a time link, docs/spec.md "Other apps"), held the same way. */
+    val dayAsked: Flow<LocalDate> = days.flow
+
+    fun showDay(day: LocalDate) = days.ask(day)
 
     /** Something changed on this phone: to the server soon, and the alarm follows it now. */
     private fun changedHere() {

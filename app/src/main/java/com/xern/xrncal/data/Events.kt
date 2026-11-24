@@ -4,6 +4,7 @@ import com.xern.xrncal.domain.EventDraft
 import com.xern.xrncal.domain.Edits
 import com.xern.xrncal.domain.HolidayCalendar
 import com.xern.xrncal.domain.Holidays
+import com.xern.xrncal.domain.IcsFiles
 import com.xern.xrncal.domain.Occurrence
 import com.xern.xrncal.domain.Occurrences
 import com.xern.xrncal.domain.ParsedResource
@@ -201,6 +202,26 @@ class EventRepository(
         }
         changed()
         id
+    }
+
+    /** How an import went: the events added, and those the calendar held already. */
+    data class ImportResult(val added: Int, val alreadyThere: Int)
+
+    /**
+     * A file's events added to [calendarId], each as a new resource to send (docs/spec.md, "Other
+     * apps"). One whose UID the calendar holds is there already and skipped; one whose UID another
+     * calendar holds, or an event of this one waiting to be deleted on the server, is saved under
+     * a UID of its own (IcsFiles.copyUid), the same at every import.
+     */
+    suspend fun import(calendarId: String, events: List<IcsFiles.FileEvent>): ImportResult = withContext(work) {
+        val cal = store.calendar(calendarId) ?: error("no calendar $calendarId")
+        require(!cal.readOnly) { "read-only calendar" }
+        val rows = store.calendars().flatMap { store.inCalendar(it.id) }
+        val (here, elsewhere) = rows.partition { it.calendarId == calendarId && !it.deleted }
+        val plan = IcsFiles.plan(events, calendarId, here.map { it.uid }.toSet(), elsewhere.map { it.uid }.toSet())
+        for (e in plan.add) store.saveLocal(ResourceEntity(ResourceEntity.newId(), calendarId, ics = e.ics))
+        if (plan.add.isNotEmpty()) changed()
+        ImportResult(plan.add.size, plan.alreadyThere)
     }
 
     /** The iCalendar text to share for [occ]: its resource, or a holiday written as an event. */
