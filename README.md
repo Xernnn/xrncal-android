@@ -41,7 +41,8 @@ holds, what is left for later, and which of One Calendar's layouts it copies.
 - **Other apps**: "Add to calendar" in Gmail, a browser or Messages opens the editor on a new
   event, filled in and saved only on ✓; an **.ics file** opens its event the same way, or imports
   several into a calendar (skipping those already there); a clock widget's "open the calendar
-  at this time" opens that day.
+  at this time" opens that day. An event's **place** opens in the maps app, from the editor or
+  the day pop-up.
 
 ## Sync
 

@@ -175,6 +175,7 @@ private fun DayCell(d: LocalDate, inMonth: Boolean, today: Boolean, more: Int, l
 @Composable
 fun DayPopup(day: LocalDate, events: List<Occurrence>, look: Look, onEvent: (Occurrence) -> Unit, onAdd: () -> Unit, onDayView: () -> Unit, onDismiss: () -> Unit) {
     val ink = LocalInk.current
+    val context = androidx.compose.ui.platform.LocalContext.current
     Dialog(onDismissRequest = onDismiss) {
         Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(4.dp)).background(ink.sheet).padding(vertical = 12.dp)) {
             Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 6.dp), verticalAlignment = Alignment.Bottom) {
@@ -185,7 +186,7 @@ fun DayPopup(day: LocalDate, events: List<Occurrence>, look: Look, onEvent: (Occ
             PopupAction(Icons.Outlined.CalendarViewDay, "Day view", onDayView)
             if (events.isNotEmpty()) {
                 LazyColumn(Modifier.fillMaxWidth().heightIn(max = 380.dp).padding(horizontal = 16.dp, vertical = 6.dp).clip(RoundedCornerShape(2.dp)), verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(1.dp)) {
-                    items(events, key = { it.key + it.calendarId }) { o -> EventCard(o, look, day, { onEvent(o) }, RoundedCornerShape(0.dp)) }
+                    items(events, key = { it.key + it.calendarId }) { o -> EventCard(o, look, day, { onEvent(o) }, RoundedCornerShape(0.dp), onMap = { openMap(context, o.location) }) }
                 }
             }
         }

@@ -92,7 +92,7 @@ private val EVENTS: List<Occurrence> by lazy {
         timed("Lunch with Sam", "home", "2026-11-25", "12:00", "13:00", "Cơm Tấm (made up)"),
         timed("Dentist", "home", "2026-11-26", "16:00", "17:00", "12 Made-up Street"),
         timed("Phở with Tuấn", "family", "2026-11-27", "18:30", "20:00"),
-        timed("Design review", "work", "2026-11-24", "14:00", "15:30"),
+        timed("Design review", "work", "2026-11-24", "14:00", "15:30", "Room 3.44"),
         timed("Call the bank", "phone", "2026-11-24", "11:00", "11:20"),
         timed("Project sync", "work", "2026-11-24", "14:30", "15:00"),
         allDay("Trip to Huế", "family", "2026-11-28", "2026-11-30"),

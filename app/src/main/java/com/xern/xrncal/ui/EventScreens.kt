@@ -35,6 +35,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Language
+import androidx.compose.material.icons.outlined.Map
 import androidx.compose.material.icons.outlined.NotificationsNone
 import androidx.compose.material.icons.outlined.Place
 import androidx.compose.material.icons.outlined.Repeat
@@ -351,7 +352,17 @@ fun EditorScreen(
                 RepeatForm(state) { picking = "until" }
                 Divider()
                 Label("Location")
-                Field(state.location, { state.location = it }, Modifier.padding(horizontal = 16.dp), onFocus = { placeFocus = it })
+                Row(Modifier.padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Field(state.location, { state.location = it }, Modifier.weight(1f), onFocus = { placeFocus = it })
+                    // One Calendar's "Navigation": the place in the owner's maps app (locked or not).
+                    if (state.location.isNotBlank()) {
+                        val context = androidx.compose.ui.platform.LocalContext.current
+                        Box(
+                            Modifier.padding(start = 10.dp).size(52.dp).clip(RoundedCornerShape(4.dp)).background(ink.field).clickable { openMap(context, state.location) },
+                            contentAlignment = Alignment.Center,
+                        ) { Icon(Icons.Outlined.Map, contentDescription = "Map", tint = ink.muted) }
+                    }
+                }
                 if (placeFocus && !locked && state.location.isNotBlank()) {
                     val places = remember(state.location) { aids.places(state.location) }
                     SuggestionRows(places.map { it.location to null }) { i -> state.location = places[i].location }

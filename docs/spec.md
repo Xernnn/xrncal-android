@@ -577,10 +577,15 @@ not to another calendar app.
    calendar provider, or untyped), opens the calendar (its singleTask activity) on the Day view of
    the date that moment falls on in the app's zone, over whatever was open. The day is kept until
    the calendar shows it, so a link that starts the app is not lost.
+4. **Places in a maps app**, as One Calendar's "Navigation": when Location isn't empty, a map
+   button beside it in the editor (also on a locked event), and one on each day pop-up card with
+   a place, send `ACTION_VIEW` of `geo:0,0?q=<place>` (the place on one line, percent-encoded as
+   UTF-8) to the system: the owner's default maps app, or Android's chooser. No app is named and
+   there is no setting; with no maps app, "No maps app".
 
 Tests: the extras (a map in) to a draft (`InsertRequestTest`); an .ics with one event to a draft,
 with several to an import plan, skipping a UID already there (`IcsFilesTest`); the time link to
-a date (`TimeLinkTest`), in `domain/`; the
+a date (`TimeLinkTest`); the place to a `geo:` address (`PlacesTest`), in `domain/`; the
 extras' names against Android's own and an import into the store (`OtherAppsTest`);
 `ManifestTest` for the filters and that no storage permission is asked; previews of the import.
 
