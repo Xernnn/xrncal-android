@@ -553,10 +553,33 @@ not to another calendar app.
    in Android's own calendar store (which xrncal doesn't use) opens a new event with whatever the
    request carries.
 
-Tests: the extras (a map in) to a draft, in `domain/` (`InsertRequestTest`); the extras' names
-against Android's own (`OtherAppsTest`); `ManifestTest` for the filter.
+2. **.ics files** (a tap in Files, a mail's attachment, a download): `VIEW` for `text/calendar`,
+   `text/x-vcalendar` and `application/ics`, from `content:` and `file:` addresses, and a name
+   ending in `.ics` for one sent untyped or as `application/octet-stream`. The file is read
+   through the content resolver with the read the sending app grants, so no storage permission
+   is asked; it is parsed by `domain/ical` (to ICalParser's 8 MB).
+   - **One VEVENT** opens the editor as in item 1, with the event's fields: times in its own zone
+     when the zone database knows it, else (UTC, floating, a zone only the file's VTIMEZONE
+     explains) the same moment in the app's zone; its repeat rule; its reminders, or the
+     defaults when it has none; its attendees as the "Guests:" line.
+   - **Several** open the import: how many events (a UID's VEVENTs, a series and its changed
+     dates, are one), the dates they span, the calendar to import into (the default first), and
+     Import. Each event becomes a resource of its own in that calendar, written as the file has
+     it (its VEVENTs and the VTIMEZONEs they name; no METHOD), and is sent at the next sync. An
+     event whose UID the calendar holds is there already and skipped, so opening the same file
+     twice adds nothing; one whose UID another calendar on the phone holds is saved under a UID
+     made from the calendar and its own (the same at every import), so no two calendars share a
+     UID; one without a UID gets a new one. Then the counts: Added, Already there.
+   - A file that won't parse, or holds no event, says so in one line ("Not a calendar file", "No
+     events", "Can't open this file").
+
+Tests: the extras (a map in) to a draft (`InsertRequestTest`); an .ics with one event to a draft,
+with several to an import plan, skipping a UID already there (`IcsFilesTest`), in `domain/`; the
+extras' names against Android's own and an import into the store (`OtherAppsTest`);
+`ManifestTest` for the filters and that no storage permission is asked; previews of the import.
 
 ## Later
 
 "This and following" edits of a series; calendar names, and making calendars on the server; a
-jump-to-date picker; .ics import and export; Google and Microsoft accounts; guests.
+jump-to-date picker; a whole calendar exported as .ics (one event is shared as one); Google and
+Microsoft accounts; guests.

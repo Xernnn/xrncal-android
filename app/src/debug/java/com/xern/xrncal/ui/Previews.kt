@@ -353,6 +353,20 @@ fun AccountsPreview() = Themed(dark = true) {
     )
 }
 
+// ---- what other apps hand over: an .ics file with several events ----
+
+@Preview(name = "Import", widthDp = 400, heightDp = 860)
+@Composable
+fun ImportPreview() = Themed(dark = true) {
+    ImportScreen(12, LocalDate.of(2026, 12, 3), LocalDate.of(2027, 1, 20), CALENDARS.filter { !it.readOnly && it.group != EventRepository.HOLIDAY_GROUP }, "home", {}, false, null, {}, {})
+}
+
+@Preview(name = "Imported", widthDp = 400, heightDp = 860)
+@Composable
+fun ImportedPreview() = Themed(dark = true) {
+    ImportScreen(12, LocalDate.of(2026, 12, 3), LocalDate.of(2027, 1, 20), CALENDARS.filter { !it.readOnly && it.group != EventRepository.HOLIDAY_GROUP }, "home", {}, false, EventRepository.ImportResult(added = 11, alreadyThere = 1), {}, {})
+}
+
 // ---- widgets, at the sizes a Redmi Note 14's home screen gives four by two and one by one ----
 
 private fun widgetInput(s: Settings = Settings()) = com.xern.xrncal.work.WidgetInput(

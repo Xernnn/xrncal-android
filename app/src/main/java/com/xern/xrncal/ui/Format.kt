@@ -60,6 +60,12 @@ object Format {
     /** `Monday 24 November 2026`. */
     fun dayLong(d: LocalDate): String = "${d.dayOfWeek.getDisplayName(TextStyle.FULL, L)} ${d.dayOfMonth} ${d.month.getDisplayName(TextStyle.FULL, L)} ${d.year}"
 
+    /** `24 Nov 2026`. */
+    fun date(d: LocalDate): String = "${d.dayOfMonth} ${d.month.getDisplayName(TextStyle.SHORT, L)} ${d.year}"
+
+    /** `3 Dec 2026 – 20 Dec 2026`, or the one date. */
+    fun dates(first: LocalDate, last: LocalDate): String = if (first == last) date(first) else "${date(first)} – ${date(last)}"
+
     /** `Mon, 24 Nov 2026`, for the editor's date buttons. */
     fun dateButton(d: LocalDate): String = "${d.dayOfWeek.getDisplayName(TextStyle.SHORT, L)}, ${d.dayOfMonth} ${d.month.getDisplayName(TextStyle.SHORT, L)} ${d.year}"
 

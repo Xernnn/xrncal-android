@@ -112,6 +112,39 @@ class ManifestTest {
         assertEquals(setOf("vnd.android.cursor.dir/event", "vnd.android.cursor.item/event"), f.of("mimeType"))
     }
 
+    /**
+     * An .ics file opens in xrncal by its type (the three calendars are sent with), or by its name
+     * when it comes untyped or as plain bytes; from a content address or a file.
+     */
+    @Test
+    fun icsFilesOpenByTypeOrName() {
+        val views = filters(".AddEventActivity").filter { "android.intent.action.VIEW" in it.actions }
+        views.forEach {
+            assertEquals(setOf("android.intent.action.VIEW"), it.actions)
+            assertEquals(setOf("android.intent.category.DEFAULT"), it.categories)
+            assertEquals(setOf("content", "file"), it.of("scheme"))
+        }
+        val typed = views.single { "text/calendar" in it.of("mimeType") }
+        assertEquals(setOf("text/calendar", "text/x-vcalendar", "application/ics"), typed.of("mimeType"))
+        val named = views.filter { ".ics" in it.of("pathSuffix") }
+        assertEquals(setOf(emptySet(), setOf("application/octet-stream")), named.map { it.of("mimeType") }.toSet())
+        named.forEach {
+            assertEquals(setOf(".ics", ".ICS"), it.of("pathSuffix"))
+            assertEquals(setOf("*"), it.of("host"))
+        }
+    }
+
+    /** A file is read with the grant its app hands over: no storage permission, nor the phone's calendar store. */
+    @Test
+    fun noStorageOrCalendarPermissionIsAsked() {
+        val none = setOf(
+            "android.permission.READ_EXTERNAL_STORAGE", "android.permission.WRITE_EXTERNAL_STORAGE", "android.permission.MANAGE_EXTERNAL_STORAGE",
+            "android.permission.READ_MEDIA_IMAGES", "android.permission.READ_MEDIA_VIDEO", "android.permission.READ_MEDIA_AUDIO",
+            "android.permission.READ_MEDIA_VISUAL_USER_SELECTED", "android.permission.READ_CALENDAR", "android.permission.WRITE_CALENDAR",
+        )
+        assertEquals(emptySet<String>(), asked intersect none)
+    }
+
     @Test
     fun nothingLeavesThePhoneInABackup() {
         val app = named("application").single()

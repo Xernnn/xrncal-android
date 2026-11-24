@@ -39,7 +39,8 @@ holds, what is left for later, and which of One Calendar's layouts it copies.
 - **Search** with One Calendar's Future and Past tabs, accents ignored; **Options** laid out as
   One Calendar's.
 - **Other apps**: "Add to calendar" in Gmail, a browser or Messages opens the editor on a new
-  event, filled in and saved only on ✓.
+  event, filled in and saved only on ✓; an **.ics file** opens its event the same way, or imports
+  several into a calendar (skipping those already there).
 
 ## Sync
 

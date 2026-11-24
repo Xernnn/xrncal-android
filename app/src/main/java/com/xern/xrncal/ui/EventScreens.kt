@@ -436,7 +436,7 @@ private fun Picker(text: String, onClick: () -> Unit, modifier: Modifier = Modif
 }
 
 @Composable
-private fun CalendarPicker(calendars: List<CalendarInfo>, selected: String, onPick: (String) -> Unit) {
+fun CalendarPicker(calendars: List<CalendarInfo>, selected: String, onPick: (String) -> Unit) {
     var open by remember { mutableStateOf(false) }
     val cal = calendars.firstOrNull { it.id == selected }
     Box(Modifier.padding(horizontal = 16.dp)) {
