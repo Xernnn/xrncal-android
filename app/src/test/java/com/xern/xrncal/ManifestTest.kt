@@ -145,6 +145,24 @@ class ManifestTest {
         assertEquals(emptySet<String>(), asked intersect none)
     }
 
+    /**
+     * A clock widget's "open the calendar at this time" reaches the calendar: typed as the calendar
+     * provider types it (time/epoch), or untyped by its path.
+     */
+    @Test
+    fun timeLinksOpenTheCalendar() {
+        val views = filters(".MainActivity").filter { "android.intent.action.VIEW" in it.actions }
+        assertEquals(2, views.size)
+        views.forEach {
+            assertEquals(setOf("android.intent.category.DEFAULT"), it.categories)
+            assertEquals(setOf("content"), it.of("scheme"))
+            assertEquals(setOf("com.android.calendar"), it.of("host"))
+        }
+        assertEquals(setOf(setOf("time/epoch"), emptySet()), views.map { it.of("mimeType") }.toSet())
+        assertEquals(setOf("/time"), views.single { it.of("mimeType").isEmpty() }.of("pathPrefix"))
+        assertEquals("singleTask", activity(".MainActivity").getAttributeNS(ANDROID, "launchMode"))
+    }
+
     @Test
     fun nothingLeavesThePhoneInABackup() {
         val app = named("application").single()

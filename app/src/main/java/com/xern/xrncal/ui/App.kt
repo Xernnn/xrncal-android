@@ -157,6 +157,22 @@ fun App(graph: Graph) {
         }
     }
 
+    // Another app's time link: the Day view on its date, over anything open. [jump] makes the
+    // pager again at that date when the Day view is already showing.
+    var jump by remember { mutableStateOf(0) }
+    LaunchedEffect(Unit) {
+        graph.dayAsked.collect { d ->
+            if (d == null) return@collect
+            graph.dayShown()
+            stack.clear()
+            popup = null
+            anchor = d
+            view = View.DAY
+            jump++
+            drawer.close()
+        }
+    }
+
     BackHandler(enabled = stack.isNotEmpty()) { stack.removeAt(stack.lastIndex) }
     BackHandler(enabled = stack.isEmpty() && drawer.isOpen) { scope.launch { drawer.close() } }
 
@@ -208,7 +224,7 @@ fun App(graph: Graph) {
                 onToggle = { id, on -> scope.launch { graph.events.setShown(id, on, graph.settings) } },
             )
             Box(Modifier.fillMaxSize().navigationBarsPadding()) {
-                key(view, firstDay) {
+                key(view, firstDay, jump) {
                     when (view) {
                         View.MONTH -> {
                             val pager = rememberPagerState(initialPage = MID + ChronoUnit.MONTHS.between(months, YearMonth.from(anchor)).toInt()) { 2 * MID }

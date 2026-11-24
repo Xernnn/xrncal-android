@@ -36,6 +36,23 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- "Open the calendar at this time" (content://com.android.calendar/time/<millis>, as a
+                 clock widget sends it): the Day view on that date. Android gives the link the
+                 calendar provider's type, time/epoch; without that provider it comes untyped. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" />
+                <data android:host="com.android.calendar" />
+                <data android:mimeType="time/epoch" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" />
+                <data android:host="com.android.calendar" />
+                <data android:pathPrefix="/time" />
+            </intent-filter>
         </activity>
 
         <!-- What other apps hand the calendar: "add to calendar" (CalendarContract's insert intent)

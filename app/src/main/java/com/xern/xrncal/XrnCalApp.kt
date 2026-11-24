@@ -21,6 +21,7 @@ import com.xern.xrncal.work.AndroidAlarmScheduler
 import com.xern.xrncal.work.PrefsRungLog
 import com.xern.xrncal.work.SyncWork
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneId
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -83,6 +84,22 @@ class Graph(
 
     fun open(resourceId: String, start: Long?) {
         _open.tryEmit(resourceId to start)
+    }
+
+    private val _day = MutableStateFlow<LocalDate?>(null)
+
+    /**
+     * A day another app asked to see (a time link, docs/spec.md "Other apps"), kept until the
+     * calendar shows it: the link may come before the calendar's first frame.
+     */
+    val dayAsked: StateFlow<LocalDate?> = _day
+
+    fun showDay(day: LocalDate) {
+        _day.value = day
+    }
+
+    fun dayShown() {
+        _day.value = null
     }
 
     /** Something changed on this phone: to the server soon, and the alarm follows it now. */

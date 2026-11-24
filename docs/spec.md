@@ -572,9 +572,15 @@ not to another calendar app.
      UID; one without a UID gets a new one. Then the counts: Added, Already there.
    - A file that won't parse, or holds no event, says so in one line ("Not a calendar file", "No
      events", "Can't open this file").
+3. **Time links**: `VIEW` of `content://com.android.calendar/time/<millis>`, which clock widgets
+   and other apps send to "open the calendar at this time" (typed `time/epoch` by Android's
+   calendar provider, or untyped), opens the calendar (its singleTask activity) on the Day view of
+   the date that moment falls on in the app's zone, over whatever was open. The day is kept until
+   the calendar shows it, so a link that starts the app is not lost.
 
 Tests: the extras (a map in) to a draft (`InsertRequestTest`); an .ics with one event to a draft,
-with several to an import plan, skipping a UID already there (`IcsFilesTest`), in `domain/`; the
+with several to an import plan, skipping a UID already there (`IcsFilesTest`); the time link to
+a date (`TimeLinkTest`), in `domain/`; the
 extras' names against Android's own and an import into the store (`OtherAppsTest`);
 `ManifestTest` for the filters and that no storage permission is asked; previews of the import.
 

@@ -16,6 +16,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.Color
 import com.xern.xrncal.data.ThemeMode
+import com.xern.xrncal.domain.TimeLink
 import com.xern.xrncal.ui.App
 import com.xern.xrncal.ui.Backdrop
 import com.xern.xrncal.ui.LocalBackdrop
@@ -42,8 +43,15 @@ class MainActivity : ComponentActivity() {
         opened(intent)
     }
 
-    /** A reminder's notification was tapped: its event. */
+    /**
+     * A reminder's notification was tapped: its event. Or another app's time link
+     * (`content://com.android.calendar/time/<millis>`): the Day view on its date.
+     */
     private fun opened(intent: Intent?) {
+        if (intent?.action == Intent.ACTION_VIEW) {
+            intent.data?.let { TimeLink.day(it.toString(), graph.settings.value.zoneId()) }?.let(graph::showDay)
+            return
+        }
         val id = intent?.getStringExtra(OPEN) ?: return
         graph.open(id, intent.getLongExtra(START, -1).takeIf { it >= 0 })
     }
