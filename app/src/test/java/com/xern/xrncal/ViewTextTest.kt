@@ -3,10 +3,14 @@ package com.xern.xrncal
 import com.xern.xrncal.domain.Occurrence
 import com.xern.xrncal.ui.Format
 import com.xern.xrncal.ui.Look
+import com.xern.xrncal.ui.chip
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.Hyphens
+import androidx.compose.ui.text.style.LineBreak
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -66,4 +70,14 @@ class ViewTextTest {
         assertEquals(listOf("MO", "TU", "WE", "TH", "FR", "SA", "SU"), DayOfWeek.entries.map { Format.weekdayCaps(it) })
         assertEquals(listOf(DayOfWeek.SATURDAY, DayOfWeek.SUNDAY), DayOfWeek.entries.filter { Format.weekend(it) })
     }
+
+    @Test
+    fun anEventTitleWrapsWholeWordsWithoutHyphensAsOneCalendar() {
+        // 0.3.0 hyphenated a word cut at the column's edge ("Swim-ming"); One Calendar moves the
+        // whole word to the next line.
+        val style = chip(12, Color.White)
+        assertEquals(Hyphens.None, style.hyphens)
+        assertEquals(LineBreak.Simple, style.lineBreak)
+    }
 }
+

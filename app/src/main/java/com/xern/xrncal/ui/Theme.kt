@@ -106,10 +106,14 @@ fun type(size: Int, weight: FontWeight = FontWeight.Normal, color: Color = Color
     lineHeightStyle = LineHeightStyle(LineHeightStyle.Alignment.Center, LineHeightStyle.Trim.None),
 )
 
-/** A chip's title: a word too long for the cell is hyphenated rather than cut anywhere. */
+/**
+ * An event block's title in the day and week grids: a word that doesn't fit the line goes whole
+ * onto the next one, as One Calendar wraps it, never split with a hyphen ("Swim-ming"). Only a
+ * word wider than the whole column is broken, where it must.
+ */
 fun chip(size: Int, color: Color, lineHeight: TextUnit = 1.3.em) = type(size, FontWeight.Medium, color, lineHeight).copy(
-    hyphens = androidx.compose.ui.text.style.Hyphens.Auto,
-    lineBreak = androidx.compose.ui.text.style.LineBreak.Paragraph,
+    hyphens = androidx.compose.ui.text.style.Hyphens.None,
+    lineBreak = androidx.compose.ui.text.style.LineBreak.Simple,
 )
 
 /**

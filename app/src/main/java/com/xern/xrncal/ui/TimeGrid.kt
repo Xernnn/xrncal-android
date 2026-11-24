@@ -45,7 +45,9 @@ import com.xern.xrncal.domain.WeekStart
 import java.time.Instant
 import java.time.LocalDate
 
-private val GUTTER = 44.dp
+// One Calendar's hour column: just wide enough for "08" (and the second zone's "04" under it),
+// leaving the rest of the width to the events.
+private val GUTTER = 30.dp
 private val ALL_DAY_LANE = 22.dp
 
 /**
@@ -174,7 +176,9 @@ fun TimeGridPage(
                                         .padding(horizontal = 3.dp, vertical = 1.dp),
                                 ) {
                                     val single = days.size == 1
-                                    val size = if (single) 13 else 11
+                                    // The week's columns are a seventh of the screen: One Calendar's small text keeps
+                                    // ordinary words whole on a line (about 9 letters at 10 sp on the owner's phone).
+                                    val size = if (single) 13 else 10
                                     Column {
                                         Text(p.occurrence.title.ifBlank { "(no title)" }, style = chip(size, onColor(bg), lineHeight = (size + 2).sp), maxLines = if (single) 2 else 4, overflow = TextOverflow.Ellipsis)
                                         // The time range under the title, as the laptop's blocks, when there's room.
