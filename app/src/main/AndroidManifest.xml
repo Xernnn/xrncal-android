@@ -38,6 +38,24 @@
             </intent-filter>
         </activity>
 
+        <!-- What other apps hand the calendar: "add to calendar" (CalendarContract's insert intent)
+             opens the editor on a new event. Not singleTask: it runs in the asking app's task, so ✓
+             or ✕ goes back to that app; started as a new task, it is a task of its own. -->
+        <activity
+            android:name=".AddEventActivity"
+            android:exported="true"
+            android:taskAffinity=""
+            android:screenOrientation="portrait"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.INSERT" />
+                <action android:name="android.intent.action.EDIT" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="vnd.android.cursor.dir/event" />
+                <data android:mimeType="vnd.android.cursor.item/event" />
+            </intent-filter>
+        </activity>
+
         <!-- Share: an event as an .ics file, read once by the app it is shared with. -->
         <provider
             android:name="androidx.core.content.FileProvider"

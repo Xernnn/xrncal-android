@@ -532,6 +532,30 @@ xrncal's signature touches over it.
 - **Weekend names in the today colour**: Saturday and Sunday in the month's weekday row, as in the
   week header.
 
+## Other apps
+
+One Calendar answers what other apps ask of a calendar on the phone; xrncal takes that over, so
+that once One Calendar is gone, "Add to calendar" in Gmail, a browser or Messages comes here and
+not to another calendar app.
+
+1. **"Add to calendar"**: Android's insert intent for `CalendarContract.Events` (`INSERT`, and the
+   older `EDIT`, for `vnd.android.cursor.dir/event` and `vnd.android.cursor.item/event`) opens the
+   editor on a new event in the default calendar, filled in from the request's extras: title,
+   description, location, begin and end, all-day, repeat rule (one lib-recur can't read is left
+   out), time zone (the event's own when the zone database knows it, else the app's) and guests
+   (`Intent.EXTRA_EMAIL`, a string or a list), which go into the notes as a "Guests:" line since
+   the editor has no guests field. Missing times are a new event's: the next whole hour, as long
+   as Options say; an all-day event covers the days its times fall on, whether the app sent
+   midnight UTC (Android's own way) or the phone's midnight. The new event's reminder is the
+   default for its kind. Nothing is saved until ✓. It is an activity of its own, not the
+   calendar's singleTask one, so it opens in the asking app's task and ✓ or ✕ goes back there.
+   The request gave the times, so a title typed over isn't read for a date. An `EDIT` of an event
+   in Android's own calendar store (which xrncal doesn't use) opens a new event with whatever the
+   request carries.
+
+Tests: the extras (a map in) to a draft, in `domain/` (`InsertRequestTest`); the extras' names
+against Android's own (`OtherAppsTest`); `ManifestTest` for the filter.
+
 ## Later
 
 "This and following" edits of a series; calendar names, and making calendars on the server; a

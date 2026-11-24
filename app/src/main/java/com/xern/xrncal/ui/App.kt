@@ -109,13 +109,7 @@ fun App(graph: Graph) {
     val today = now.atZone(zone).toLocalDate()
     val firstDay = firstDayOf(settings.weekStart)
     val calendars by produceState(emptyList<CalendarInfo>(), revision, settings.holidays) { value = graph.events.calendars() }
-    val look = Look(
-        colors = calendars.associate { it.id to it.color }, today = today, h24 = Format.is24(context, settings.clock),
-        lunar = settings.lunar, weekNumbers = settings.weekNumbers, zone = zone,
-        readOnly = calendars.filter { it.readOnly }.map { it.id }.toSet(),
-        monthTimes = settings.monthTimes,
-        secondZone = settings.secondZone?.let { runCatching { ZoneId.of(it) }.getOrNull() }?.takeIf { it.rules != zone.rules },
-    )
+    val look = lookOf(context, settings, calendars, today)
     val scope = rememberCoroutineScope()
     val density = androidx.compose.ui.platform.LocalDensity.current
     val hourHeight = settings.hourSize.dp.dp
@@ -126,11 +120,10 @@ fun App(graph: Graph) {
     var asking by remember { mutableStateOf<Pair<String, (Scope) -> Unit>?>(null) }
     var undo by remember { mutableStateOf<EventRepository.Undo?>(null) }
     val drawer = rememberDrawerState(DrawerValue.Closed)
-    val writable = calendars.filter { !it.readOnly && HolidayCalendar.of(it.id) == null }
+    val writable = writableOf(calendars)
     val defaults = Reminders.Defaults(settings.timedReminder, settings.allDayReminder)
 
-    fun defaultCalendar(): String? = writable.firstOrNull { it.id == settings.defaultCalendar }?.id
-        ?: writable.firstOrNull { it.group == EventRepository.SERVER_GROUP }?.id ?: writable.firstOrNull()?.id
+    fun defaultCalendar(): String? = defaultCalendarOf(writable, settings.defaultCalendar)
 
     fun add(day: LocalDate, hour: Int? = null) {
         val cal = defaultCalendar() ?: return
@@ -338,25 +331,7 @@ fun App(graph: Graph) {
             val choices = if (top.locked) calendars.filter { it.id == state.calendarId } else writable
             // The laptop's suggestions learn from the events already there, read once the editor opens.
             val history by produceState<EventRepository.History?>(null, top) { value = graph.events.history() }
-            val aids = EditorAids(
-                emoji = settings.emoji,
-                emojiFavorites = TitleEmoji.favorites(settings.emojiUse),
-                onEmoji = { e -> graph.settings.update { it.copy(emojiUse = TitleEmoji.recordUse(it.emojiUse, e)) } },
-                titles = { q ->
-                    val h = history
-                    if (!settings.suggestions || h == null) emptyList()
-                    else {
-                        val at = if (state.allDay) TitleSuggestions.floatingDay(state.startDate) else java.time.LocalDateTime.of(state.startDate, state.startTime).atZone(state.zone).toInstant()
-                        TitleSuggestions.rank(h.titles, q, at, state.allDay, now, zone)
-                    }
-                },
-                places = { q -> history?.takeIf { settings.suggestions }?.let { LocationSuggestions.rank(it.places, q, now) }.orEmpty() },
-                entry = EntryContext(today, firstDay),
-                preferredZones = settings.preferredZones,
-                timeStep = settings.timeStep,
-                eventMinutes = settings.eventMinutes,
-                reminderDefaults = if (occ == null) defaults else null,
-            )
+            val aids = editorAids(graph, settings, state, history, now, zone, EntryContext(today, firstDay), if (occ == null) defaults else null)
             EditorScreen(
                 state, occ == null, choices, look,
                 onCancel = { stack.removeAt(stack.lastIndex) },
@@ -488,6 +463,57 @@ fun App(graph: Graph) {
         }
     }
 }
+
+/** How the screens draw: the calendars' colours, today, the clock, the zone, and the Views options. */
+fun lookOf(context: android.content.Context, settings: com.xern.xrncal.data.Settings, calendars: List<CalendarInfo>, today: LocalDate): Look {
+    val zone = settings.zoneId()
+    return Look(
+        colors = calendars.associate { it.id to it.color }, today = today, h24 = Format.is24(context, settings.clock),
+        lunar = settings.lunar, weekNumbers = settings.weekNumbers, zone = zone,
+        readOnly = calendars.filter { it.readOnly }.map { it.id }.toSet(),
+        monthTimes = settings.monthTimes,
+        secondZone = settings.secondZone?.let { runCatching { ZoneId.of(it) }.getOrNull() }?.takeIf { it.rules != zone.rules },
+    )
+}
+
+/** The calendars a new event can go in: neither read-only nor a holiday calendar. */
+fun writableOf(calendars: List<CalendarInfo>): List<CalendarInfo> = calendars.filter { !it.readOnly && HolidayCalendar.of(it.id) == null }
+
+/** Where a new event goes: Options' default calendar, else the server's first, else the phone's. */
+fun defaultCalendarOf(writable: List<CalendarInfo>, chosen: String?): String? = writable.firstOrNull { it.id == chosen }?.id
+    ?: writable.firstOrNull { it.group == EventRepository.SERVER_GROUP }?.id ?: writable.firstOrNull()?.id
+
+/**
+ * The editor's aids as Options set them: the emoji panel, the title and place suggestions learnt
+ * from [history], typed dates ([entry], for a new event) and the time steps.
+ */
+fun editorAids(
+    graph: Graph,
+    settings: com.xern.xrncal.data.Settings,
+    state: EditorState,
+    history: EventRepository.History?,
+    now: java.time.Instant,
+    zone: ZoneId,
+    entry: EntryContext?,
+    reminderDefaults: Reminders.Defaults?,
+) = EditorAids(
+    emoji = settings.emoji,
+    emojiFavorites = TitleEmoji.favorites(settings.emojiUse),
+    onEmoji = { e -> graph.settings.update { it.copy(emojiUse = TitleEmoji.recordUse(it.emojiUse, e)) } },
+    titles = { q ->
+        if (!settings.suggestions || history == null) emptyList()
+        else {
+            val at = if (state.allDay) TitleSuggestions.floatingDay(state.startDate) else java.time.LocalDateTime.of(state.startDate, state.startTime).atZone(state.zone).toInstant()
+            TitleSuggestions.rank(history.titles, q, at, state.allDay, now, zone)
+        }
+    },
+    places = { q -> history?.takeIf { settings.suggestions }?.let { LocationSuggestions.rank(it.places, q, now) }.orEmpty() },
+    entry = entry,
+    preferredZones = settings.preferredZones,
+    timeStep = settings.timeStep,
+    eventMinutes = settings.eventMinutes,
+    reminderDefaults = reminderDefaults,
+)
 
 /** How long "Deleted" offers Undo. */
 private const val UNDO_MS = 6_000L

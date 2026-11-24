@@ -93,7 +93,6 @@ import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
 import java.time.ZoneOffset
-import java.time.temporal.ChronoUnit
 
 // ---------------- shared ----------------
 
@@ -578,14 +577,5 @@ fun ZonePick(current: ZoneId, preferred: List<String>, onDismiss: () -> Unit, on
 }
 
 /** A new event's draft: the next whole hour (or [hour] on [day]), as long as Settings say. */
-fun newDraft(day: LocalDate, hour: Int?, now: Instant, zone: ZoneId, minutes: Int, reminders: List<EventReminder>? = null): EventDraft {
-    val local = now.atZone(zone)
-    val startTime = when {
-        hour != null -> LocalTime.of(hour, 0)
-        day == local.toLocalDate() -> local.toLocalTime().truncatedTo(ChronoUnit.HOURS).plusHours(1)
-        else -> LocalTime.of(12, 0)
-    }
-    val start = if (hour == null && day == local.toLocalDate() && startTime == LocalTime.MIDNIGHT) day.plusDays(1).atTime(0, 0) else day.atTime(startTime)
-    val end = start.plusMinutes(minutes.toLong())
-    return EventDraft("", false, start.toLocalDate(), start.toLocalTime(), end.toLocalDate(), end.toLocalTime(), zone, reminders = reminders)
-}
+fun newDraft(day: LocalDate, hour: Int?, now: Instant, zone: ZoneId, minutes: Int, reminders: List<EventReminder>? = null): EventDraft =
+    com.xern.xrncal.domain.NewEvents.draft(day, hour, now, zone, minutes, reminders)

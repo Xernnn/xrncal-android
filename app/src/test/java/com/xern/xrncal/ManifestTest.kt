@@ -71,6 +71,47 @@ class ManifestTest {
         }
     }
 
+    /** An activity's intent filters: their actions, categories and data, each attribute's values. */
+    private data class Filter(val actions: Set<String>, val categories: Set<String>, val data: Map<String, Set<String>>) {
+        fun of(attribute: String): Set<String> = data[attribute].orEmpty()
+    }
+
+    private fun activity(name: String) = named("activity").single { it.getAttributeNS(ANDROID, "name") == name }
+
+    private fun filters(activity: String): List<Filter> {
+        val nodes = activity(activity).getElementsByTagName("intent-filter")
+        return (0 until nodes.length).map { i ->
+            val f = nodes.item(i) as org.w3c.dom.Element
+            fun names(tag: String) = f.getElementsByTagName(tag).let { n -> (0 until n.length).map { (n.item(it) as org.w3c.dom.Element).getAttributeNS(ANDROID, "name") }.toSet() }
+            val data = HashMap<String, MutableSet<String>>()
+            val d = f.getElementsByTagName("data")
+            for (j in 0 until d.length) {
+                val attrs = (d.item(j) as org.w3c.dom.Element).attributes
+                for (k in 0 until attrs.length) {
+                    val a = attrs.item(k)
+                    if (a.namespaceURI == ANDROID) data.getOrPut(a.localName) { mutableSetOf() } += a.nodeValue
+                }
+            }
+            Filter(names("action"), names("category"), data)
+        }
+    }
+
+    /**
+     * Other apps' "add to calendar" finds xrncal's editor: CalendarContract's insert intent, and the
+     * older edit form, for the events folder and one event. Exported, and not singleTask, so it runs
+     * in the asking app's task and ✓ goes back there.
+     */
+    @Test
+    fun otherAppsCanAddAnEvent() {
+        val add = activity(".AddEventActivity")
+        assertEquals("true", add.getAttributeNS(ANDROID, "exported"))
+        assertTrue(add.getAttributeNS(ANDROID, "launchMode").isEmpty())
+        val f = filters(".AddEventActivity").single { "android.intent.action.INSERT" in it.actions }
+        assertEquals(setOf("android.intent.action.INSERT", "android.intent.action.EDIT"), f.actions)
+        assertEquals(setOf("android.intent.category.DEFAULT"), f.categories)
+        assertEquals(setOf("vnd.android.cursor.dir/event", "vnd.android.cursor.item/event"), f.of("mimeType"))
+    }
+
     @Test
     fun nothingLeavesThePhoneInABackup() {
         val app = named("application").single()
