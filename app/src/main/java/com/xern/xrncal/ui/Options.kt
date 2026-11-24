@@ -25,6 +25,7 @@ import androidx.compose.material.icons.outlined.Alarm
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.EmojiEmotions
 import androidx.compose.material.icons.outlined.Image
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Settings
@@ -175,6 +176,7 @@ enum class OptionPage(val title: String, val icon: androidx.compose.ui.graphics.
     ZONE("Time zone", Icons.Outlined.Language),
     WIDGET("Widget options", Icons.Outlined.Widgets),
     EMOJI("Emoji options", Icons.Outlined.EmojiEmotions),
+    ABOUT("About", Icons.Outlined.Info),
 }
 
 @Composable
@@ -212,6 +214,22 @@ fun OptionPageScreen(
         OptionPage.ZONE -> ZoneOptions(s, onChange)
         OptionPage.WIDGET -> WidgetOptions(s, calendars, onChange)
         OptionPage.EMOJI -> EmojiOptions(s, onChange)
+        OptionPage.ABOUT -> About()
+    }
+}
+
+/** Options, About: the version as "0.3.1 (6)" (its name and code) and the app id. */
+fun aboutLines(versionName: String, versionCode: Int, appId: String): List<Pair<String, String>> =
+    listOf("Version" to "$versionName ($versionCode)", "App id" to appId)
+
+@Composable
+private fun About() {
+    val ink = LocalInk.current
+    for ((label, value) in aboutLines(com.xern.xrncal.BuildConfig.VERSION_NAME, com.xern.xrncal.BuildConfig.VERSION_CODE, com.xern.xrncal.BuildConfig.APPLICATION_ID)) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 10.dp)) {
+            Text(label, style = type(16, color = ink.text))
+            Text(value, style = type(14, color = ink.muted))
+        }
     }
 }
 

@@ -344,6 +344,10 @@ fun ReminderOptionsPreview() = Page(OptionPage.REMINDERS)
 @Composable
 fun WidgetOptionsPreview() = Page(OptionPage.WIDGET)
 
+@Preview(name = "Options, About", widthDp = 400, heightDp = 860)
+@Composable
+fun AboutPreview() = Page(OptionPage.ABOUT)
+
 @Preview(name = "Accounts", widthDp = 400, heightDp = 860)
 @Composable
 fun AccountsPreview() = Themed(dark = true) {

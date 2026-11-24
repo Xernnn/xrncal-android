@@ -446,6 +446,8 @@ One Calendar's Options list, each a page:
 - **Widget options**: item 12.
 - **Emoji options**: on or off, and the favourites (the most used, as the laptop counts them;
   cleared here).
+- **About** (xrncal's own, after One Calendar's list): the version and the app id ("Other apps",
+  item 5).
 
 **Accounts** (the drawer, as One Calendar's Accounts): the CalDAV account (address, user,
 password, Connect, Sync now, Sign out), the last sync, and the events that couldn't be sent, each
@@ -582,12 +584,15 @@ not to another calendar app.
    a place, send `ACTION_VIEW` of `geo:0,0?q=<place>` (the place on one line, percent-encoded as
    UTF-8) to the system: the owner's default maps app, or Android's chooser. No app is named and
    there is no setting; with no maps app, "No maps app".
+5. **About**, the last Options entry: the version as "0.3.1 (6)" (BuildConfig's name and code) and
+   the app id, figures only, so the owner can tell which build the phone has.
 
 Tests: the extras (a map in) to a draft (`InsertRequestTest`); an .ics with one event to a draft,
 with several to an import plan, skipping a UID already there (`IcsFilesTest`); the time link to
 a date (`TimeLinkTest`); the place to a `geo:` address (`PlacesTest`), in `domain/`; the
 extras' names against Android's own and an import into the store (`OtherAppsTest`);
-`ManifestTest` for the filters and that no storage permission is asked; previews of the import.
+`ManifestTest` for the filters and that no storage permission is asked; About's lines
+(`AboutTest`); previews of the import and of About.
 
 ## Later
 
