@@ -374,20 +374,26 @@ object Widgets {
 
 /** A widget kind: draws itself through [Widgets.refresh], and takes the midnight and list redraws. */
 abstract class XrnWidget : AppWidgetProvider() {
+    // Each kept alive until the widgets are drawn, as the alarms' are: on a process the launcher's
+    // broadcast just started, the drawing could otherwise lose the process once onReceive returns.
     override fun onUpdate(context: Context, manager: AppWidgetManager, ids: IntArray) {
-        Widgets.refresh(context)
+        untilDrawn(Widgets.refresh(context))
     }
 
     override fun onAppWidgetOptionsChanged(context: Context, manager: AppWidgetManager, id: Int, options: android.os.Bundle) {
-        Widgets.refresh(context)
+        untilDrawn(Widgets.refresh(context))
+    }
+
+    private fun untilDrawn(job: kotlinx.coroutines.Job?) {
+        job ?: return
+        val done = goAsync()
+        job.invokeOnCompletion { done.finish() }
     }
 
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != Widgets.MIDNIGHT && intent.action != Widgets.TICK) return super.onReceive(context, intent)
         // Kept alive until the widgets are drawn: an alarm may be all that started the app.
-        val job = Widgets.alarm(context, intent) ?: return
-        val done = goAsync()
-        job.invokeOnCompletion { done.finish() }
+        untilDrawn(Widgets.alarm(context, intent))
     }
 }
 
