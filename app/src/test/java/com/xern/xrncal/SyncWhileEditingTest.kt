@@ -165,4 +165,20 @@ class SyncWhileEditingTest {
         assertEquals(back.key, rows().single().href)
         assertEquals(back.value.first, rows().single().etag)
     }
+
+    @Test
+    fun aChangeWhoseAnswerWasLostIsTakenAsSentWhenTheServerHoldsIt() = runBlocking {
+        synced()
+        val engine = com.xern.xrncal.data.SyncEngine(store, account, client = { server })
+        val row = store.resource("dentist-row")!!
+        store.saveLocal(row.copy(ics = row.ics.replace("SUMMARY:Dentist", "SUMMARY:Dentist (moved)")))
+        // The server takes the PUT; its answer never comes (the sync stopped, the connection dropped).
+        server.loseAnswer = true
+        assertEquals(0, (runCatching { engine.sync() }.exceptionOrNull() as com.xern.xrncal.data.DavFailure).status)
+        assertTrue(store.resource("dentist-row")!!.dirty)
+        assertEquals(0, engine.sync().problems)
+        val after = store.resource("dentist-row")!!
+        assertTrue(!after.dirty && after.problem == null)
+        assertEquals(server.items.getValue(href).first, after.etag)
+    }
 }

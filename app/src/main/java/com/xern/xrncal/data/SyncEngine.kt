@@ -199,8 +199,9 @@ class SyncEngine(
                 }
                 status == 412 -> {
                     val theirs = dav.get(href)
-                    // A create whose answer was lost the first time: the server holds just what was sent.
-                    if (create && theirs?.ics?.let(::sameText) == sameText(r.ics)) {
+                    // A PUT whose answer was lost the first time (a dropped connection, a sync
+                    // stopped): the server holds just what is sent, so it went through.
+                    if (theirs?.ics?.let(::sameText) == sameText(r.ics)) {
                         store.pushed(r, href, theirs.etag)
                         sent++
                     } else {
