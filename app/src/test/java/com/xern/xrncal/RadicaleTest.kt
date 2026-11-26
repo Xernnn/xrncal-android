@@ -336,6 +336,31 @@ class RadicaleTest {
     }
 
     @Test
+    fun aCalendarHomeMissingOrEmptiedFailsTheSyncAndLosesNoUnsentEdit() {
+        laptopPut(work + "dentist-1.ics", dentist)
+        laptopPut(home + "trip-1.ics", trip)
+        val phone = Phone()
+        phone.sync()
+        runBlocking { phone.events.update(phone.one("Dentist"), draft("Dentist (phone)", "2026-11-26", "09:00", "10:00"), Scope.ALL) }
+        fun assertKept() {
+            assertEquals(listOf("Home", "Work"), runBlocking { phone.store.calendars() }.filter { !it.local }.map { it.name }.sorted())
+            assertTrue(phone.rows().single { it.uid == "dentist-1" }.dirty)
+            assertTrue(phone.rows().any { it.uid == "trip-1" })
+        }
+        // The home answers 404 (a restore into another folder).
+        val found = phone.account.home
+        phone.account.home = "$root/$user/elsewhere/"
+        assertEquals(404, (runCatching { phone.sync() }.exceptionOrNull() as DavFailure).status)
+        assertKept()
+        // The home lists no calendar at all.
+        phone.account.home = found
+        assertOk(laptopDelete(work))
+        assertOk(laptopDelete(home))
+        assertTrue(runCatching { phone.sync() }.exceptionOrNull() is DavFailure)
+        assertKept()
+    }
+
+    @Test
     fun anEventDeletedOnTheServerWhileChangedHereIsKeptAsAConflict() {
         laptopPut(work + "dentist-1.ics", dentist)
         val phone = Phone()

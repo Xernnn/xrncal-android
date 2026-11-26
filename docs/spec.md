@@ -195,7 +195,12 @@ it, under one mutex.
    The calendar home is stored.
 2. **Calendars**: one PROPFIND (Depth 1) on the home: display name, Apple `calendar-color`,
    `getctag`, privileges, resource type and supported components. Collections that hold events
-   are calendars; new ones show, gone ones are removed with their events.
+   are calendars; new ones show, gone ones are removed with their events. Only a real listing
+   removes anything: any answer but a multistatus fails the sync, and so does a listing that would
+   remove every calendar at once (none listed, or in a sync none of those known; signing in again
+   takes a new server's). A gone calendar holding a change not yet sent or a conflict stays until
+   that is settled (up to 1.1.1, a 403, 404 or empty listing removed every calendar, unsent
+   edits included, and the sync still said it went through).
 3. **Push** each calendar's changes first: a new resource is PUT to `<calendar>/<name>.ics` with
    `If-None-Match: *`, a changed one with `If-Match: <etag>`, a deleted one is DELETEd with
    `If-Match`. A 412 marks the resource as a conflict: it is not sent again until the owner

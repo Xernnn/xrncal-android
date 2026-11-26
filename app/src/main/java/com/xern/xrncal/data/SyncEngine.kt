@@ -60,7 +60,7 @@ class SyncEngine(
             val home = dav.findHome()
             account.home = home
             val list = dav.calendars(home)
-            updateCalendars(list)
+            updateCalendars(list, signingIn = true)
             list
         }
     }
@@ -123,9 +123,19 @@ class SyncEngine(
         }
     }
 
-    /** The server's calendars here: new ones shown, names and colours as the server has them, gone ones removed. */
-    private suspend fun updateCalendars(listed: List<DavCalendar>) {
+    /**
+     * The server's calendars here: new ones shown, names and colours as the server has them, gone
+     * ones removed. A listing that would remove them all is an error, not a removal: an empty one,
+     * or in a sync one naming none of them (signing in again may take another server's), since a
+     * server that lost its folder or its rights answers that way too. A gone calendar holding a
+     * change not yet sent, or one in conflict, stays until that is settled.
+     */
+    private suspend fun updateCalendars(listed: List<DavCalendar>, signingIn: Boolean = false) {
         val stored = store.calendars().filter { it.account == CalendarEntity.CALDAV }.associateBy { it.id }
+        val keep = listed.map { it.href }.toSet()
+        if (stored.isNotEmpty() && (keep.isEmpty() || (!signingIn && stored.keys.none { it in keep }))) {
+            throw DavFailure(404, "the calendar list names none of the calendars")
+        }
         listed.forEachIndexed { i, d ->
             val old = stored[d.href]
             // A colour picked here and not yet on the server (or refused by it) stays.
@@ -135,8 +145,13 @@ class SyncEngine(
                     ?: CalendarEntity(d.href, CalendarEntity.CALDAV, d.name, color, d.readOnly, sortKey = "%03d".format(i)),
             )
         }
-        val keep = listed.map { it.href }.toSet()
-        for (id in stored.keys - keep) store.removeCalendar(id)
+        for (id in stored.keys - keep) {
+            val unsent = store.inCalendar(id).any { (it.dirty && !it.deleted) || it.problem != null }
+            when {
+                !unsent -> store.removeCalendar(id)
+                stored.getValue(id).lastError != GONE -> store.putCalendar(stored.getValue(id).copy(lastError = GONE))
+            }
+        }
     }
 
     /** Sends the calendar's changes: (sent, refused or in conflict). */
@@ -204,6 +219,11 @@ class SyncEngine(
     }
 
     private fun sameText(ics: String) = ics.replace("\r\n", "\n").trim()
+
+    private companion object {
+        /** A calendar kept here for its unsent changes after the server stopped listing it. */
+        const val GONE = "Not on the server"
+    }
 
     /** Reads what changed on the server: (taken, removed). */
     private suspend fun pull(dav: CalDav, cal: CalendarEntity, ctag: String?): Pair<Int, Int> {
