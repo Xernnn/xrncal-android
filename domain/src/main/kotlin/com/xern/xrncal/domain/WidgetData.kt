@@ -8,7 +8,6 @@ import java.time.LocalTime
 import java.time.YearMonth
 import java.time.ZoneId
 import java.time.format.TextStyle
-import java.time.temporal.ChronoUnit
 import java.util.Locale
 
 /**
@@ -24,14 +23,8 @@ object WidgetData {
 
     private val L = Locale.ENGLISH
 
-    /**
-     * The agenda widget: the next event in a card over the days ahead, each day's events as chips
-     * beside its date. The card's event is left out of the days, so nothing shows twice.
-     */
-    data class AgendaView(val next: NextUp?, val days: List<ChipDay>)
-
-    /** The card: the event, its time (`09:00 – 09:30 · Room 4`) and how soon (`in 25 min`, `now`). */
-    data class NextUp(val occurrence: Occurrence, val title: String, val time: String, val countdown: String)
+    /** The agenda widget: the days ahead, each day's events as chips beside its date. */
+    data class AgendaView(val days: List<ChipDay>)
 
     /** A day of the list, with its events in the order the day shows them. */
     data class ChipDay(val date: LocalDate, val chips: List<Chip>) {
@@ -47,12 +40,11 @@ object WidgetData {
     data class LunarText(val text: String, val moon: Moon?)
 
     /**
-     * The agenda from [today] for [days] days. The next event is the earliest timed one that hasn't
-     * ended, already on or still to come; all-day events never take the card. Each day lists its
-     * events, all-day ones first, an event over several days under each of them; a timed event
-     * already over is left out, as One Calendar's agenda drops what has passed, and a day left
-     * with none is left out too. At most [maxRows] rows, each day and each event one. [time]
-     * writes a time of day as the app does, on the 24 or the 12-hour clock.
+     * The agenda from [today] for [days] days. Each day lists its events, all-day ones first, an
+     * event over several days under each of them; a timed event already over is left out, as One
+     * Calendar's agenda drops what has passed, and a day left with none is left out too. At most
+     * [maxRows] rows, each day and each event one. [time] writes a time of day as the app does, on
+     * the 24 or the 12-hour clock.
      */
     fun agenda(
         occurrences: List<Occurrence>,
@@ -66,10 +58,9 @@ object WidgetData {
     ): AgendaView {
         val last = today.plusDays(days - 1)
         val shown = occurrences.filter { it.calendarId !in hidden && (it.allDay || it.end.isAfter(now)) && !it.firstDay.isAfter(last) }
-        val next = shown.filter { !it.allDay }.minWithOrNull(compareBy<Occurrence>({ it.start }, { it.end }, { it.title }))
         val out = mutableListOf<ChipDay>()
         var rows = 0
-        for (d in Agenda.group(shown.filter { it !== next }, today, last)) {
+        for (d in Agenda.group(shown, today, last)) {
             if (rows + 2 > maxRows) break
             rows++
             val chips = mutableListOf<Chip>()
@@ -80,7 +71,7 @@ object WidgetData {
             }
             out += ChipDay(d.date, chips)
         }
-        return AgendaView(next?.let { NextUp(it, title(it), cardTime(it, zone, time), countdown(it, now, today, zone)) }, out)
+        return AgendaView(out)
     }
 
     fun title(o: Occurrence): String = o.title.ifBlank { "(no title)" }
@@ -103,18 +94,6 @@ object WidgetData {
         return withPlace(text, o.location)
     }
 
-    /** The card's time: `09:00 – 09:30 · Room 4`, with the weekdays when it runs over midnight (`Mon 22:00 – Tue 02:00`). */
-    fun cardTime(o: Occurrence, zone: ZoneId, time: (LocalTime) -> String): String {
-        val s = o.start.atZone(zone).toLocalTime()
-        val e = o.end.atZone(zone).toLocalTime()
-        val text = when {
-            o.multiDay -> "${weekday(o.firstDay)} ${time(s)} – ${weekday(o.lastDay)} ${time(e)}"
-            o.start == o.end -> time(s)
-            else -> "${time(s)} – ${time(e)}"
-        }
-        return withPlace(text, o.location)
-    }
-
     private fun weekday(d: LocalDate) = d.dayOfWeek.getDisplayName(TextStyle.SHORT, L)
 
     private fun withPlace(text: String, place: String): String {
@@ -123,49 +102,11 @@ object WidgetData {
     }
 
     /**
-     * How soon [o] is: `now` once it has started, `in 25 min` within the hour (rounded up, so the
-     * last minute reads `in 1 min`), `in 2 h` within the day (whole hours), then `in 3 d` by the
-     * dates.
+     * When the agenda must be drawn again to stay right before midnight's redraw: an event on the
+     * list ending, which leaves the list then. Null when nothing will.
      */
-    fun countdown(o: Occurrence, now: Instant, today: LocalDate, zone: ZoneId): String {
-        if (!o.start.isAfter(now)) return "now"
-        val m = minutesUntil(now, o.start)
-        val days = ChronoUnit.DAYS.between(today, o.start.atZone(zone).toLocalDate())
-        return when {
-            m < 60 -> "in $m min"
-            m < 24 * 60 || days < 1 -> "in ${m / 60} h"
-            else -> "in $days d"
-        }
-    }
-
-    private fun minutesUntil(now: Instant, at: Instant): Long = (Duration.between(now, at).toMillis() + 59_999) / 60_000
-
-    /**
-     * When [countdown] next reads differently: the end, while [o] is on; its start, from the last
-     * minute; each minute within the hour; each hour within the day; and a day before, when the
-     * days turn to hours. A change of date is midnight's redraw.
-     */
-    fun countdownChange(o: Occurrence, now: Instant): Instant {
-        if (!o.start.isAfter(now)) return o.end
-        val m = minutesUntil(now, o.start)
-        val before = when {
-            m < 60 -> m - 1
-            m < 24 * 60 -> m / 60 * 60 - 1
-            else -> 24 * 60 - 1L
-        }
-        return o.start.minus(Duration.ofMinutes(before))
-    }
-
-    /**
-     * When the agenda must be drawn again to stay right before midnight's redraw: the card's
-     * countdown changing (which covers its event starting and ending), or an event on the list
-     * ending, which leaves the list then. Null when nothing changes.
-     */
-    fun nextRedraw(view: AgendaView, now: Instant): Instant? {
-        val card = view.next?.occurrence?.let { countdownChange(it, now) }
-        val ends = view.days.asSequence().flatMap { it.chips }.map { it.occurrence }.filter { !it.allDay && it.end.isAfter(now) }.minOfOrNull { it.end }
-        return listOfNotNull(card, ends).minOrNull()
-    }
+    fun nextRedraw(view: AgendaView, now: Instant): Instant? =
+        view.days.asSequence().flatMap { it.chips }.map { it.occurrence }.filter { !it.allDay && it.end.isAfter(now) }.minOfOrNull { it.end }
 
     /**
      * When to set an alarm that should go off at [due]. An inexact alarm (AlarmManager.set) may go

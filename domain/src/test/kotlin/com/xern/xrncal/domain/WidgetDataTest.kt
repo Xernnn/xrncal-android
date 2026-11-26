@@ -33,54 +33,37 @@ class WidgetDataTest {
     /** The days as `2026-11-26: Gym, Pay rent`. */
     private fun days(view: WidgetData.AgendaView) = view.days.map { d -> "${d.date}: " + d.chips.joinToString { it.title } }
 
-    private fun soon(o: Occurrence, at: Instant) = WidgetData.countdown(o, at, at.atZone(utc).toLocalDate(), utc)
-
     @Test
-    fun theCardTakesTheEarliestTimedEventNotOverAndTheDaysLeaveItOut() {
+    fun theNextEventStaysOnItsDayWithTheRest() {
         val list = listOf(
             allDay("Pay rent", "2026-11-26"),
             timed("Team standup", "2026-11-26", "09:00", "09:30"), // over at noon
             timed("Gym", "2026-11-26", "17:30", "18:30"),
             timed("Design review", "2026-11-26", "14:00", "15:00", place = "Room 4"),
-            timed("Dentist", "2026-11-27", "10:00", "11:00"),
+            timed("Movie night", "2026-11-28", "19:00", "22:00"),
         )
         val view = agenda(list)
-        val next = view.next!!
-        assertEquals("Design review", next.title)
-        assertEquals("14:00 – 15:00 · Room 4", next.time)
-        assertEquals("in 2 h", next.countdown)
-        assertEquals(listOf("2026-11-26: Pay rent, Gym", "2026-11-27: Dentist"), days(view))
+        assertEquals(listOf("2026-11-26: Pay rent, Design review, Gym", "2026-11-28: Movie night"), days(view))
+        assertEquals("14:00 – 15:00 · Room 4", view.days.first().chips[1].time)
     }
 
     @Test
-    fun anEventOnNowHoldsTheCardUntilItEnds() {
+    fun anEventOnNowStaysUntilItEnds() {
         val list = listOf(timed("Lunch with Sam", "2026-11-26", "11:30", "12:30"), timed("Design review", "2026-11-26", "12:15", "13:00"))
         val view = agenda(list)
-        assertEquals("Lunch with Sam", view.next!!.title)
-        assertEquals("now", view.next!!.countdown)
-        assertEquals(listOf("2026-11-26: Design review"), days(view))
-        // The review, which ends after the lunch, takes the card when the lunch ends.
+        assertEquals(listOf("2026-11-26: Lunch with Sam, Design review"), days(view))
+        // The lunch leaves the list when it ends.
         assertEquals(Instant.parse("2026-11-26T12:30:00Z"), WidgetData.nextRedraw(view, now))
-        assertEquals("Design review", agenda(list, Instant.parse("2026-11-26T12:30:00Z")).next!!.title)
+        assertEquals(listOf("2026-11-26: Design review"), days(agenda(list, Instant.parse("2026-11-26T12:30:00Z"))))
     }
 
     @Test
-    fun aDayLeftWithOnlyTheCardsEventIsLeftOut() {
-        val list = listOf(timed("Movie night", "2026-11-28", "19:00", "22:00"), allDay("Pay rent", "2026-11-29"))
-        val view = agenda(list)
-        assertEquals("Movie night", view.next!!.title)
-        assertEquals("in 2 d", view.next!!.countdown)
-        assertEquals(listOf("2026-11-29: Pay rent"), days(view))
-    }
-
-    @Test
-    fun allDayEventsAndHiddenCalendarsNeverTakeTheCard() {
+    fun hiddenCalendarsAreLeftOut() {
         val list = listOf(allDay("Trip", "2026-11-26", "2026-11-28"), timed("Private", "2026-11-26", "13:00", "14:00", cal = "hidden"))
         val view = agenda(list, hidden = setOf("hidden"))
-        assertNull(view.next)
         assertEquals(listOf("2026-11-26: Trip", "2026-11-27: Trip", "2026-11-28: Trip"), days(view))
         assertNull(WidgetData.nextRedraw(view, now))
-        assertNull(agenda(emptyList()).next)
+        assertEquals(emptyList<String>(), days(agenda(emptyList())))
     }
 
     @Test
@@ -90,9 +73,7 @@ class WidgetDataTest {
             allDay("Trip", "2026-11-27", "2026-11-28"),
             timed("Far off", "2026-12-20", "09:00", "10:00"),
         )
-        val view = agenda(list)
-        assertNull(view.next)
-        assertEquals(listOf("2026-11-27: Trip", "2026-11-28: Trip"), days(view))
+        assertEquals(listOf("2026-11-27: Trip", "2026-11-28: Trip"), days(agenda(list)))
     }
 
     @Test
@@ -100,9 +81,7 @@ class WidgetDataTest {
         val list = listOf(timed("First", "2026-11-26", "13:00", "13:30")) +
             (0 until 10).map { timed("E$it", "2026-11-27", "0$it:00", "0$it:30") } +
             timed("Later", "2026-11-28", "09:00", "10:00")
-        val view = agenda(list, maxRows = 5)
-        assertEquals("First", view.next!!.title)
-        assertEquals(listOf("2026-11-27: E0, E1, E2, E3"), days(view))
+        assertEquals(listOf("2026-11-26: First", "2026-11-27: E0, E1"), days(agenda(list, maxRows = 5)))
     }
 
     @Test
@@ -122,59 +101,9 @@ class WidgetDataTest {
     }
 
     @Test
-    fun theCardWritesTheWeekdaysOfAnEventOverMidnight() {
-        assertEquals("Thu 22:00 – Fri 02:00 · Hall", WidgetData.cardTime(timed("Party", "2026-11-26", "22:00", "02:00", place = "Hall", toDay = "2026-11-27"), utc, h24))
-        assertEquals("23:59", WidgetData.cardTime(timed("Assignment due", "2026-12-09", "23:59", "23:59"), utc, h24))
-    }
-
-    @Test
-    fun theCountdownIsShortAndRoundedUpWithinTheHour() {
-        val o = timed("Team standup", "2026-11-26", "09:00", "09:30")
-        fun at(t: String) = soon(o, Instant.parse("2026-11-26T$t"))
-        assertEquals("in 25 min", at("08:35:00Z"))
-        assertEquals("in 25 min", at("08:35:30Z"))
-        assertEquals("in 1 min", at("08:59:01Z"))
-        assertEquals("now", at("09:00:00Z"))
-        assertEquals("now", at("09:29:59Z"))
-        assertEquals("in 59 min", at("08:01:00Z"))
-        assertEquals("in 1 h", at("08:00:00Z"))
-        assertEquals("in 1 h", at("07:01:00Z"))
-        assertEquals("in 2 h", at("07:00:00Z"))
-        assertEquals("in 23 h", soon(o, Instant.parse("2026-11-25T09:01:00Z")))
-        assertEquals("in 1 d", soon(o, Instant.parse("2026-11-25T08:00:00Z")))
-        assertEquals("in 3 d", soon(o, Instant.parse("2026-11-23T20:00:00Z")))
-    }
-
-    @Test
-    fun theCountdownChangesEachMinuteWithinTheHourEachHourWithinTheDayAndAtTheStartAndEnd() {
-        val o = timed("Team standup", "2026-11-26", "09:00", "09:30")
-        fun change(t: String) = WidgetData.countdownChange(o, Instant.parse(t))
-        assertEquals(Instant.parse("2026-11-26T08:36:00Z"), change("2026-11-26T08:35:00Z"))
-        assertEquals(Instant.parse("2026-11-26T08:36:00Z"), change("2026-11-26T08:35:30Z"))
-        assertEquals(Instant.parse("2026-11-26T09:00:00Z"), change("2026-11-26T08:59:01Z"))
-        assertEquals(Instant.parse("2026-11-26T09:30:00Z"), change("2026-11-26T09:00:00Z"))
-        assertEquals(Instant.parse("2026-11-26T08:01:00Z"), change("2026-11-26T07:30:00Z")) // in 1 h, then in 59 min
-        assertEquals(Instant.parse("2026-11-26T07:01:00Z"), change("2026-11-26T06:15:00Z")) // in 2 h, then in 1 h
-        assertEquals(Instant.parse("2026-11-25T09:01:00Z"), change("2026-11-24T20:00:00Z")) // in 2 d, then in 23 h
-        // Each change is one: the label reads differently from that moment, and only then.
-        var t = Instant.parse("2026-11-25T06:00:00Z")
-        var changes = 0
-        while (t.isBefore(o.end)) {
-            val next = WidgetData.countdownChange(o, t)
-            assertTrue(next.isAfter(t))
-            assertTrue("$next", next == o.end || soon(o, next.minusSeconds(1)) != soon(o, next))
-            assertEquals(soon(o, t), soon(o, next.minusSeconds(1)))
-            t = next
-            changes++
-        }
-        // 23 hours, 59 minutes, the start and the end.
-        assertEquals(23 + 59 + 2, changes)
-    }
-
-    @Test
     fun nothingIsRedrawnWhenNothingIsComing() {
         assertNull(WidgetData.nextRedraw(agenda(listOf(allDay("Pay rent", "2026-11-27"))), now))
-        // An event on the list ending before the card changes is redrawn for.
+        // The first event on the list to end, not the first to start.
         val list = listOf(timed("Workshop", "2026-11-26", "11:00", "17:00"), timed("Call", "2026-11-26", "12:30", "12:40"))
         assertEquals(Instant.parse("2026-11-26T12:40:00Z"), WidgetData.nextRedraw(agenda(list), now))
     }

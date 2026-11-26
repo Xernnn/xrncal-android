@@ -57,7 +57,7 @@ class AgendaWidgetTest {
         LocalDate.parse(first).atStartOfDay(utc).toInstant(), LocalDate.parse(last).plusDays(1).atStartOfDay(utc).toInstant(), LocalDate.parse(first), LocalDate.parse(last), false, false, null,
     )
 
-    /** The mock-ups' fortnight: a standup in 25 minutes, more today, rent, a movie, an assignment at the new moon. */
+    /** The mock-ups' fortnight: a standup at 9, more today, rent, a movie, an assignment at the new moon. */
     private val fortnight = listOf(
         timed("Team standup", "work", "2026-11-26", "09:00", "09:30", place = "Room 4"),
         timed("Design review", "uni", "2026-11-26", "11:00", "13:00"),
@@ -108,16 +108,12 @@ class AgendaWidgetTest {
     }
 
     @Test
-    fun theNextEventIsInTheCardAndTheDaysAheadAreChips() {
+    fun theDaysAheadAreChipsTheNextEventOnItsDay() {
         for ((name, s) in listOf("agenda-dark" to dark, "agenda-light" to light, "agenda-defaults" to Settings())) {
             val root = draw(name, input(s, fortnight))
-            assertEquals(View.VISIBLE, root.findViewById<View>(R.id.next_card).visibility)
-            assertEquals("Team standup", root.text(R.id.next_title))
-            assertEquals("09:00 – 09:30 · Room 4", root.text(R.id.next_time))
-            assertEquals("in 25 min", root.text(R.id.next_when))
             assertEquals(
                 listOf(
-                    "THU 26 18/10: Design review (11:00 – 13:00), Gym (17:30 – 18:30)",
+                    "THU 26 18/10: Team standup (09:00 – 09:30 · Room 4), Design review (11:00 – 13:00), Gym (17:30 – 18:30)",
                     "FRI 27 19/10: Pay rent (All day)",
                     "SAT 28 20/10: Movie night (19:00 – 22:00)",
                     "WED 9 1/11: Assignment due (23:59)",
@@ -128,18 +124,16 @@ class AgendaWidgetTest {
     }
 
     @Test
-    fun withoutATimedEventComingTheCardIsGoneAndAnEmptyDayIsLeftOut() {
+    fun anEmptyDayIsLeftOut() {
         // Sunday 22 November: a trip over two days (the second the full moon, 15/10), rent on Friday.
         val events = listOf(allDay("Trip", "fun", "2026-11-22", "2026-11-23"), allDay("Pay rent", "bills", "2026-11-27"))
-        val root = draw("agenda-no-next", input(dark, events, now = "2026-11-22T08:00:00Z", today = LocalDate.parse("2026-11-22")))
-        assertEquals(View.GONE, root.findViewById<View>(R.id.next_card).visibility)
+        val root = draw("agenda-all-day", input(dark, events, now = "2026-11-22T08:00:00Z", today = LocalDate.parse("2026-11-22")))
         assertEquals(listOf("SUN 22 14/10: Trip (All day)", "MON 23 15: Trip (All day)", "FRI 27 19/10: Pay rent (All day)"), days(root))
     }
 
     @Test
     fun withNothingComingTheWidgetSaysSo() {
         val root = draw("agenda-empty", input(dark, emptyList()), h = 200)
-        assertEquals(View.GONE, root.findViewById<View>(R.id.next_card).visibility)
         assertEquals("No events", root.text(R.id.widget_empty))
         assertEquals(View.VISIBLE, root.findViewById<View>(R.id.widget_empty).visibility)
     }
@@ -151,28 +145,22 @@ class AgendaWidgetTest {
     }
 
     @Test
-    fun theCardAndAChipOpenTheirEventAndADateItsDay() {
+    fun aChipOpensItsEventAndADateItsDay() {
         val root = draw("agenda-taps", input(dark, fortnight), clicks = true)
-        val card = tap(root.findViewById(R.id.next_card))
-        assertEquals(MainActivity::class.java.name, card.component?.className)
-        assertEquals("Team standup", card.getStringExtra(MainActivity.OPEN))
-        assertEquals(Instant.parse("2026-11-26T09:00:00Z").toEpochMilli(), card.getLongExtra(MainActivity.START, -1))
         val row = root.findViewById<ListView>(R.id.widget_list).getChildAt(0)
         val day = tap(row.findViewById(R.id.day_date))
         assertEquals(android.content.Intent.ACTION_VIEW, day.action)
         assertEquals(thursday, TimeLink.day(day.data.toString(), utc))
-        val chip = tap(row.findViewById<android.view.ViewGroup>(R.id.day_events).getChildAt(1).findViewById(R.id.chip))
+        val chip = tap(row.findViewById<android.view.ViewGroup>(R.id.day_events).getChildAt(2).findViewById(R.id.chip))
         assertEquals(MainActivity::class.java.name, chip.component?.className)
         assertEquals("Gym", chip.getStringExtra(MainActivity.OPEN))
         assertEquals(Instant.parse("2026-11-26T17:30:00Z").toEpochMilli(), chip.getLongExtra(MainActivity.START, -1))
     }
 
     @Test
-    fun anEventOnNowSaysSoAndTheLunarDateCanBeOff() {
+    fun anEventOnNowStaysAndTheLunarDateCanBeOff() {
         val root = draw("agenda-now-4x2", input(dark.copy(lunar = false), fortnight, now = "2026-11-26T11:20:00Z"), h = 200)
-        assertEquals("Design review", root.text(R.id.next_title))
-        assertEquals("now", root.text(R.id.next_when))
-        assertEquals("THU 26 -: Gym (17:30 – 18:30)", days(root).first())
+        assertEquals("THU 26 -: Design review (11:00 – 13:00), Gym (17:30 – 18:30)", days(root).first())
     }
 
     @Test

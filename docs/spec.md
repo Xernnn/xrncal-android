@@ -461,44 +461,37 @@ The owner keeps One Calendar's Agenda widget on the home screen. RemoteViews, as
 apps' widgets (no Glance: one less library, and the list uses Android 12's
 `RemoteCollectionItems`, so no service is needed):
 
-- **Agenda** (redesigned 2026-11-26, the owner's pick of four designs: "day chips" with the
-  "next up" card):
-  - On top, a **card** with the next event: the earliest timed event, in a shown calendar, that
-    hasn't ended (all-day events never take it), already on or still to come within the 14 days.
-    Its colour as a dot, its title, `09:00 – 09:30 · Room 4` (the weekdays too when it runs over
-    midnight), and how soon in the accent colour: `in 25 min` within the hour (rounded up),
-    `in 2 h` within the day (whole hours), then `in 3 d` by the dates, and `now` while it is on.
-    No card when nothing timed is coming.
-  - Under it, the **days** that have events, scrolling: a 48 dp column with the short weekday in
-    capitals (red for today and the weekend), the date in a 32 dp circle (filled red, the date in
-    white, for today) and the lunar date under it when Lunar is on (mùng 1 as a teal chip with a
-    ring, `1/11`, Tết as `Tết`; rằm as a gold chip with a dot, `15`; any other day plain, `18/10`).
-    Beside it the day's events as **chips** tinted with their calendar's colour (22 % in the dark
-    theme, 14 % in the light), each with a dot of it, the title, and `09:00 – 09:30 · Room 4`,
-    `All day`, the one time when an event ends as it starts (`23:59`); over midnight, the start and
-    the weekday it ends (`22:00 – Fri 02:00`) on its first day, `until 02:00` on its last and
-    `All day` between. All-day events first, as before; a timed event over is left out.
-  - The card's event is left out of the days, so nothing shows twice; a day left with nothing
-    disappears, as empty days do. With nothing at all coming, "No events". At most 80 rows (each
-    day and each event one).
-  - Tapping the card or a chip opens the event; tapping a date opens the Day view on it (the time
-    link of item 3 under "Other apps"); the empty part opens the app.
-  - Kept right without waking the phone: the agenda books its next redraw for when it next reads
-    differently (each minute in the hour before the next event, each hour in the day before it,
-    its start and end, an event on the list ending), nothing when nothing is coming. The alarms are
-    non-wakeup `AlarmManager.set(RTC)` alarms, so no exact-alarm permission; Android may deliver
-    those as late as 3/4 of their wait (an hour at most), so each is set at 4/7 of its wait, or an
-    hour before on a long one, and set again, with nothing drawn, when it comes early. Midnight's
+- **Agenda** (redesigned 2026-11-26, the owner's pick of four designs: "day chips"; the "next up"
+  card over it was taken out the same day, so the next event stays on its day with the rest):
+  - The **days** that have events within the 14 days, scrolling: a 48 dp column with
+    the short weekday in capitals (red for today and the weekend), the date in a 32 dp circle
+    (filled red, the date in white, for today) and the lunar date under it when Lunar is on
+    (mùng 1 as a teal chip with a ring, `1/11`, Tết as `Tết`; rằm as a gold chip with a dot, `15`;
+    any other day plain, `18/10`). Beside it the day's events as **chips**, tinted
+    with their calendar's colour (22 % in the dark theme, 14 % in the light), each with a dot of
+    it, the title, and `09:00 – 09:30 · Room 4`, `All day`, the one time when an event ends as it
+    starts (`23:59`); over midnight, the start and the weekday it ends (`22:00 – Fri 02:00`) on
+    its first day, `until 02:00` on its last and `All day` between. All-day events first, as
+    before; a timed event over is left out.
+  - A day left with nothing disappears, as empty days do. With nothing at all coming,
+    "No events". At most 80 rows (each day and each event one).
+  - Tapping a chip opens the event; tapping a date opens the Day view on it (the time link of
+    item 3 under "Other apps"); the empty part opens the app.
+  - Kept right without waking the phone: the agenda books its next redraw for when the next timed
+    event on it ends and leaves the list, nothing when none will. The alarms are non-wakeup
+    `AlarmManager.set(RTC)` alarms, so no exact-alarm permission; Android may deliver those as
+    late as 3/4 of their wait (an hour at most), so each is set at 4/7 of its wait, or an hour
+    before on a long one, and set again, with nothing drawn, when it comes early. Midnight's
     redraw of every widget goes the same way.
   - The colours: Widget options' background, opacity, text and the today colour; the rest follow
-    the widget theme (muted text at 70 % of the text colour, the card a faint shade of it, the
-    countdown's accent, the moons' teal and gold). Corners of 22 dp.
+    the widget theme (muted text at 70 % of the text colour, the moons' teal and gold). Corners of
+    22 dp.
 - **Month**: this month as a grid with each day's events as coloured bars, drawn as a picture of
   the widget's size; tapping opens the app on the month.
 - **Date icon**: today's weekday and date in a calendar glyph; tapping opens the app.
 - Widget options: theme (dark or light), text colour, background colour and opacity, and which
   calendars show. Widgets are drawn again after every sync and change, and at midnight; the
-  agenda also when its countdown or its list changes.
+  agenda also when an event on it ends.
 
 ### 13. Notifications
 
@@ -524,14 +517,14 @@ TalkBack names it and tests can find it.
 - Unit: the month cell's chips and "+N"; the reminder rule (no VALARM, no ring; defaults only on
   new events; the alarm 0.1.0 set for one is cancelled; snoozing); the settings migration; repeat
   form round trips to RRULE; natural-language parsing and the suggestion rankings with the
-  laptop's vectors; the year view's tint; the widgets' data (the agenda's card, days and chips,
-  its countdown and when it changes, and when its alarms are set); the colour palette.
+  laptop's vectors; the year view's tint; the widgets' data (the agenda's days and chips,
+  when it is drawn again, and when its alarms are set); the colour palette.
 - Radicale: a calendar colour set by PROPPATCH read back by a second device; a per-event `COLOR`
   round trip; a new event's default reminder reaching the server as a VALARM.
 - Previews of every new screen from made-up calendars, rendered to PNGs.
 - `AgendaWidgetTest` (Robolectric): the agenda widget's RemoteViews applied by the framework's own
-  code in a widget host, dark and light, with made-up events: the card, the days and their chips,
-  no card, nothing at all, the taps on the card, a chip and a date, and an early alarm set again.
+  code in a widget host, dark and light, with made-up events: the days and their chips, all-day
+  days, nothing at all, the taps on a chip and a date, and an early alarm set again.
   Each case is saved as a picture (`-Pshots=<dir>`, or `app/build/shots`).
 - `ManifestTest`: the widgets' receivers and the share provider (Snooze is an explicit broadcast to the reminder receiver, which needs no filter).
 
