@@ -56,4 +56,17 @@ class SearchTest {
         settings = settings.copy(historyYears = 0)
         assertEquals(listOf("Old trip", "Recent trip"), all())
     }
+
+    @Test
+    fun oldDatesOfASeriesAreNotShownBeforeTheHistoryEither() = runBlocking {
+        store.putCalendar(CalendarEntity("cal", CalendarEntity.LOCAL, "Phone", 0))
+        event("Swim", "2022-11-07", "FREQ=WEEKLY")
+        // Three years of history from 24 Nov 2026: from 24 Nov 2023.
+        suspend fun days(from: String, to: String) = events.occurrences(LocalDate.parse(from), LocalDate.parse(to)).filter { it.calendarId == "cal" }.map { it.firstDay.toString() }
+        assertEquals(emptyList<String>(), days("2022-11-01", "2022-11-30"))
+        assertEquals(listOf("2023-11-27"), days("2023-11-20", "2023-11-30"))
+        assertEquals(listOf("2026-11-23", "2026-11-30"), days("2026-11-23", "2026-11-30"))
+        settings = settings.copy(historyYears = 0)
+        assertEquals(4, days("2022-11-01", "2022-11-30").size)
+    }
 }

@@ -93,12 +93,14 @@ class EventRepository(
         // Options' history: events over before it are not shown (One Calendar keeps three years).
         val cutoff = settings().historyYears.takeIf { it > 0 }?.let { clock().atZone(z).minusYears(it.toLong()).toInstant().toEpochMilli() } ?: Long.MIN_VALUE
         val rows = store.inRange(cals, maxOf(lo, cutoff), hi)
+        // A series running on past the history shows none of its dates before it either.
+        val since = if (cutoff == Long.MIN_VALUE) from else maxOf(from, Instant.ofEpochMilli(cutoff).atZone(z).toLocalDate())
         val budgets = HashMap<String, Recurrence.Budget>()
         val out = ArrayList<Occurrence>()
-        for (r in rows) {
+        if (!since.isAfter(to)) for (r in rows) {
             val res = parse(r, z) ?: continue
-            val budget = budgets.getOrPut(r.calendarId) { Recurrence.budget(from, to) }
-            out += Occurrences.expand(res, r.id, r.calendarId, from, to, z, budget)
+            val budget = budgets.getOrPut(r.calendarId) { Recurrence.budget(since, to) }
+            out += Occurrences.expand(res, r.id, r.calendarId, since, to, z, budget)
         }
         val s = settings()
         for (h in HolidayCalendar.entries) {
