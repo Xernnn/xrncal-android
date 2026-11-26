@@ -53,8 +53,8 @@ class WidgetInput(
 }
 
 /**
- * The home-screen widgets (docs/spec.md, phase 2 item 12): the Agenda (the next event in a card
- * over the days ahead as date columns and event chips), a Month and the date icon. RemoteViews,
+ * The home-screen widgets (docs/spec.md, phase 2 item 12): the Agenda (the days ahead as date
+ * columns and event chips), a Month and the date icon. RemoteViews,
  * as the other xrn apps' widgets: the agenda's list uses Android 12's RemoteCollectionItems, so
  * no service is needed, and the month is drawn as one picture of the widget's size. Text uses
  * the system's sans-serif, which is MiSans on the owner's phone (a launcher ignores font
@@ -63,7 +63,7 @@ class WidgetInput(
 object Widgets {
     const val MIDNIGHT = "com.xern.xrncal.WIDGETS_MIDNIGHT"
 
-    /** The agenda's countdown or list changes: the agenda drawn again. */
+    /** An event on the agenda's list ends: the agenda drawn again. */
     const val TICK = "com.xern.xrncal.WIDGETS_TICK"
 
     /** When an alarm is for, in epoch milliseconds: it may be set to go off before it. */
@@ -73,9 +73,9 @@ object Widgets {
 
     /**
      * Every widget drawn again, off the main thread, and the redraw at the next midnight booked;
-     * with [agendaOnly], the agenda alone (its countdown's redraws). The agenda books its own next
-     * redraw, when its countdown or its list next changes ([WidgetData.nextRedraw]), or cancels it
-     * when nothing will. Null when there is nothing to draw.
+     * with [agendaOnly], the agenda alone (its list's redraws). The agenda books its own next
+     * redraw, when an event on its list next ends ([WidgetData.nextRedraw]), or cancels it when
+     * nothing will. Null when there is nothing to draw.
      */
     fun refresh(context: Context, agendaOnly: Boolean = false): Job? {
         val app = context.applicationContext as? XrnCalApp ?: return null
@@ -167,16 +167,13 @@ object Widgets {
 
     /**
      * The agenda widget's colours. Its ground, text and today colour are Widget options'; the
-     * rest follow the widget's theme, as its design has them: muted text, the card a faint shade
-     * of the text over the ground (8 % in the dark, 5 % in the light), chips of the calendar's colour (22 % in the dark, 14 % in the
-     * light), the countdown's accent, and the moons' teal and gold.
+     * rest follow the widget's theme, as its design has them: muted text, chips of the calendar's
+     * colour (22 % in the dark, 14 % in the light), and the moons' teal and gold.
      */
     class AgendaInk(s: Settings) {
         val text = s.widgetText
         val muted = alpha(s.widgetText, 0xB3)
         val today = s.signalFor(s.widgetDark)
-        val card = alpha(s.widgetText, if (s.widgetDark) 0x14 else 0x0D)
-        val accent = if (s.widgetDark) 0xFF7C86FF.toInt() else 0xFF1F6FC5.toInt()
         val chipAlpha = if (s.widgetDark) 0x38 else 0x24
         val moonNew = if (s.widgetDark) 0xFF4FD1C1.toInt() else 0xFF0B7166.toInt()
         val moonFull = if (s.widgetDark) 0xFFF2C14E.toInt() else 0xFF8A5A00.toInt()
@@ -257,25 +254,11 @@ object Widgets {
         val ink = AgendaInk(s)
         val views = RemoteViews(context.packageName, R.layout.widget_agenda)
         frame(views, s)
-        val next = view.next
-        views.setViewVisibility(R.id.next_card, if (next != null) View.VISIBLE else View.GONE)
-        if (next != null) {
-            views.setColorStateList(R.id.next_card, "setBackgroundTintList", ColorStateList.valueOf(ink.card))
-            views.setInt(R.id.next_color, "setColorFilter", input.color(next.occurrence) or 0xFF000000.toInt())
-            views.setTextViewText(R.id.next_title, next.title)
-            views.setTextColor(R.id.next_title, ink.text)
-            views.setTextViewText(R.id.next_time, next.time)
-            views.setTextColor(R.id.next_time, ink.muted)
-            views.setTextViewText(R.id.next_when, next.countdown)
-            views.setTextColor(R.id.next_when, ink.accent)
-            // The card opens its event, as an event on the list does.
-            if (clicks) views.setOnClickPendingIntent(R.id.next_card, PendingIntent.getActivity(context, 5, eventIntent(next.occurrence).setClass(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT))
-        }
         val rows = agendaRows(context, input, view)
         val items = RemoteViews.RemoteCollectionItems.Builder().setHasStableIds(true).setViewTypeCount(1).apply { for ((id, v) in rows) addItem(id, v) }.build()
         views.setRemoteAdapter(R.id.widget_list, items)
         views.setEmptyView(R.id.widget_list, R.id.widget_empty)
-        views.setTextViewText(R.id.widget_empty, if (next == null) "No events" else "")
+        views.setTextViewText(R.id.widget_empty, "No events")
         views.setTextColor(R.id.widget_empty, ink.muted)
         if (clicks) {
             // The empty part opens the app.
@@ -386,7 +369,7 @@ object Widgets {
     }
 }
 
-/** A widget kind: draws itself through [Widgets.refresh], and takes the midnight and countdown redraws. */
+/** A widget kind: draws itself through [Widgets.refresh], and takes the midnight and list redraws. */
 abstract class XrnWidget : AppWidgetProvider() {
     override fun onUpdate(context: Context, manager: AppWidgetManager, ids: IntArray) {
         Widgets.refresh(context)
