@@ -19,7 +19,6 @@ import com.xern.xrncal.data.Ring
 import com.xern.xrncal.data.RungLog
 import com.xern.xrncal.ui.Format
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONObject
 
 /**
@@ -155,11 +154,10 @@ class ReminderReceiver : BroadcastReceiver() {
                 when (intent.action) {
                     AndroidAlarmScheduler.RING -> {
                         // An event moved or deleted on the laptop shouldn't ring: sync first, briefly.
-                        withTimeoutOrNull(8_000) { graph.syncNow() }
-                        val s = graph.settings.value
-                        val h24 = com.xern.xrncal.ui.Format.is24(context, s.clock)
-                        graph.reminders.ringing().forEach { ReminderNotes.show(context, it, h24, s.snoozeMinutes, s.privateNotifications) }
-                        graph.reminders.rearm()
+                        graph.ring { ring ->
+                            val s = graph.settings.value
+                            ReminderNotes.show(context, ring, com.xern.xrncal.ui.Format.is24(context, s.clock), s.snoozeMinutes, s.privateNotifications)
+                        }
                     }
                     ReminderNotes.SNOOZE -> {
                         val id = intent.getStringExtra("id") ?: return@launch

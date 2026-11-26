@@ -13,6 +13,7 @@ import com.xern.xrncal.data.OkCalDav
 import com.xern.xrncal.data.PrefsAccount
 import com.xern.xrncal.data.PrefsSettings
 import com.xern.xrncal.data.ReminderPlanner
+import com.xern.xrncal.data.Ring
 import com.xern.xrncal.data.RoomCalendarStore
 import com.xern.xrncal.data.RungLog
 import com.xern.xrncal.data.SettingsStore
@@ -35,6 +36,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 class XrnCalApp : Application() {
     lateinit var graph: Graph
@@ -194,6 +196,19 @@ class Graph(
         return end
     }
 
+    /**
+     * The reminder alarm went off: a sync first, so an event moved or deleted on the laptop doesn't
+     * ring, but waited for [waitMs] at most. A call blocked on a slow or dead connection can't be
+     * interrupted (8 seconds used to become about 75), so the sync isn't stopped either: it goes on
+     * by itself while the reminders due are shown, and the alarm is set again.
+     */
+    suspend fun ring(waitMs: Long = RING_WAIT_MS, show: (Ring) -> Unit) {
+        val sync = scope.launch { syncNow() }
+        withTimeoutOrNull(waitMs) { sync.join() }
+        reminders.ringing().forEach(show)
+        reminders.rearm()
+    }
+
     /** Signs in: finds the calendars at [address]; returns what went wrong, or null. */
     suspend fun connect(address: String, user: String, password: String): String? {
         account.address = address.trim()
@@ -235,6 +250,9 @@ class Graph(
     }
 
     companion object {
+        /** How long a reminder waits for the sync before it rings. */
+        const val RING_WAIT_MS = 5_000L
+
         fun android(context: Context): Graph {
             val db = CalendarDatabase.open(context)
             val settings = PrefsSettings(context.getSharedPreferences("settings", Context.MODE_PRIVATE))

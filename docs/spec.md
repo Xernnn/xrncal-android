@@ -233,7 +233,9 @@ it, under one mutex.
 After every sync, every change, a start of the app, a reboot, an update and a change of time or
 zone, the phone works out the next reminders (occurrences of the shown calendars from a day ago to
 eight days ahead; an event's own VALARMs only: one without any never rings) and sets one exact
-alarm for the soonest. When it goes off, every reminder due then rings, each once (the laptop's rule: one stays
+alarm for the soonest. When it goes off, a sync runs first, so an event moved or deleted elsewhere
+doesn't ring, but it is waited for 5 seconds at most and goes on by itself after that (up to
+1.1.1, a hung connection could hold the reminder about 75 seconds). Then every reminder due rings, each once (the laptop's rule: one stays
 due until its event starts, and of several overdue only the latest rings), and the next alarm is
 set. A notification shows the title, the time and the place; tapping it opens the event, and
 its Open and Snooze actions do what they say (phase 2). The tap opens the event also when the app
