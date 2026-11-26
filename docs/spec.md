@@ -607,7 +607,9 @@ not to another calendar app.
    request carries.
 
 2. **.ics files** (a tap in Files, a mail's attachment, a download): `VIEW` for `text/calendar`,
-   `text/x-vcalendar` and `application/ics`, from `content:` and `file:` addresses, and a name
+   `text/x-vcalendar` and `application/ics`, from `content:` addresses only (no app can hand
+   another a `file:` one since Android 7, and taking one let any app have xrncal open a path in its
+   own storage; refused in code too, for an intent naming the editor itself), and a name
    ending in `.ics` for one sent untyped or as `application/octet-stream`. The file is read
    through the content resolver with the read the sending app grants, so no storage permission
    is asked; it is parsed by `domain/ical` (to ICalParser's 8 MB).

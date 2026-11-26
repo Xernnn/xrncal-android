@@ -43,7 +43,8 @@ class AddEventActivity : ComponentActivity() {
         val s = graph.settings.value
         return when (intent.action) {
             Intent.ACTION_VIEW -> {
-                val uri = intent.data ?: return Handed.Problem(CANT_OPEN)
+                // Content addresses only, whoever sends it: a file: one would be read with this app's own rights.
+                val uri = intent.data?.takeIf { it.scheme == android.content.ContentResolver.SCHEME_CONTENT } ?: return Handed.Problem(CANT_OPEN)
                 lifecycleScope.launch { handed = read(uri) }
                 Handed.Reading
             }

@@ -124,7 +124,9 @@ class ManifestTest {
 
     /**
      * An .ics file opens in xrncal by its type (the three calendars are sent with), or by its name
-     * when it comes untyped or as plain bytes; from a content address or a file.
+     * when it comes untyped or as plain bytes; from a content address only. No app can hand
+     * another a file: address since Android 7, and taking one let any app have xrncal open a path
+     * in xrncal's own storage.
      */
     @Test
     fun icsFilesOpenByTypeOrName() {
@@ -132,7 +134,7 @@ class ManifestTest {
         views.forEach {
             assertEquals(setOf("android.intent.action.VIEW"), it.actions)
             assertEquals(setOf("android.intent.category.DEFAULT"), it.categories)
-            assertEquals(setOf("content", "file"), it.of("scheme"))
+            assertEquals(setOf("content"), it.of("scheme"))
         }
         val typed = views.single { "text/calendar" in it.of("mimeType") }
         assertEquals(setOf("text/calendar", "text/x-vcalendar", "application/ics"), typed.of("mimeType"))
