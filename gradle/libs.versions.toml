@@ -35,6 +35,8 @@ lib-recur = { group = "org.dmfs", name = "lib-recur", version.ref = "libRecur" }
 okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
+# The Android 15 jar Robolectric 4.14.1 runs (AgendaWidgetTest's sdk 35): changes with Robolectric.
+robolectric-android-all = { group = "org.robolectric", name = "android-all-instrumented", version = "15-robolectric-12650502-i7" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
