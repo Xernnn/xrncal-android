@@ -33,6 +33,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 class XrnCalApp : Application() {
@@ -94,7 +95,11 @@ class Graph(
     val events = EventRepository(store, { settings.value }, zone, clock, changed = { changedHere() })
     val reminders = ReminderPlanner(events, { settings.value }, rungLog, alarms, zone, clock, snoozes)
 
-    private var pending: Job? = null
+    /** [syncSoon]'s sync: one waiting out its delay, whether one is running, and whether to run again after it. */
+    private val soon = Any()
+    private var waiting: Job? = null
+    private var running = false
+    private var again = false
 
     private val opens = Requests<Pair<String, Long?>>()
 
@@ -121,13 +126,37 @@ class Graph(
         refreshWidgets()
     }
 
-    /** A sync in [delayMs] (2 seconds after changes stop), if an account is set. */
+    /**
+     * A sync in [delayMs] (2 seconds after changes stop), if an account is set. A change made while
+     * that sync runs doesn't cancel it, since a PUT or DELETE the server took would then never be
+     * marked sent and come back as a conflict: the sync finishes, and another one follows it.
+     */
     fun syncSoon(delayMs: Long = 2_000) {
         if (!account.connected) return
-        pending?.cancel()
-        pending = scope.launch {
-            delay(delayMs)
-            syncNow()
+        synchronized(soon) {
+            if (running) {
+                again = true
+                return
+            }
+            waiting?.cancel()
+            waiting = scope.launch {
+                delay(delayMs)
+                synchronized(soon) {
+                    // Put off by a later change in the moment the delay ended.
+                    if (!isActive) return@launch
+                    running = true
+                    waiting = null
+                }
+                try {
+                    syncNow()
+                } finally {
+                    val more = synchronized(soon) {
+                        running = false
+                        again.also { again = false }
+                    }
+                    if (more) syncSoon(delayMs)
+                }
+            }
         }
     }
 

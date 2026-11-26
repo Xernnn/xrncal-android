@@ -15,6 +15,8 @@ import com.xern.xrncal.domain.ResourceIndex
 import java.net.URI
 import java.net.URLDecoder
 import java.util.UUID
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.sync.Mutex
@@ -372,7 +374,10 @@ class RoomCalendarStore(private val db: CalendarDatabase) : CalendarStore() {
     override suspend fun <T> atomically(block: suspend Ops.() -> T): T = db.withTransaction { ops.block() }
 }
 
-/** The store in memory, for the JVM tests. */
+/**
+ * The store in memory, for the JVM tests. As with Room, a step asked by a cancelled coroutine is
+ * refused with a CancellationException.
+ */
 class MemoryCalendarStore : CalendarStore() {
     private val mutex = Mutex()
     private val cals = LinkedHashMap<String, CalendarEntity>()
@@ -415,7 +420,10 @@ class MemoryCalendarStore : CalendarStore() {
         }
     }
 
-    override suspend fun <T> atomically(block: suspend Ops.() -> T): T = mutex.withLock { ops.block() }
+    override suspend fun <T> atomically(block: suspend Ops.() -> T): T {
+        currentCoroutineContext().ensureActive()
+        return mutex.withLock { ops.block() }
+    }
 
     /** Every row, for the tests. */
     suspend fun everything(): List<ResourceEntity> = mutex.withLock { rows.values.toList() }
