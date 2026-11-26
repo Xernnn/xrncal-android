@@ -103,9 +103,9 @@ fun problemLabel(p: String): String = when (p) {
     else -> p
 }
 
-/** "This event" or "All events", asked before editing or deleting a date of a series. */
+/** "This event", "This and following events" or "All events", asked before editing or deleting a date of a series. */
 @Composable
-fun ScopeDialog(title: String, onThis: () -> Unit, onAll: () -> Unit, onDismiss: () -> Unit) {
+fun ScopeDialog(title: String, onThis: () -> Unit, onFollowing: () -> Unit, onAll: () -> Unit, onDismiss: () -> Unit) {
     val ink = LocalInk.current
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -113,6 +113,7 @@ fun ScopeDialog(title: String, onThis: () -> Unit, onAll: () -> Unit, onDismiss:
         text = {
             Column {
                 Text("This event", style = type(16, color = ink.text), modifier = Modifier.fillMaxWidth().clickable(onClick = onThis).padding(vertical = 12.dp))
+                Text("This and following events", style = type(16, color = ink.text), modifier = Modifier.fillMaxWidth().clickable(onClick = onFollowing).padding(vertical = 12.dp))
                 Text("All events", style = type(16, color = ink.text), modifier = Modifier.fillMaxWidth().clickable(onClick = onAll).padding(vertical = 12.dp))
             }
         },

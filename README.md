@@ -27,7 +27,8 @@ holds, what is left for later, and which of One Calendar's layouts it copies.
 - **Events** open straight into One Calendar's editor: emoji, title and place suggestions and
   dates typed into a new event's title (all as the laptop does), calendar and **event colour**,
   all-day, start and end in any time zone, One Calendar's compact repeat form, reminders,
-  description; Copy, Share as .ics, Delete with Undo. One date of a repeating event, or all.
+  description; Copy, Share as .ics, Delete with Undo. One date of a repeating event, that date and
+  the ones after it, or all.
 - **Colours**: One Calendar's palette; a calendar's colour is written to the server, so the
   laptop shows it too.
 - **Reminders** as notifications at their minute (exact alarms) with Open and Snooze, set again

@@ -362,7 +362,7 @@ fun App(graph: Graph) {
                     when {
                         occ == null -> save(Scope.ALL)
                         !state.changed() -> close()
-                        // "This event" or "All events" is asked when there is something to save.
+                        // "This event", "This and following events" or "All events" is asked when there is something to save.
                         occ.recurring && state.calendarId == occ.calendarId -> asking = "Save" to ::save
                         else -> save(Scope.ALL)
                     }
@@ -454,7 +454,7 @@ fun App(graph: Graph) {
         null -> Unit
     }
 
-    asking?.let { (what, go) -> ScopeDialog(what, { go(Scope.THIS) }, { go(Scope.ALL) }, { asking = null }) }
+    asking?.let { (what, go) -> ScopeDialog(what, { go(Scope.THIS) }, { go(Scope.FOLLOWING) }, { go(Scope.ALL) }, { asking = null }) }
 
     // "Deleted" with Undo for a few seconds, as the laptop does.
     undo?.let { u ->

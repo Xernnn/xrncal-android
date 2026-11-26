@@ -152,6 +152,8 @@ class EventRepository(
     /**
      * Saves an edit. A different [calendarId] moves the event: the whole resource is written into
      * the new calendar and deleted from the old one (on the server too, at the next sync).
+     * [Scope.FOLLOWING] ends the series before [occ]'s date and starts a new one there (a resource
+     * of its own, in [calendarId]); from the series' first date it is the whole series.
      */
     suspend fun update(occ: Occurrence, draft: EventDraft, scope: Scope, calendarId: String = occ.calendarId): String =
         withContext(work) { updateHere(occ, draft, scope, calendarId) }
@@ -160,7 +162,17 @@ class EventRepository(
         val r = store.resource(occ.resourceId) ?: error("gone")
         val from = store.calendar(r.calendarId) ?: error("no calendar")
         require(!from.readOnly) { "read-only calendar" }
-        val ics = Edits.update(r.ics, occ, draft, scope, clock())
+        if (scope == Scope.FOLLOWING) {
+            Edits.split(r.ics, occ, draft, UUID.randomUUID().toString(), clock())?.let { (before, after) ->
+                val to = store.calendar(calendarId) ?: error("no calendar $calendarId")
+                require(!to.readOnly) { "read-only calendar" }
+                store.saveLocal(r.copy(ics = before))
+                val rest = store.saveLocal(ResourceEntity(ResourceEntity.newId(), calendarId, ics = after))
+                changed()
+                return rest.id
+            }
+        }
+        val ics = Edits.update(r.ics, occ, draft, if (scope == Scope.FOLLOWING) Scope.ALL else scope, clock())
         if (calendarId == r.calendarId) {
             store.saveLocal(r.copy(ics = ics))
             changed()

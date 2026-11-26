@@ -320,6 +320,24 @@ class RadicaleTest {
     }
 
     @Test
+    fun aNewTimeForThisAndFollowingKeepsTheEarlierDatesOnEveryDevice() {
+        laptopPut(work + "standup-1.ics", standup)
+        val phone = Phone()
+        phone.sync()
+        val monday = phone.week("2026-11-30", "2026-11-30").single { it.title == "Standup" }
+        val later = runBlocking { phone.events.draft(monday, Scope.THIS)!! }.copy(startTime = LocalTime.parse("10:00"), endTime = LocalTime.parse("10:15"))
+        runBlocking { phone.events.update(monday, later, Scope.FOLLOWING) }
+        assertEquals(2, phone.sync().pushed)
+        assertTrue(laptopGet(work + "standup-1.ics")!!.contains("UNTIL=20261130T022959Z"))
+        val other = Phone()
+        other.sync()
+        fun times(p: Phone, from: String, to: String) = p.week(from, to).filter { it.title.startsWith("Standup") }.map { "${it.firstDay} " + it.start.atZone(zone).toLocalTime() }
+        assertEquals(listOf("2026-11-23 09:30", "2026-11-25 14:00"), times(other, "2026-11-23", "2026-11-29"))
+        assertEquals(listOf("2026-11-30 10:00", "2026-12-02 10:00", "2026-12-07 10:00"), times(other, "2026-11-30", "2026-12-07"))
+        assertEquals(2, other.rows().size)
+    }
+
+    @Test
     fun deletesGoBothWays() {
         laptopPut(work + "dentist-1.ics", dentist)
         laptopPut(home + "trip-1.ics", trip)

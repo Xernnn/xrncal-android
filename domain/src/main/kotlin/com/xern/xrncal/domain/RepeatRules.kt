@@ -90,6 +90,47 @@ object RepeatRules {
         if (allDay) day.format(ICalTime.DATE)
         else Zones.instantOf(LocalDateTime.of(day, LocalTime.of(23, 59, 59)), zone.rules).atOffset(ZoneOffset.UTC).toLocalDateTime().format(ICalTime.DATE_TIME) + "Z"
 
+    /**
+     * A series' rule once its first date moves from [from] to [to] (the laptop's ruleForMovedStart):
+     * the days that named the old start move with it. A weekly rule's weekdays turn round by as many
+     * days as the start moved (unless the new day is one of them: every weekday stays every
+     * weekday), a monthly rule's numbered days shift by as many, a yearly date becomes the new one.
+     * A rule that doesn't name the old start's day is left as it is.
+     */
+    fun forMovedStart(rule: String, from: LocalDate, to: LocalDate): String {
+        val days = java.time.temporal.ChronoUnit.DAYS.between(from, to).toInt()
+        if (days == 0 || !Regex("^[A-Z0-9=;,+-]+$", RegexOption.IGNORE_CASE).matches(rule)) return rule
+        val parts = rule.split(';').map { it.substringBefore('=').uppercase() to it.substringAfter('=', "") }.toMutableList()
+        fun value(key: String) = parts.firstOrNull { it.first == key }?.second
+        fun list(key: String) = value(key).orEmpty().split(',').filter { it.isNotEmpty() }
+        var changed = false
+        fun set(key: String, next: String) {
+            val i = parts.indexOfFirst { it.first == key }
+            if (parts[i].second != next) changed = true
+            parts[i] = key to next
+        }
+        val freq = value("FREQ")?.uppercase()
+        val pickers = listOf("BYDAY", "BYYEARDAY", "BYWEEKNO", "BYSETPOS").filter { value(it) != null }
+        if (freq == "WEEKLY" && value("BYDAY") != null) {
+            val named = list("BYDAY").map { DAY_CODES.indexOf(it.uppercase()) }
+            if (-1 !in named && (from.dayOfWeek.value - 1) in named && (to.dayOfWeek.value - 1) !in named) {
+                set("BYDAY", named.joinToString(",") { DAY_CODES[((it + days) % 7 + 7) % 7] })
+            }
+        } else if (freq == "MONTHLY" && pickers.isEmpty()) {
+            val named = list("BYMONTHDAY").map { it.toIntOrNull() ?: return rule }
+            if (from.dayOfMonth in named) {
+                // A day counted from the end of the month (-1) is not a date that moves.
+                val shifted = named.map { if (it > 0) it + to.dayOfMonth - from.dayOfMonth else it }
+                val valid = shifted.all { it < 0 || it in 1..31 }
+                set("BYMONTHDAY", (if (valid) shifted else named.map { if (it == from.dayOfMonth) to.dayOfMonth else it }).joinToString(","))
+            }
+        } else if (freq == "YEARLY" && pickers.isEmpty()) {
+            if (value("BYMONTH") == from.monthValue.toString()) set("BYMONTH", to.monthValue.toString())
+            if (value("BYMONTHDAY") == from.dayOfMonth.toString()) set("BYMONTHDAY", to.dayOfMonth.toString())
+        }
+        return if (changed) parts.joinToString(";") { "${it.first}=${it.second}" } else rule
+    }
+
     /** A rule's UNTIL in the form its series needs (a date, or UTC), the day it names kept. */
     fun fitUntil(rule: String, allDay: Boolean, zone: ZoneId): String {
         val m = Regex("""UNTIL=(\d{8})(T(\d{6})(Z?))?""", RegexOption.IGNORE_CASE).find(rule) ?: return rule

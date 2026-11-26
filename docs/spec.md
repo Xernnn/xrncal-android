@@ -402,8 +402,14 @@ As in One Calendar and on the laptop; the detail page of phase 1 is gone.
 - **Delete** closes the editor and shows "Deleted" with **Undo** for a few seconds, as the laptop
   does; Undo puts the event back as it was (made again on the server if the delete had already
   gone there).
-- A date of a repeating event opens with that date's fields; **"This event" or "All events" is
-  asked on ✓ or Delete**, when there is something to save, not before the editor opens.
+- A date of a repeating event opens with that date's fields; **"This event", "This and following
+  events" or "All events" is asked on ✓ or Delete**, when there is something to save, not before
+  the editor opens. "This and following events" splits the series as the laptop does: the series
+  ends the moment before that date (UNTIL), and a new event (its own UID and resource) starts
+  there with the editor's fields, repeating as the old one did from there (to the same end, or for
+  the dates its COUNT had left, its named days moved with a moved start) unless the editor gave it
+  a rule of its own; the deleted and changed dates after the split go with it. A delete ends the
+  series before that date. From the series' first date both are the whole series.
 - Events that can't be changed (a read-only calendar, a holiday) open the same editor with its
   fields locked and no ✓ or Delete. An event that couldn't be sent shows why at the top, with
   Keep mine and Keep theirs.
@@ -633,6 +639,6 @@ extras' names against Android's own and an import into the store (`OtherAppsTest
 
 ## Later
 
-"This and following" edits of a series; calendar names, and making calendars on the server; a
+Calendar names, and making calendars on the server; a
 jump-to-date picker; a whole calendar exported as .ics (one event is shared as one); Google and
 Microsoft accounts; guests.
