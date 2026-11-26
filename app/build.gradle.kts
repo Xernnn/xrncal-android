@@ -25,8 +25,8 @@ android {
         // SCHEDULE_EXACT_ALARM on 12). The phone this is for runs 15.
         minSdk = 31
         targetSdk = 35
-        versionCode = 9
-        versionName = "1.0.0"
+        versionCode = 10
+        versionName = "1.1.0"
     }
 
     signingConfigs {
