@@ -463,11 +463,11 @@ apps' widgets (no Glance: one less library, and the list uses Android 12's
 
 - **Agenda** (redesigned 2026-11-26, the owner's pick of four designs: "day chips"; the "next up"
   card over it was taken out the same day, so the next event stays on its day with the rest):
-  - The **days** that have events within the 14 days, scrolling: a 48 dp column with
-    the short weekday in capitals (red for today and the weekend), the date in a 32 dp circle
+  - The **days** that have events within the 14 days, scrolling, 14 dp apart: a 40 dp column with
+    the short weekday in capitals (red for today and the weekend), the date in a 26 dp circle
     (filled red, the date in white, for today) and the lunar date under it when Lunar is on
     (mùng 1 as a teal chip with a ring, `1/11`, Tết as `Tết`; rằm as a gold chip with a dot, `15`;
-    any other day plain, `18/10`). Beside it the day's events as **chips**, tinted
+    any other day plain, `18/10`). Beside it the day's events as **chips**, 7 dp apart, tinted
     with their calendar's colour (22 % in the dark theme, 14 % in the light), each with a dot of
     it, the title, and `09:00 – 09:30 · Room 4`, `All day`, the one time when an event ends as it
     starts (`23:59`); over midnight, the start and the weekday it ends (`22:00 – Fri 02:00`) on
