@@ -30,11 +30,21 @@ class ManifestTest {
             "android.permission.SCHEDULE_EXACT_ALARM" to "reminders at their minute on Android 12",
             "android.permission.POST_NOTIFICATIONS" to "reminders as notifications",
             "android.permission.RECEIVE_BOOT_COMPLETED" to "the reminder alarm and a sync after a reboot",
+            "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" to "Options' Battery row (work/OemAutostart.kt)",
         )
         needed.forEach { (permission, why) -> assertTrue("$permission, for $why", permission in asked) }
     }
 
     /** The receiver hears what it acts on: the alarm is explicit, the rest are system broadcasts. */
+    @Test
+    fun autostartOffOpensItsSwitchFromAPageOfThisAppsOwn() {
+        val page = activity(".work.AutostartActivity")
+        assertEquals("false", page.getAttributeNS(ANDROID, "exported"))
+        assertEquals(true, com.xern.xrncal.work.OemAutostart.opAllows(android.app.AppOpsManager.MODE_ALLOWED))
+        assertEquals(false, com.xern.xrncal.work.OemAutostart.opAllows(android.app.AppOpsManager.MODE_IGNORED))
+        assertEquals(null, com.xern.xrncal.work.OemAutostart.opAllows(android.app.AppOpsManager.MODE_DEFAULT))
+    }
+
     @Test
     fun theReminderReceiverHearsTheMomentsTheAlarmIsSetAgain() {
         val receiver = named("receiver").single { it.getAttributeNS(ANDROID, "name") == ".work.ReminderReceiver" }

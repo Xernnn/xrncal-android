@@ -47,6 +47,8 @@ class XrnCalApp : Application() {
         graph = Graph.android(this)
         // The background sync, booked while an account is set; WorkManager keeps it across reboots.
         if (graph.account.connected) SyncWork.keep(this, graph.settings.value.syncMinutes)
+        // HyperOS turns Autostart off at every install: say so while it is.
+        com.xern.xrncal.work.OemAutostart.check(this)
     }
 }
 

@@ -314,6 +314,38 @@ private fun SyncOptions(s: Settings, onChange: ((Settings) -> Settings) -> Unit)
     }
     Choose("History", years(s.historyYears), history.map(::years)) { i -> onChange { it.copy(historyYears = history[i]) } }
     Choose("Automatic synchronisation", Reminders.choiceLabel(s.syncMinutes), Settings.SYNC_INTERVALS.map(Reminders::choiceLabel)) { i -> onChange { it.copy(syncMinutes = Settings.SYNC_INTERVALS[i]) } }
+    BackgroundRows()
+}
+
+/**
+ * What lets the background sync and the reminders run with the app closed: HyperOS's Autostart
+ * (where the phone says) and the battery exemption, each opening its switch. Read again whenever
+ * the page comes back to the front.
+ */
+@Composable
+private fun BackgroundRows() {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var autostart by remember { mutableStateOf<Boolean?>(null) }
+    var battery by remember { mutableStateOf(true) }
+    androidx.lifecycle.compose.LifecycleResumeEffect(Unit) {
+        autostart = com.xern.xrncal.work.OemAutostart.enabled(context)
+        battery = com.xern.xrncal.work.BatteryExemption.exempt(context)
+        onPauseOrDispose { }
+    }
+    autostart?.let { on -> StateRow("Autostart", if (on) "On" else "Off", on) { runCatching { com.xern.xrncal.work.OemAutostart.open(context) } } }
+    StateRow("Battery", if (battery) "Unrestricted" else "Optimised", battery) { com.xern.xrncal.work.BatteryExemption.ask(context) }
+}
+
+/** A setting the phone holds: its state, in the warning colour while it is off; a tap opens its switch. */
+@Composable
+private fun StateRow(label: String, value: String, ok: Boolean, onClick: () -> Unit) {
+    val ink = LocalInk.current
+    Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 20.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            Text(label, style = type(16, color = ink.text))
+            Text(value, style = type(14, color = if (ok) ink.muted else ink.warn))
+        }
+    }
 }
 
 @Composable

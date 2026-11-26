@@ -12,6 +12,8 @@
     <!-- Alarms are set again after a reboot, and one sync runs then. -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- Options, Synchronisation, Battery: asks once that the background sync is never held back. -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
     <!-- allowBackup off and every backup domain excluded: the calendars live on the owner's server,
          and the login is sealed with a key that can't leave this phone anyway. -->
@@ -25,6 +27,15 @@
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@android:style/Theme.Material.NoActionBar">
+
+        <!-- "Autostart off"'s tap: tries each known page of the phone maker's in turn. -->
+        <activity
+            android:name=".work.AutostartActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
 
         <activity
             android:name=".MainActivity"

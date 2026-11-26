@@ -59,6 +59,7 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         graph.syncSoon(0)
+        com.xern.xrncal.work.OemAutostart.check(this)
     }
 
     companion object {

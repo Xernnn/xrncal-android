@@ -242,7 +242,14 @@ its Open and Snooze actions do what they say (phase 2). The tap opens the event 
 was closed, as does an agenda widget's event: the request waits until the calendar collects it,
 and is handled once (0.3.1 dropped one made before the calendar's first frame).
 Permissions: `USE_EXACT_ALARM` (Android 13+), `SCHEDULE_EXACT_ALARM` (Android 12),
-`POST_NOTIFICATIONS`, `RECEIVE_BOOT_COMPLETED`, `INTERNET`; `ManifestTest` checks each.
+`POST_NOTIFICATIONS`, `RECEIVE_BOOT_COMPLETED`, `INTERNET`, `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`
+(Options' Battery row); `ManifestTest` checks each.
+
+HyperOS turns the app's Autostart off at every install, and then nothing starts the app after a
+reboot or a kill: no alarm is set again, no widget redraw, no background sync. Where the phone
+says (Xiaomi's app op 10008, read as xrnrule reads it), an ongoing "Autostart off" notification
+shows whenever the app starts or comes to the front, its tap opening the switch, until it is back
+on.
 
 ## Settings (phase 1; phase 2 splits them into One Calendar's Options pages, item 11)
 
@@ -456,7 +463,8 @@ One Calendar's Options list, each a page:
 - **Synchronisation**: history (how far back events are shown and searched: 1, 2, 3 (the
   default, as One Calendar), 5 years or all; the phone still keeps the older ones' text, so the
   sync needs no new rules), and the automatic interval (15 minutes to 6 hours; 30 minutes by
-  default, as in phase 1).
+  default, as in phase 1). Under them **Autostart** (On or Off, where the phone says) and
+  **Battery** (Unrestricted or Optimised, xrnimg's row), each opening its switch.
 - **Time zone**: use the phone's (the default), or a chosen zone the app shows everything in.
 - **Widget options**: item 12.
 - **Emoji options**: on or off, and the favourites (the most used, as the laptop counts them;
