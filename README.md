@@ -33,7 +33,8 @@ holds, what is left for later, and which of One Calendar's layouts it copies.
 - **Reminders** as notifications at their minute (exact alarms) with Open and Snooze, set again
   after every sync and after a reboot. As in One Calendar, an event rings only for its own
   reminders; the defaults fill in new events.
-- **Widgets**: One Calendar's agenda, a month and the date icon.
+- **Widgets**: an agenda with the next event and how soon on top, over the days ahead with
+  their events as chips of their calendar's colour; a month and the date icon.
 - **Holiday calendars**: Vietnam's public and lunar holidays and a few international days,
   worked out on the phone.
 - **Search** with One Calendar's Future and Past tabs, accents ignored; **Options** laid out as

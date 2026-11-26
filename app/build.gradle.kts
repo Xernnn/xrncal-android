@@ -25,8 +25,8 @@ android {
         // SCHEDULE_EXACT_ALARM on 12). The phone this is for runs 15.
         minSdk = 31
         targetSdk = 35
-        versionCode = 9
-        versionName = "1.0.0"
+        versionCode = 10
+        versionName = "1.1.0"
     }
 
     signingConfigs {
@@ -60,6 +60,16 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    testOptions {
+        unitTests {
+            // Robolectric draws the widgets with the app's own layouts and drawables.
+            isIncludeAndroidResources = true
+            // AgendaWidgetTest's pictures: -Pshots=<dir>, or build/shots.
+            val shots = (findProperty("shots") ?: layout.buildDirectory.dir("shots").get().asFile.path).toString()
+            all { it.systemProperty("xrncal.shots", shots) }
+        }
     }
 }
 
@@ -96,5 +106,7 @@ dependencies {
     implementation(libs.okhttp)
     debugImplementation(libs.androidx.compose.ui.tooling)
     testImplementation(libs.junit)
+    // The widgets drawn off a phone (AgendaWidgetTest): RemoteViews applied by the real framework.
+    testImplementation(libs.robolectric)
     testImplementation(libs.kotlinx.coroutines.core)
 }

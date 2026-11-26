@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The new moon's ring beside its lunar date in the agenda widget, tinted. A ring shape with a
+     solid colour: a stroke-only oval would be filled by the tint. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:innerRadius="1.9dp"
+    android:shape="ring"
+    android:thickness="1.1dp"
+    android:useLevel="false">
+    <solid android:color="#FFFFFFFF" />
+</shape>

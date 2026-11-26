@@ -383,19 +383,12 @@ private fun OnHomeScreen(content: @Composable () -> Unit) = Themed(dark = true) 
     Box(Modifier.fillMaxSize().padding(12.dp), contentAlignment = Alignment.TopCenter) { content() }
 }
 
-@Preview(name = "Agenda widget", widthDp = 400, heightDp = 330)
+@Preview(name = "Agenda widget", widthDp = 400, heightDp = 420)
 @Composable
 fun AgendaWidgetPreview() = OnHomeScreen {
-    val input = widgetInput()
-    val s = input.settings
-    Column(
-        Modifier.size(376.dp, 300.dp).clip(androidx.compose.foundation.shape.RoundedCornerShape(16.dp))
-            .background(androidx.compose.ui.graphics.Color(s.widgetBackground).copy(alpha = s.widgetOpacity)).padding(start = 12.dp, end = 12.dp, top = 10.dp),
-    ) {
-        Text(com.xern.xrncal.work.Widgets.dayTitle(TODAY), style = type(16, androidx.compose.ui.text.font.FontWeight.Medium, androidx.compose.ui.graphics.Color(s.widgetText)), modifier = Modifier.padding(bottom = 4.dp))
-        for ((_, rv) in com.xern.xrncal.work.Widgets.agendaRows(androidx.compose.ui.platform.LocalContext.current, input).take(14)) {
-            androidx.compose.ui.viewinterop.AndroidView(factory = { ctx -> rv.apply(ctx, android.widget.FrameLayout(ctx)) }, modifier = Modifier.fillMaxWidth())
-        }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    Box(Modifier.size(376.dp, 390.dp)) {
+        androidx.compose.ui.viewinterop.AndroidView(factory = { ctx -> com.xern.xrncal.work.Widgets.agenda(context, widgetInput(), clicks = false).apply(ctx, android.widget.FrameLayout(ctx)) }, modifier = Modifier.fillMaxSize())
     }
 }
 
