@@ -25,8 +25,8 @@ android {
         // SCHEDULE_EXACT_ALARM on 12). The phone this is for runs 15.
         minSdk = 31
         targetSdk = 35
-        versionCode = 11
-        versionName = "1.1.1"
+        versionCode = 12
+        versionName = "1.2.0"
     }
 
     signingConfigs {
@@ -77,9 +77,21 @@ ksp {
     arg("room.schemaLocation", "$projectDir/schemas")
 }
 
+// Robolectric's Android jar, resolved by Gradle (so CI's Gradle cache keeps it) and handed to
+// Robolectric offline: its own download from Maven Central failed CI runs now and then.
+val robolectricJars: Configuration = configurations.create("robolectricJars")
+val robolectricDir = layout.buildDirectory.dir("robolectric-jars")
+val copyRobolectricJars = tasks.register<Copy>("copyRobolectricJars") {
+    from(robolectricJars)
+    into(robolectricDir)
+}
+
 // The sync tests start a real Radicale (XRNCAL_RADICALE, or `radicale` on the PATH); without one
 // they are skipped.
 tasks.withType<Test>().configureEach {
+    dependsOn(copyRobolectricJars)
+    systemProperty("robolectric.offline", "true")
+    systemProperty("robolectric.dependency.dir", robolectricDir.get().asFile.path)
     testLogging {
         events("failed", "skipped")
         exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
@@ -108,5 +120,6 @@ dependencies {
     testImplementation(libs.junit)
     // The widgets drawn off a phone (AgendaWidgetTest): RemoteViews applied by the real framework.
     testImplementation(libs.robolectric)
+    robolectricJars(libs.robolectric.android.all) { isTransitive = false }
     testImplementation(libs.kotlinx.coroutines.core)
 }

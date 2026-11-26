@@ -13,6 +13,7 @@ import com.xern.xrncal.data.OkCalDav
 import com.xern.xrncal.data.PrefsAccount
 import com.xern.xrncal.data.PrefsSettings
 import com.xern.xrncal.data.ReminderPlanner
+import com.xern.xrncal.data.Ring
 import com.xern.xrncal.data.RoomCalendarStore
 import com.xern.xrncal.data.RungLog
 import com.xern.xrncal.data.SettingsStore
@@ -33,7 +34,9 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 class XrnCalApp : Application() {
     lateinit var graph: Graph
@@ -44,6 +47,8 @@ class XrnCalApp : Application() {
         graph = Graph.android(this)
         // The background sync, booked while an account is set; WorkManager keeps it across reboots.
         if (graph.account.connected) SyncWork.keep(this, graph.settings.value.syncMinutes)
+        // HyperOS turns Autostart off at every install: say so while it is.
+        com.xern.xrncal.work.OemAutostart.check(this)
     }
 }
 
@@ -94,7 +99,11 @@ class Graph(
     val events = EventRepository(store, { settings.value }, zone, clock, changed = { changedHere() })
     val reminders = ReminderPlanner(events, { settings.value }, rungLog, alarms, zone, clock, snoozes)
 
-    private var pending: Job? = null
+    /** [syncSoon]'s sync: one waiting out its delay, whether one is running, and whether to run again after it. */
+    private val soon = Any()
+    private var waiting: Job? = null
+    private var running = false
+    private var again = false
 
     private val opens = Requests<Pair<String, Long?>>()
 
@@ -121,13 +130,37 @@ class Graph(
         refreshWidgets()
     }
 
-    /** A sync in [delayMs] (2 seconds after changes stop), if an account is set. */
+    /**
+     * A sync in [delayMs] (2 seconds after changes stop), if an account is set. A change made while
+     * that sync runs doesn't cancel it, since a PUT or DELETE the server took would then never be
+     * marked sent and come back as a conflict: the sync finishes, and another one follows it.
+     */
     fun syncSoon(delayMs: Long = 2_000) {
         if (!account.connected) return
-        pending?.cancel()
-        pending = scope.launch {
-            delay(delayMs)
-            syncNow()
+        synchronized(soon) {
+            if (running) {
+                again = true
+                return
+            }
+            waiting?.cancel()
+            waiting = scope.launch {
+                delay(delayMs)
+                synchronized(soon) {
+                    // Put off by a later change in the moment the delay ended.
+                    if (!isActive) return@launch
+                    running = true
+                    waiting = null
+                }
+                try {
+                    syncNow()
+                } finally {
+                    val more = synchronized(soon) {
+                        running = false
+                        again.also { again = false }
+                    }
+                    if (more) syncSoon(delayMs)
+                }
+            }
         }
     }
 
@@ -163,6 +196,19 @@ class Graph(
         reminders.rearm()
         refreshWidgets()
         return end
+    }
+
+    /**
+     * The reminder alarm went off: a sync first, so an event moved or deleted on the laptop doesn't
+     * ring, but waited for [waitMs] at most. A call blocked on a slow or dead connection can't be
+     * interrupted (8 seconds used to become about 75), so the sync isn't stopped either: it goes on
+     * by itself while the reminders due are shown, and the alarm is set again.
+     */
+    suspend fun ring(waitMs: Long = RING_WAIT_MS, show: (Ring) -> Unit) {
+        val sync = scope.launch { syncNow() }
+        withTimeoutOrNull(waitMs) { sync.join() }
+        reminders.ringing().forEach(show)
+        reminders.rearm()
     }
 
     /** Signs in: finds the calendars at [address]; returns what went wrong, or null. */
@@ -206,6 +252,9 @@ class Graph(
     }
 
     companion object {
+        /** How long a reminder waits for the sync before it rings. */
+        const val RING_WAIT_MS = 5_000L
+
         fun android(context: Context): Graph {
             val db = CalendarDatabase.open(context)
             val settings = PrefsSettings(context.getSharedPreferences("settings", Context.MODE_PRIVATE))

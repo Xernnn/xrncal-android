@@ -12,6 +12,8 @@
     <!-- Alarms are set again after a reboot, and one sync runs then. -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- Options, Synchronisation, Battery: asks once that the background sync is never held back. -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
     <!-- allowBackup off and every backup domain excluded: the calendars live on the owner's server,
          and the login is sealed with a key that can't leave this phone anyway. -->
@@ -25,6 +27,15 @@
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@android:style/Theme.Material.NoActionBar">
+
+        <!-- "Autostart off"'s tap: tries each known page of the phone maker's in turn. -->
+        <activity
+            android:name=".work.AutostartActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
 
         <activity
             android:name=".MainActivity"
@@ -73,12 +84,12 @@
                 <data android:mimeType="vnd.android.cursor.item/event" />
             </intent-filter>
             <!-- An .ics file (Files, a mail's attachment, a download), read through the content
-                 resolver with the read the sending app grants: no storage permission. -->
+                 resolver with the read the sending app grants: no storage permission. Content
+                 addresses only: a file: address would open a path in this app's own storage. -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:scheme="content" />
-                <data android:scheme="file" />
                 <data android:mimeType="text/calendar" />
                 <data android:mimeType="text/x-vcalendar" />
                 <data android:mimeType="application/ics" />
@@ -88,7 +99,6 @@
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:scheme="content" />
-                <data android:scheme="file" />
                 <data android:host="*" />
                 <data android:pathSuffix=".ics" />
                 <data android:pathSuffix=".ICS" />
@@ -97,7 +107,6 @@
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:scheme="content" />
-                <data android:scheme="file" />
                 <data android:host="*" />
                 <data android:mimeType="application/octet-stream" />
                 <data android:pathSuffix=".ics" />

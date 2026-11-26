@@ -30,11 +30,21 @@ class ManifestTest {
             "android.permission.SCHEDULE_EXACT_ALARM" to "reminders at their minute on Android 12",
             "android.permission.POST_NOTIFICATIONS" to "reminders as notifications",
             "android.permission.RECEIVE_BOOT_COMPLETED" to "the reminder alarm and a sync after a reboot",
+            "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" to "Options' Battery row (work/OemAutostart.kt)",
         )
         needed.forEach { (permission, why) -> assertTrue("$permission, for $why", permission in asked) }
     }
 
     /** The receiver hears what it acts on: the alarm is explicit, the rest are system broadcasts. */
+    @Test
+    fun autostartOffOpensItsSwitchFromAPageOfThisAppsOwn() {
+        val page = activity(".work.AutostartActivity")
+        assertEquals("false", page.getAttributeNS(ANDROID, "exported"))
+        assertEquals(true, com.xern.xrncal.work.OemAutostart.opAllows(android.app.AppOpsManager.MODE_ALLOWED))
+        assertEquals(false, com.xern.xrncal.work.OemAutostart.opAllows(android.app.AppOpsManager.MODE_IGNORED))
+        assertEquals(null, com.xern.xrncal.work.OemAutostart.opAllows(android.app.AppOpsManager.MODE_DEFAULT))
+    }
+
     @Test
     fun theReminderReceiverHearsTheMomentsTheAlarmIsSetAgain() {
         val receiver = named("receiver").single { it.getAttributeNS(ANDROID, "name") == ".work.ReminderReceiver" }
@@ -114,7 +124,9 @@ class ManifestTest {
 
     /**
      * An .ics file opens in xrncal by its type (the three calendars are sent with), or by its name
-     * when it comes untyped or as plain bytes; from a content address or a file.
+     * when it comes untyped or as plain bytes; from a content address only. No app can hand
+     * another a file: address since Android 7, and taking one let any app have xrncal open a path
+     * in xrncal's own storage.
      */
     @Test
     fun icsFilesOpenByTypeOrName() {
@@ -122,7 +134,7 @@ class ManifestTest {
         views.forEach {
             assertEquals(setOf("android.intent.action.VIEW"), it.actions)
             assertEquals(setOf("android.intent.category.DEFAULT"), it.categories)
-            assertEquals(setOf("content", "file"), it.of("scheme"))
+            assertEquals(setOf("content"), it.of("scheme"))
         }
         val typed = views.single { "text/calendar" in it.of("mimeType") }
         assertEquals(setOf("text/calendar", "text/x-vcalendar", "application/ics"), typed.of("mimeType"))

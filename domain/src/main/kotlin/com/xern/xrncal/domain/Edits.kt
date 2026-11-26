@@ -44,8 +44,8 @@ data class EventDraft(
     }
 }
 
-/** Which dates of a series an edit or a delete is for. */
-enum class Scope { THIS, ALL }
+/** Which dates of a series an edit or a delete is for: that one, that one and the ones after it, or all. */
+enum class Scope { THIS, FOLLOWING, ALL }
 
 /**
  * Changes to a calendar resource, made on the parsed document itself so everything this app doesn't
@@ -116,7 +116,7 @@ object Edits {
 
     /**
      * A single event changed, or one date of a series ([Scope.THIS], an override), or the whole
-     * series ([Scope.ALL], with a draft from [seriesDraft]).
+     * series ([Scope.ALL], with a draft from [seriesDraft]). [Scope.FOLLOWING] is [split]'s.
      */
     fun update(ics: String, occ: Occurrence, draft: EventDraft, scope: Scope, now: Instant): String {
         val cal = ICalParser.parse(ics)
@@ -146,9 +146,123 @@ object Edits {
         return ICalWriter.write(cal)
     }
 
-    /** One date of a series taken away (EXDATE, its override gone), or the whole event: null then. */
+    /**
+     * "This and following" for an edit: [occ]'s series split at its date, as the laptop does. The
+     * series as it was ends the moment before that date (UNTIL), its later EXDATEs, RDATEs and
+     * changed dates leaving it. A new series under [newUid] starts on the date with the draft's
+     * fields and takes those along, moved as the date was; unless the editor gave it a rule of its
+     * own it repeats as the old one did from there: to the same end, or for the dates its COUNT had
+     * left, on days moved with its start. Returns (the series as it was, the new one), or null when
+     * no date comes before [occ]'s: the edit is then the whole series'.
+     */
+    fun split(ics: String, occ: Occurrence, draft: EventDraft, newUid: String, now: Instant): Pair<String, String>? {
+        val rid = occ.recurrenceId ?: return null
+        val old = ICalParser.parse(ics)
+        val master = ParsedResource(old, draft.zone).master(occ.uid)?.takeIf { it.isSeries } ?: return null
+        if (fromOn(master.start!!, rid, master)) return null
+        val key = Occurrences.ridKey(rid, master, master.zones)
+
+        val rest = ICalParser.parse(ics)
+        rest.components.removeAll { c ->
+            c.name == "VEVENT" && (
+                c.prop("UID")?.value?.trim() != occ.uid ||
+                    c.has("RECURRENCE-ID") && (ICalTime.of(c.prop("RECURRENCE-ID"))?.let { t -> !fromOn(t, rid, master) || Occurrences.ridKey(t, master, master.zones) == key } ?: true)
+                )
+        }
+        val head = rest.children("VEVENT").first { !it.has("RECURRENCE-ID") }
+        keepDates(head, "EXDATE") { fromOn(it, rid, master) }
+        keepDates(head, "RDATE") { fromOn(it, rid, master) }
+        val start = inFormOf(master, rid)
+        val end = if (master.allDay) ICalTime.date(start.date.plusDays(master.extraDays + 1)) else inFormOf(master, ICalTime.utc(start.instant(master.zones).plus(master.length)))
+        head.set("DTSTART", start.value(), start.params())
+        head.remove("DURATION")
+        head.set("DTEND", end.value(), end.params())
+        val left = master.rrule?.let { restOfRule(master, it, rid) }
+        left?.let { head.set("RRULE", it) }
+        head.set("SEQUENCE", "0")
+        head.set("CREATED", stamp(now))
+        for (c in rest.children("VEVENT")) c.set("UID", newUid)
+        // The editor's rule if it was changed there; else the old one's, its days moved with the start.
+        val unchanged = draft.rrule == master.rrule || draft.rrule == master.rrule?.let { RepeatRules.fitUntil(it, draft.allDay, draft.zone) }
+        val rule = if (draft.rrule == null || !unchanged || left == null) draft.rrule else RepeatRules.forMovedStart(left, localDay(rid, master), draft.startDate)
+        // A rule of its own has dates of its own: the old pattern's deleted and changed ones don't belong.
+        if (!unchanged) {
+            head.remove("EXDATE")
+            rest.components.removeAll { it.name == "VEVENT" && it.has("RECURRENCE-ID") }
+        }
+        val first = occ.copy(uid = newUid, recurrenceId = start)
+        val after = update(ICalWriter.write(rest), first, draft.copy(rrule = rule), Scope.ALL, now)
+
+        endBefore(old, master, rid, now)
+        return ICalWriter.write(old) to after
+    }
+
+    /** [m]'s series ended the moment before [rid]: UNTIL, and its dates from [rid] on taken out. */
+    private fun endBefore(cal: Component, m: EventView, rid: ICalTime, now: Instant) {
+        m.rrule?.let { rule ->
+            val s = m.start!!
+            val until = when {
+                m.allDay -> localDay(rid, m).minusDays(1).format(ICalTime.DATE)
+                s.utc || s.tzid != null -> ICalTime.utc(rid.instant(m.zones).minusSeconds(1)).value()
+                else -> Zones.localOf(rid.instant(m.zones).minusSeconds(1), m.rules).format(ICalTime.DATE_TIME)
+            }
+            val parts = rule.split(';').filter { it.isNotBlank() && !it.startsWith("COUNT=", true) && !it.startsWith("UNTIL=", true) }
+            m.component.set("RRULE", (parts + "UNTIL=$until").joinToString(";"))
+        }
+        keepDates(m.component, "EXDATE") { !fromOn(it, rid, m) }
+        keepDates(m.component, "RDATE") { !fromOn(it, rid, m) }
+        cal.components.removeAll { c ->
+            c.name == "VEVENT" && c.prop("UID")?.value?.trim() == m.uid && c.has("RECURRENCE-ID") &&
+                ICalTime.of(c.prop("RECURRENCE-ID"))?.let { fromOn(it, rid, m) } == true
+        }
+        bump(m.component)
+        m.component.set("LAST-MODIFIED", stamp(now))
+        m.component.set("DTSTAMP", stamp(now))
+    }
+
+    /** Whether [t] (an EXDATE, RDATE or RECURRENCE-ID of [m]) is [rid]'s date or a later one. */
+    private fun fromOn(t: ICalTime, rid: ICalTime, m: EventView): Boolean =
+        if (m.allDay || t.isDate || rid.isDate) !localDay(t, m).isBefore(localDay(rid, m)) else !t.instant(m.zones).isBefore(rid.instant(m.zones))
+
+    private fun localDay(t: ICalTime, m: EventView): LocalDate = if (t.isDate) t.date else Zones.localOf(t.instant(m.zones), m.rules).toLocalDate()
+
+    /** [rule] for the dates from [rid] on: a COUNT less the dates before (RFC 5545 counts deleted ones too), an UNTIL as it was. */
+    private fun restOfRule(m: EventView, rule: String, rid: ICalTime): String {
+        val count = Regex("""(^|;)COUNT=(\d+)""", RegexOption.IGNORE_CASE).find(rule) ?: return rule
+        val s = m.start!!
+        val before = try {
+            if (m.allDay) Recurrence.between(rule, s.local, true, s.local, localDay(rid, m).minusDays(1).atStartOfDay()).size
+            else Recurrence.between(rule, s.local, false, s.local, Zones.localOf(rid.instant(m.zones).minusSeconds(1), m.rules)) { utc -> Zones.localOf(utc.toInstant(ZoneOffset.UTC), m.rules) }.size
+        } catch (e: Recurrence.Unexpandable) {
+            0
+        }
+        return rule.replace(count.value, count.groupValues[1] + "COUNT=" + maxOf(1, count.groupValues[2].toInt() - before))
+    }
+
+    /** Keeps the values of [name] (EXDATE or RDATE, each a list) that [keep] takes; a property left with none goes. */
+    private fun keepDates(ev: Component, name: String, keep: (ICalTime) -> Boolean) {
+        for (p in ev.props(name)) {
+            val tzid = p.param("TZID")?.let(ICalParser::unquote)
+            val kept = p.value.split(',').filter { raw -> ICalTime.parse(raw.substringBefore('/'), tzid)?.let(keep) ?: true }
+            if (kept.isEmpty()) ev.properties.remove(p) else p.value = kept.joinToString(",")
+        }
+    }
+
+    /**
+     * One date of a series taken away (EXDATE, its override gone), that date and the ones after it
+     * ([Scope.FOLLOWING]: the series ends the moment before), or the whole event: null then.
+     */
     fun delete(ics: String, occ: Occurrence, scope: Scope, now: Instant): String? {
-        if (occ.recurrenceId == null || scope == Scope.ALL) {
+        val rid0 = occ.recurrenceId
+        if (scope == Scope.FOLLOWING && rid0 != null) {
+            val cal = ICalParser.parse(ics)
+            val master = ParsedResource(cal).master(occ.uid)
+            if (master != null && master.isSeries && !fromOn(master.start!!, rid0, master)) {
+                endBefore(cal, master, rid0, now)
+                return ICalWriter.write(cal)
+            }
+        }
+        if (occ.recurrenceId == null || scope != Scope.THIS) {
             val cal = ICalParser.parse(ics)
             cal.components.removeAll { it.name == "VEVENT" && it.prop("UID")?.value?.trim() == occ.uid }
             return if (cal.children("VEVENT").isEmpty()) null else ICalWriter.write(cal)

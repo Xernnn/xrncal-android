@@ -320,6 +320,24 @@ class RadicaleTest {
     }
 
     @Test
+    fun aNewTimeForThisAndFollowingKeepsTheEarlierDatesOnEveryDevice() {
+        laptopPut(work + "standup-1.ics", standup)
+        val phone = Phone()
+        phone.sync()
+        val monday = phone.week("2026-11-30", "2026-11-30").single { it.title == "Standup" }
+        val later = runBlocking { phone.events.draft(monday, Scope.THIS)!! }.copy(startTime = LocalTime.parse("10:00"), endTime = LocalTime.parse("10:15"))
+        runBlocking { phone.events.update(monday, later, Scope.FOLLOWING) }
+        assertEquals(2, phone.sync().pushed)
+        assertTrue(laptopGet(work + "standup-1.ics")!!.contains("UNTIL=20261130T022959Z"))
+        val other = Phone()
+        other.sync()
+        fun times(p: Phone, from: String, to: String) = p.week(from, to).filter { it.title.startsWith("Standup") }.map { "${it.firstDay} " + it.start.atZone(zone).toLocalTime() }
+        assertEquals(listOf("2026-11-23 09:30", "2026-11-25 14:00"), times(other, "2026-11-23", "2026-11-29"))
+        assertEquals(listOf("2026-11-30 10:00", "2026-12-02 10:00", "2026-12-07 10:00"), times(other, "2026-11-30", "2026-12-07"))
+        assertEquals(2, other.rows().size)
+    }
+
+    @Test
     fun deletesGoBothWays() {
         laptopPut(work + "dentist-1.ics", dentist)
         laptopPut(home + "trip-1.ics", trip)
@@ -333,6 +351,31 @@ class RadicaleTest {
         assertOk(laptopDelete(home + "trip-1.ics"))
         phone.sync()
         assertTrue(phone.rows().none { it.uid == "trip-1" })
+    }
+
+    @Test
+    fun aCalendarHomeMissingOrEmptiedFailsTheSyncAndLosesNoUnsentEdit() {
+        laptopPut(work + "dentist-1.ics", dentist)
+        laptopPut(home + "trip-1.ics", trip)
+        val phone = Phone()
+        phone.sync()
+        runBlocking { phone.events.update(phone.one("Dentist"), draft("Dentist (phone)", "2026-11-26", "09:00", "10:00"), Scope.ALL) }
+        fun assertKept() {
+            assertEquals(listOf("Home", "Work"), runBlocking { phone.store.calendars() }.filter { !it.local }.map { it.name }.sorted())
+            assertTrue(phone.rows().single { it.uid == "dentist-1" }.dirty)
+            assertTrue(phone.rows().any { it.uid == "trip-1" })
+        }
+        // The home answers 404 (a restore into another folder).
+        val found = phone.account.home
+        phone.account.home = "$root/$user/elsewhere/"
+        assertEquals(404, (runCatching { phone.sync() }.exceptionOrNull() as DavFailure).status)
+        assertKept()
+        // The home lists no calendar at all.
+        phone.account.home = found
+        assertOk(laptopDelete(work))
+        assertOk(laptopDelete(home))
+        assertTrue(runCatching { phone.sync() }.exceptionOrNull() is DavFailure)
+        assertKept()
     }
 
     @Test

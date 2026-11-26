@@ -44,6 +44,10 @@ interface CalDav {
     /** The calendar home, found from the address the owner typed (RFC 6764 style). */
     fun findHome(): String
 
+    /**
+     * The calendars at [home]. Anything but a multistatus listing throws [DavFailure]: read as an
+     * empty list, a 403 or 404 would remove every calendar from the phone.
+     */
     fun calendars(home: String): List<DavCalendar>
 
     /** Changes since [token] (null: everything); null when the server won't answer with a token. */
@@ -145,16 +149,17 @@ class OkCalDav(address: String, private val user: String, private val password: 
     }
 
     override fun findHome(): String {
-        if (calendarsAt(base).isNotEmpty()) return base
+        if (calendarsAt(base, probe = true).isNotEmpty()) return base
         val principal = propHref(base, "<D:current-user-principal/>", "current-user-principal")
             ?: propHref(URI(base).resolve("/.well-known/caldav").toString(), "<D:current-user-principal/>", "current-user-principal")
             ?: throw DavFailure(404, "no principal")
         return propHref(principal, "<C:calendar-home-set/>", "calendar-home-set") ?: throw DavFailure(404, "no calendar home")
     }
 
-    private fun calendarsAt(url: String): List<DavCalendar> {
+    /** The calendars listed at [url]; a [probe] (discovery trying the address as typed) reads a refusal as none there. */
+    private fun calendarsAt(url: String, probe: Boolean): List<DavCalendar> {
         val r = propfind(url, "1", CALENDAR_PROPS)
-        if (r.status in listOf(403, 404, 405, 501)) return emptyList()
+        if (probe && r.status in listOf(403, 404, 405, 501)) return emptyList()
         if (r.status != 207) throw DavFailure(r.status, r.body.take(200))
         val doc = parse(r.body) ?: throw DavFailure(r.status, "not a multistatus")
         return doc.byName("response").mapNotNull { resp ->
@@ -175,7 +180,7 @@ class OkCalDav(address: String, private val user: String, private val password: 
         }
     }
 
-    override fun calendars(home: String): List<DavCalendar> = calendarsAt(home)
+    override fun calendars(home: String): List<DavCalendar> = calendarsAt(home, probe = false)
 
     override fun syncCollection(calendar: String, token: String?): DavDelta? {
         val body = SYNC_COLLECTION.format(if (token.isNullOrEmpty()) "<D:sync-token/>" else "<D:sync-token>${escape(token)}</D:sync-token>")

@@ -13,6 +13,12 @@ view and editor, the laptop's colours, second time zone, emoji and typed dates, 
 reminders the way One Calendar has them. Where phase 2 changes a phase 1 rule, the phase 2
 section says so and wins.
 
+Status: 1.0.0 (26 Nov 2026) replaced One Calendar on the owner's phone; 1.1 redesigned the agenda
+widget (item 12). After 1.1.1: "This and following events" (item 8), a calendar list that can
+no longer empty the phone (Sync 2), an edit during a sync that no longer cancels it, reminders
+that wait 5 seconds at most for their sync, and the Autostart and Battery rows (Reminders,
+Options item 11).
+
 ## Phase 1: in and out
 
 In:
@@ -195,7 +201,12 @@ it, under one mutex.
    The calendar home is stored.
 2. **Calendars**: one PROPFIND (Depth 1) on the home: display name, Apple `calendar-color`,
    `getctag`, privileges, resource type and supported components. Collections that hold events
-   are calendars; new ones show, gone ones are removed with their events.
+   are calendars; new ones show, gone ones are removed with their events. Only a real listing
+   removes anything: any answer but a multistatus fails the sync, and so does a listing that would
+   remove every calendar at once (none listed, or in a sync none of those known; signing in again
+   takes a new server's). A gone calendar holding a change not yet sent or a conflict stays until
+   that is settled (up to 1.1.1, a 403, 404 or empty listing removed every calendar, unsent
+   edits included, and the sync still said it went through).
 3. **Push** each calendar's changes first: a new resource is PUT to `<calendar>/<name>.ics` with
    `If-None-Match: *`, a changed one with `If-Match: <etag>`, a deleted one is DELETEd with
    `If-Match`. A 412 marks the resource as a conflict: it is not sent again until the owner
@@ -228,14 +239,23 @@ it, under one mutex.
 After every sync, every change, a start of the app, a reboot, an update and a change of time or
 zone, the phone works out the next reminders (occurrences of the shown calendars from a day ago to
 eight days ahead; an event's own VALARMs only: one without any never rings) and sets one exact
-alarm for the soonest. When it goes off, every reminder due then rings, each once (the laptop's rule: one stays
+alarm for the soonest. When it goes off, a sync runs first, so an event moved or deleted elsewhere
+doesn't ring, but it is waited for 5 seconds at most and goes on by itself after that (up to
+1.1.1, a hung connection could hold the reminder about 75 seconds). Then every reminder due rings, each once (the laptop's rule: one stays
 due until its event starts, and of several overdue only the latest rings), and the next alarm is
 set. A notification shows the title, the time and the place; tapping it opens the event, and
 its Open and Snooze actions do what they say (phase 2). The tap opens the event also when the app
 was closed, as does an agenda widget's event: the request waits until the calendar collects it,
 and is handled once (0.3.1 dropped one made before the calendar's first frame).
 Permissions: `USE_EXACT_ALARM` (Android 13+), `SCHEDULE_EXACT_ALARM` (Android 12),
-`POST_NOTIFICATIONS`, `RECEIVE_BOOT_COMPLETED`, `INTERNET`; `ManifestTest` checks each.
+`POST_NOTIFICATIONS`, `RECEIVE_BOOT_COMPLETED`, `INTERNET`, `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`
+(Options' Battery row); `ManifestTest` checks each.
+
+HyperOS turns the app's Autostart off at every install, and then nothing starts the app after a
+reboot or a kill: no alarm is set again, no widget redraw, no background sync. Where the phone
+says (Xiaomi's app op 10008, read as xrnrule reads it), an ongoing "Autostart off" notification
+shows whenever the app starts or comes to the front, its tap opening the switch, until it is back
+on.
 
 ## Settings (phase 1; phase 2 splits them into One Calendar's Options pages, item 11)
 
@@ -260,8 +280,14 @@ Permissions: `USE_EXACT_ALARM` (Android 13+), `SCHEDULE_EXACT_ALARM` (Android 12
 - `app/`: the sync engine against a real **Radicale 3.8.1** started on a free port with a
   throwaway folder and a made-up user (skipped when it isn't installed; `XRNCAL_RADICALE` names
   its executable): discovery, the first sync, incremental sync, an offline edit sent later, a
-  412 conflict, a series with an override, deletes both ways. `ManifestTest`. Reminder planning.
+  412 conflict, a series with an override, deletes both ways, a home that answers 404 or lists
+  nothing, a "This and following" split read back by a second phone. `ManifestTest`. Reminder
+  planning. Against stand-in servers: what a calendar list may remove (`CalendarListingTest`),
+  changes made while a sync sends (`SyncWhileEditingTest`), a reminder while the server hangs
+  (`ReminderRingTest`).
 - CI (GitHub Actions) installs Radicale 3.8.1 with pip and runs every test and a debug build.
+  Robolectric runs offline on the Android jar Gradle resolves (and CI's Gradle cache keeps): its
+  own download from Maven Central failed a run now and then.
 
 ## Phase 2: close the gap to One Calendar and the laptop
 
@@ -395,8 +421,14 @@ As in One Calendar and on the laptop; the detail page of phase 1 is gone.
 - **Delete** closes the editor and shows "Deleted" with **Undo** for a few seconds, as the laptop
   does; Undo puts the event back as it was (made again on the server if the delete had already
   gone there).
-- A date of a repeating event opens with that date's fields; **"This event" or "All events" is
-  asked on ✓ or Delete**, when there is something to save, not before the editor opens.
+- A date of a repeating event opens with that date's fields; **"This event", "This and following
+  events" or "All events" is asked on ✓ or Delete**, when there is something to save, not before
+  the editor opens. "This and following events" splits the series as the laptop does: the series
+  ends the moment before that date (UNTIL), and a new event (its own UID and resource) starts
+  there with the editor's fields, repeating as the old one did from there (to the same end, or for
+  the dates its COUNT had left, its named days moved with a moved start) unless the editor gave it
+  a rule of its own; the deleted and changed dates after the split go with it. A delete ends the
+  series before that date. From the series' first date both are the whole series.
 - Events that can't be changed (a read-only calendar, a holiday) open the same editor with its
   fields locked and no ✓ or Delete. An event that couldn't be sent shows why at the top, with
   Keep mine and Keep theirs.
@@ -443,7 +475,8 @@ One Calendar's Options list, each a page:
 - **Synchronisation**: history (how far back events are shown and searched: 1, 2, 3 (the
   default, as One Calendar), 5 years or all; the phone still keeps the older ones' text, so the
   sync needs no new rules), and the automatic interval (15 minutes to 6 hours; 30 minutes by
-  default, as in phase 1).
+  default, as in phase 1). Under them **Autostart** (On or Off, where the phone says) and
+  **Battery** (Unrestricted or Optimised, xrnimg's row), each opening its switch.
 - **Time zone**: use the phone's (the default), or a chosen zone the app shows everything in.
 - **Widget options**: item 12.
 - **Emoji options**: on or off, and the favourites (the most used, as the laptop counts them;
@@ -586,7 +619,9 @@ not to another calendar app.
    request carries.
 
 2. **.ics files** (a tap in Files, a mail's attachment, a download): `VIEW` for `text/calendar`,
-   `text/x-vcalendar` and `application/ics`, from `content:` and `file:` addresses, and a name
+   `text/x-vcalendar` and `application/ics`, from `content:` addresses only (no app can hand
+   another a `file:` one since Android 7, and taking one let any app have xrncal open a path in its
+   own storage; refused in code too, for an intent naming the editor itself), and a name
    ending in `.ics` for one sent untyped or as `application/octet-stream`. The file is read
    through the content resolver with the read the sending app grants, so no storage permission
    is asked; it is parsed by `domain/ical` (to ICalParser's 8 MB).
@@ -626,6 +661,6 @@ extras' names against Android's own and an import into the store (`OtherAppsTest
 
 ## Later
 
-"This and following" edits of a series; calendar names, and making calendars on the server; a
+Calendar names, and making calendars on the server; a
 jump-to-date picker; a whole calendar exported as .ics (one event is shared as one); Google and
 Microsoft accounts; guests.

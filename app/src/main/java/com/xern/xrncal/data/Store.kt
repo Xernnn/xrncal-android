@@ -15,6 +15,8 @@ import com.xern.xrncal.domain.ResourceIndex
 import java.net.URI
 import java.net.URLDecoder
 import java.util.UUID
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.sync.Mutex
@@ -251,11 +253,14 @@ abstract class CalendarStore {
         changed()
     }
 
-    /** A DELETE went through (or the server had nothing there). */
+    /**
+     * A DELETE went through (or the server had nothing there). Put back meanwhile (Undo while the
+     * DELETE was on its way), the resource stays, to be made again: its address and ETag are gone.
+     */
     suspend fun pushedDelete(sent: ResourceEntity) {
         atomically {
             val now = get(sent.id) ?: return@atomically
-            if (now.deleted) delete(sent.id)
+            if (now.deleted) delete(sent.id) else if (now.href != null) put(now.copy(href = null, hrefKey = null, etag = null))
         }
         changed()
     }
@@ -372,7 +377,10 @@ class RoomCalendarStore(private val db: CalendarDatabase) : CalendarStore() {
     override suspend fun <T> atomically(block: suspend Ops.() -> T): T = db.withTransaction { ops.block() }
 }
 
-/** The store in memory, for the JVM tests. */
+/**
+ * The store in memory, for the JVM tests. As with Room, a step asked by a cancelled coroutine is
+ * refused with a CancellationException.
+ */
 class MemoryCalendarStore : CalendarStore() {
     private val mutex = Mutex()
     private val cals = LinkedHashMap<String, CalendarEntity>()
@@ -415,7 +423,10 @@ class MemoryCalendarStore : CalendarStore() {
         }
     }
 
-    override suspend fun <T> atomically(block: suspend Ops.() -> T): T = mutex.withLock { ops.block() }
+    override suspend fun <T> atomically(block: suspend Ops.() -> T): T {
+        currentCoroutineContext().ensureActive()
+        return mutex.withLock { ops.block() }
+    }
 
     /** Every row, for the tests. */
     suspend fun everything(): List<ResourceEntity> = mutex.withLock { rows.values.toList() }

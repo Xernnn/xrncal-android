@@ -6,8 +6,9 @@ CalDAV, and shows the Vietnamese lunar date on every day. It is the phone side o
 calendars from the same CalDAV server, so an event made on one shows on the other. Kotlin and
 Jetpack Compose, minimum Android 12.
 
-**Status:** phase 2 (on top of 0.1.0). [docs/spec.md](docs/spec.md) says what each phase
-holds, what is left for later, and which of One Calendar's layouts it copies.
+**Status:** in daily use: since 1.0.0 (26 Nov 2026) it has replaced One Calendar on the owner's
+phone, and 1.1 brought the agenda widget's day chips. [docs/spec.md](docs/spec.md) says what each
+phase holds, what is left for later, and which of One Calendar's layouts it copies.
 
 ## What it does
 
@@ -27,7 +28,8 @@ holds, what is left for later, and which of One Calendar's layouts it copies.
 - **Events** open straight into One Calendar's editor: emoji, title and place suggestions and
   dates typed into a new event's title (all as the laptop does), calendar and **event colour**,
   all-day, start and end in any time zone, One Calendar's compact repeat form, reminders,
-  description; Copy, Share as .ics, Delete with Undo. One date of a repeating event, or all.
+  description; Copy, Share as .ics, Delete with Undo. One date of a repeating event, that date and
+  the ones after it, or all.
 - **Colours**: One Calendar's palette; a calendar's colour is written to the server, so the
   laptop shows it too.
 - **Reminders** as notifications at their minute (exact alarms) with Open and Snooze, set again
@@ -52,7 +54,8 @@ never leaves it. The app finds the calendars from the server's address (`/.well-
 then the principal's calendar home), keeps each event's iCalendar text as the server sent it, and
 sends changes back with `If-Match`, so it never writes over an edit made elsewhere: that becomes a
 conflict to settle with "Keep mine" or "Keep theirs". It works offline and sends what changed when
-the server is back. Sync runs on opening the app, after each change and every 30 minutes in the
+the server is back. Only a real calendar list removes a calendar: one the server refuses, or one
+that would remove them all, fails the sync instead, and a calendar holding unsent changes stays. Sync runs on opening the app, after each change and every 30 minutes in the
 background (Options sets the interval). A calendar colour picked on the phone is written to the
 server as Apple's `calendar-color` (PROPPATCH), which the laptop reads too. The password is kept sealed with an Android Keystore key.
 
@@ -75,7 +78,9 @@ radicale==3.8.1`, then run the tests with `XRNCAL_RADICALE=<dir>/bin/radicale` (
 `radicale` on the `PATH`). CI does this on every push.
 
 The domain tests carry the laptop app's own test vectors (lunar dates, anniversaries, all-day
-ends, reminders, recurrence limits, summer-time changes), so both apps answer the same.
+ends, reminders, recurrence limits, summer-time changes, a series split for "This and following"),
+so both apps answer the same. The widget tests run Robolectric offline, on an Android jar Gradle
+resolves and caches like any other dependency.
 
 `app/src/debug/.../ui/Previews.kt` draws every screen from made-up calendars without a phone:
 `android preview render "?:app" --fqn=com.xern.xrncal.ui.PreviewsKt.MonthPreview -o <folder>`.
