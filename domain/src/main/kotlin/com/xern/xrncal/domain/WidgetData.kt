@@ -140,6 +140,52 @@ object WidgetData {
 
     private fun minutesUntil(now: Instant, at: Instant): Long = (Duration.between(now, at).toMillis() + 59_999) / 60_000
 
+    /**
+     * When [countdown] next reads differently: the end, while [o] is on; its start, from the last
+     * minute; each minute within the hour; each hour within the day; and a day before, when the
+     * days turn to hours. A change of date is midnight's redraw.
+     */
+    fun countdownChange(o: Occurrence, now: Instant): Instant {
+        if (!o.start.isAfter(now)) return o.end
+        val m = minutesUntil(now, o.start)
+        val before = when {
+            m < 60 -> m - 1
+            m < 24 * 60 -> m / 60 * 60 - 1
+            else -> 24 * 60 - 1L
+        }
+        return o.start.minus(Duration.ofMinutes(before))
+    }
+
+    /**
+     * When the agenda must be drawn again to stay right before midnight's redraw: the card's
+     * countdown changing (which covers its event starting and ending), or an event on the list
+     * ending, which leaves the list then. Null when nothing changes.
+     */
+    fun nextRedraw(view: AgendaView, now: Instant): Instant? {
+        val card = view.next?.occurrence?.let { countdownChange(it, now) }
+        val ends = view.days.asSequence().flatMap { it.chips }.map { it.occurrence }.filter { !it.allDay && it.end.isAfter(now) }.minOfOrNull { it.end }
+        return listOfNotNull(card, ends).minOrNull()
+    }
+
+    /**
+     * When to set an alarm that should go off at [due]. An inexact alarm (AlarmManager.set) may go
+     * off as late as three quarters of its wait after the time asked, an hour at most: a minute's
+     * wait can come 45 s late, an hour's 45 min. Set at 4/7 of the wait, or an hour before [due]
+     * on a wait long enough for the hour to be the limit, its latest is [due] itself; going off
+     * early, it is set again for the rest of the way, with nothing drawn. Within 10 s Android
+     * doesn't defer it, so [due] as it is.
+     */
+    fun alarmFor(due: Instant, now: Instant): Instant {
+        val wait = Duration.between(now, due).toMillis()
+        return when {
+            wait <= 10_000 -> due
+            wait * 4 / 7 * 3 / 4 >= HOUR -> due.minusMillis(HOUR)
+            else -> now.plusMillis(wait * 4 / 7)
+        }
+    }
+
+    private const val HOUR = 3_600_000L
+
     /** The lunar date under a day's number. */
     fun lunar(d: LocalDate): LunarText {
         val l = Lunar.ofSolar(d)

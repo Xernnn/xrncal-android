@@ -16,6 +16,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -172,5 +173,19 @@ class AgendaWidgetTest {
         assertEquals("Design review", root.text(R.id.next_title))
         assertEquals("now", root.text(R.id.next_when))
         assertEquals("THU 26 -: Gym (17:30 – 18:30)", days(root).first())
+    }
+
+    @Test
+    fun anAlarmComingEarlyIsSetAgainForTheRestOfTheWayWithNothingDrawn() {
+        val alarms = Shadows.shadowOf(context.getSystemService(android.app.AlarmManager::class.java))
+        val due = System.currentTimeMillis() + 60_000
+        val early = android.content.Intent(context, com.xern.xrncal.work.AgendaWidget::class.java).setAction(Widgets.TICK).putExtra(Widgets.DUE, due)
+        assertNull(Widgets.alarm(context, early))
+        val next = alarms.scheduledAlarms.single()
+        assertEquals(android.app.AlarmManager.RTC, next.type)
+        assertTrue(next.triggerAtTime in System.currentTimeMillis() + 30_000..due - 20_000)
+        val again = Shadows.shadowOf(next.operation).savedIntent
+        assertEquals(Widgets.TICK, again.action)
+        assertEquals(due, again.getLongExtra(Widgets.DUE, 0))
     }
 }

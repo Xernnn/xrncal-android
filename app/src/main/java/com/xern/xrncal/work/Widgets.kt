@@ -34,6 +34,7 @@ import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.TextStyle
 import java.util.Locale
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 /** What a widget is drawn from: the settings, today, now, and the events of the days it shows. */
@@ -62,16 +63,29 @@ class WidgetInput(
 object Widgets {
     const val MIDNIGHT = "com.xern.xrncal.WIDGETS_MIDNIGHT"
 
+    /** The agenda's countdown or list changes: the agenda drawn again. */
+    const val TICK = "com.xern.xrncal.WIDGETS_TICK"
+
+    /** When an alarm is for, in epoch milliseconds: it may be set to go off before it. */
+    const val DUE = "due"
+
     private val L = Locale.ENGLISH
 
-    /** Every widget drawn again, off the main thread; and the redraw at the next midnight booked. */
-    fun refresh(context: Context) {
-        val app = context.applicationContext as? XrnCalApp ?: return
+    /**
+     * Every widget drawn again, off the main thread, and the redraw at the next midnight booked;
+     * with [agendaOnly], the agenda alone (its countdown's redraws). The agenda books its own next
+     * redraw, when its countdown or its list next changes ([WidgetData.nextRedraw]), or cancels it
+     * when nothing will. Null when there is nothing to draw.
+     */
+    fun refresh(context: Context, agendaOnly: Boolean = false): Job? {
+        val app = context.applicationContext as? XrnCalApp ?: return null
         val manager = AppWidgetManager.getInstance(context)
         val ids = listOf(AgendaWidget::class.java, MonthWidget::class.java, DateWidget::class.java).associateWith { manager.getAppWidgetIds(ComponentName(context, it)) }
-        if (ids.values.all { it.isEmpty() }) return
+        val agendaIds = ids[AgendaWidget::class.java] ?: IntArray(0)
+        if (agendaIds.isEmpty()) cancel(context, TICK)
+        if (if (agendaOnly) agendaIds.isEmpty() else ids.values.all { it.isEmpty() }) return null
         val graph = app.graph
-        graph.scope.launch {
+        return graph.scope.launch {
             val s = graph.settings.value
             val zone = s.zoneId()
             val now = Instant.now()
@@ -82,13 +96,33 @@ object Widgets {
             val input = WidgetInput(
                 s, today, now, Format.is24(context, s.clock), colors,
                 agenda = graph.events.occurrences(today, today.plusDays(WidgetData.AGENDA_DAYS - 1)),
-                month = graph.events.occurrences(grid.first().first(), grid.last().last()),
+                month = if (agendaOnly) emptyList() else graph.events.occurrences(grid.first().first(), grid.last().last()),
             )
-            for (id in (ids[AgendaWidget::class.java] ?: IntArray(0))) manager.updateAppWidget(id, agenda(context, input))
+            if (agendaIds.isNotEmpty()) {
+                val view = agendaView(input)
+                for (id in agendaIds) manager.updateAppWidget(id, agenda(context, input, view, clicks = true))
+                val next = WidgetData.nextRedraw(view, now)
+                if (next != null) book(context, TICK, next.toEpochMilli()) else cancel(context, TICK)
+            }
+            if (agendaOnly) return@launch
             for (id in (ids[MonthWidget::class.java] ?: IntArray(0))) manager.updateAppWidget(id, month(context, input, sizeOf(manager, id, 376, 280)))
             for (id in (ids[DateWidget::class.java] ?: IntArray(0))) manager.updateAppWidget(id, date(context, input))
-            bookMidnight(context, today.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli())
+            book(context, MIDNIGHT, today.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli() + 1_000)
         }
+    }
+
+    /**
+     * A widget alarm went off: drawn again if it is [DUE]; set again for the rest of the way if it
+     * came early ([WidgetData.alarmFor]), nothing drawn. Null when nothing is being drawn.
+     */
+    fun alarm(context: Context, intent: Intent): Job? {
+        val action = intent.action ?: return null
+        val due = intent.getLongExtra(DUE, 0)
+        if (System.currentTimeMillis() < due) {
+            book(context, action, due)
+            return null
+        }
+        return refresh(context, agendaOnly = action == TICK)
     }
 
     /** The widget's size in dp, as the launcher reports it; [w] by [h] when it reports none. */
@@ -99,10 +133,24 @@ object Widgets {
         return width to height
     }
 
-    private fun bookMidnight(context: Context, at: Long) {
-        val alarms = context.getSystemService(AlarmManager::class.java)
-        val pending = PendingIntent.getBroadcast(context, 7, Intent(context, AgendaWidget::class.java).setAction(MIDNIGHT), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
-        alarms.set(AlarmManager.RTC, at + 1_000, pending)
+    /**
+     * The widgets' alarms, [MIDNIGHT] and the agenda's [TICK]: non-wakeup and inexact, so they
+     * never wake the phone (one asleep has its widgets redrawn as it wakes) and need no exact-alarm
+     * permission. Set early enough that even their latest is on time ([WidgetData.alarmFor]).
+     */
+    private fun alarmIntent(context: Context, action: String, due: Long? = null, create: Boolean = true): PendingIntent? = PendingIntent.getBroadcast(
+        context, if (action == TICK) 8 else 7,
+        Intent(context, AgendaWidget::class.java).setAction(action).apply { if (due != null) putExtra(DUE, due) },
+        PendingIntent.FLAG_IMMUTABLE or if (create) PendingIntent.FLAG_UPDATE_CURRENT else PendingIntent.FLAG_NO_CREATE,
+    )
+
+    private fun book(context: Context, action: String, due: Long) {
+        val at = WidgetData.alarmFor(Instant.ofEpochMilli(due), Instant.now()).toEpochMilli()
+        context.getSystemService(AlarmManager::class.java).set(AlarmManager.RTC, at, alarmIntent(context, action, due)!!)
+    }
+
+    private fun cancel(context: Context, action: String) {
+        alarmIntent(context, action, create = false)?.let { context.getSystemService(AlarmManager::class.java).cancel(it) }
     }
 
     private fun openApp(context: Context, code: Int): PendingIntent = PendingIntent.getActivity(
@@ -338,14 +386,22 @@ object Widgets {
     }
 }
 
-/** A widget kind: draws itself through [Widgets.refresh], and takes the midnight redraw. */
+/** A widget kind: draws itself through [Widgets.refresh], and takes the midnight and countdown redraws. */
 abstract class XrnWidget : AppWidgetProvider() {
-    override fun onUpdate(context: Context, manager: AppWidgetManager, ids: IntArray) = Widgets.refresh(context)
+    override fun onUpdate(context: Context, manager: AppWidgetManager, ids: IntArray) {
+        Widgets.refresh(context)
+    }
 
-    override fun onAppWidgetOptionsChanged(context: Context, manager: AppWidgetManager, id: Int, options: android.os.Bundle) = Widgets.refresh(context)
+    override fun onAppWidgetOptionsChanged(context: Context, manager: AppWidgetManager, id: Int, options: android.os.Bundle) {
+        Widgets.refresh(context)
+    }
 
     override fun onReceive(context: Context, intent: Intent) {
-        if (intent.action == Widgets.MIDNIGHT) Widgets.refresh(context) else super.onReceive(context, intent)
+        if (intent.action != Widgets.MIDNIGHT && intent.action != Widgets.TICK) return super.onReceive(context, intent)
+        // Kept alive until the widgets are drawn: an alarm may be all that started the app.
+        val job = Widgets.alarm(context, intent) ?: return
+        val done = goAsync()
+        job.invokeOnCompletion { done.finish() }
     }
 }
 

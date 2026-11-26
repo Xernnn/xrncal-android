@@ -1,6 +1,7 @@
 package com.xern.xrncal.domain
 
 import java.time.DayOfWeek
+import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
@@ -59,6 +60,7 @@ class WidgetDataTest {
         assertEquals("now", view.next!!.countdown)
         assertEquals(listOf("2026-11-26: Design review"), days(view))
         // The review, which ends after the lunch, takes the card when the lunch ends.
+        assertEquals(Instant.parse("2026-11-26T12:30:00Z"), WidgetData.nextRedraw(view, now))
         assertEquals("Design review", agenda(list, Instant.parse("2026-11-26T12:30:00Z")).next!!.title)
     }
 
@@ -77,6 +79,7 @@ class WidgetDataTest {
         val view = agenda(list, hidden = setOf("hidden"))
         assertNull(view.next)
         assertEquals(listOf("2026-11-26: Trip", "2026-11-27: Trip", "2026-11-28: Trip"), days(view))
+        assertNull(WidgetData.nextRedraw(view, now))
         assertNull(agenda(emptyList()).next)
     }
 
@@ -140,6 +143,64 @@ class WidgetDataTest {
         assertEquals("in 23 h", soon(o, Instant.parse("2026-11-25T09:01:00Z")))
         assertEquals("in 1 d", soon(o, Instant.parse("2026-11-25T08:00:00Z")))
         assertEquals("in 3 d", soon(o, Instant.parse("2026-11-23T20:00:00Z")))
+    }
+
+    @Test
+    fun theCountdownChangesEachMinuteWithinTheHourEachHourWithinTheDayAndAtTheStartAndEnd() {
+        val o = timed("Team standup", "2026-11-26", "09:00", "09:30")
+        fun change(t: String) = WidgetData.countdownChange(o, Instant.parse(t))
+        assertEquals(Instant.parse("2026-11-26T08:36:00Z"), change("2026-11-26T08:35:00Z"))
+        assertEquals(Instant.parse("2026-11-26T08:36:00Z"), change("2026-11-26T08:35:30Z"))
+        assertEquals(Instant.parse("2026-11-26T09:00:00Z"), change("2026-11-26T08:59:01Z"))
+        assertEquals(Instant.parse("2026-11-26T09:30:00Z"), change("2026-11-26T09:00:00Z"))
+        assertEquals(Instant.parse("2026-11-26T08:01:00Z"), change("2026-11-26T07:30:00Z")) // in 1 h, then in 59 min
+        assertEquals(Instant.parse("2026-11-26T07:01:00Z"), change("2026-11-26T06:15:00Z")) // in 2 h, then in 1 h
+        assertEquals(Instant.parse("2026-11-25T09:01:00Z"), change("2026-11-24T20:00:00Z")) // in 2 d, then in 23 h
+        // Each change is one: the label reads differently from that moment, and only then.
+        var t = Instant.parse("2026-11-25T06:00:00Z")
+        var changes = 0
+        while (t.isBefore(o.end)) {
+            val next = WidgetData.countdownChange(o, t)
+            assertTrue(next.isAfter(t))
+            assertTrue("$next", next == o.end || soon(o, next.minusSeconds(1)) != soon(o, next))
+            assertEquals(soon(o, t), soon(o, next.minusSeconds(1)))
+            t = next
+            changes++
+        }
+        // 23 hours, 59 minutes, the start and the end.
+        assertEquals(23 + 59 + 2, changes)
+    }
+
+    @Test
+    fun nothingIsRedrawnWhenNothingIsComing() {
+        assertNull(WidgetData.nextRedraw(agenda(listOf(allDay("Pay rent", "2026-11-27"))), now))
+        // An event on the list ending before the card changes is redrawn for.
+        val list = listOf(timed("Workshop", "2026-11-26", "11:00", "17:00"), timed("Call", "2026-11-26", "12:30", "12:40"))
+        assertEquals(Instant.parse("2026-11-26T12:40:00Z"), WidgetData.nextRedraw(agenda(list), now))
+    }
+
+    @Test
+    fun anAlarmIsSetSoThatEvenItsLatestIsOnTime() {
+        assertEquals(now.plusSeconds(8), WidgetData.alarmFor(now.plusSeconds(8), now))
+        assertEquals(now.minusSeconds(5), WidgetData.alarmFor(now.minusSeconds(5), now))
+        // An hour before, on a wait long enough for the hour to be the limit.
+        assertEquals(now.plusSeconds(23 * 3_600), WidgetData.alarmFor(now.plusSeconds(24 * 3_600), now))
+        for (wait in listOf(11L, 60L, 3_600L, 8_400L, 8_500L, 86_400L)) {
+            val due = now.plusSeconds(wait)
+            val at = WidgetData.alarmFor(due, now)
+            // Android's latest for an inexact alarm: 3/4 of its wait after it, an hour at most.
+            val latest = at.plusMillis(minOf(Duration.between(now, at).toMillis() * 3 / 4, 3_600_000))
+            assertTrue("$wait", at.isAfter(now) && !latest.isAfter(due))
+        }
+        // Going off early and set again each time, it gets there in a few steps however early.
+        var t = now
+        var steps = 0
+        val due = now.plusSeconds(86_400)
+        while (t.isBefore(due)) {
+            t = WidgetData.alarmFor(due, t)
+            steps++
+        }
+        assertTrue("$steps", steps <= 10)
     }
 
     @Test
