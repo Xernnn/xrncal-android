@@ -176,4 +176,17 @@ class AgendaWidgetTest {
         assertEquals(Widgets.TICK, again.action)
         assertEquals(due, again.getLongExtra(Widgets.DUE, 0))
     }
+
+    @Test
+    fun theMonthIsDrawnAtThePortraitCellsSize() {
+        // A portrait home screen's four by two: 376 wide and 187 high; turned, 432 by 160.
+        val o = android.os.Bundle().apply {
+            putInt(android.appwidget.AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 376)
+            putInt(android.appwidget.AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH, 432)
+            putInt(android.appwidget.AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 160)
+            putInt(android.appwidget.AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 187)
+        }
+        assertEquals(376 to 187, Widgets.portraitSize(o, 1, 1))
+        assertEquals(376 to 280, Widgets.portraitSize(android.os.Bundle(), 376, 280))
+    }
 }

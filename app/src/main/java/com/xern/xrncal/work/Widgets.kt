@@ -105,7 +105,7 @@ object Widgets {
                 if (next != null) book(context, TICK, next.toEpochMilli()) else cancel(context, TICK)
             }
             if (agendaOnly) return@launch
-            for (id in (ids[MonthWidget::class.java] ?: IntArray(0))) manager.updateAppWidget(id, month(context, input, sizeOf(manager, id, 376, 280)))
+            for (id in (ids[MonthWidget::class.java] ?: IntArray(0))) manager.updateAppWidget(id, month(context, input, portraitSize(manager.getAppWidgetOptions(id), 376, 280)))
             for (id in (ids[DateWidget::class.java] ?: IntArray(0))) manager.updateAppWidget(id, date(context, input))
             book(context, MIDNIGHT, today.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli() + 1_000)
         }
@@ -125,10 +125,13 @@ object Widgets {
         return refresh(context, agendaOnly = action == TICK)
     }
 
-    /** The widget's size in dp, as the launcher reports it; [w] by [h] when it reports none. */
-    private fun sizeOf(manager: AppWidgetManager, id: Int, w: Int, h: Int): Pair<Int, Int> {
-        val o = manager.getAppWidgetOptions(id)
-        val width = o.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH).takeIf { it > 0 } ?: w
+    /**
+     * The widget's size in dp on a portrait home screen, as the launcher reports it: its MIN_WIDTH
+     * by its MAX_HEIGHT (MAX_WIDTH is the landscape width, which drew the month wider than its
+     * cell and squashed it to fit); [w] by [h] when it reports none.
+     */
+    internal fun portraitSize(o: android.os.Bundle, w: Int, h: Int): Pair<Int, Int> {
+        val width = o.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH).takeIf { it > 0 } ?: w
         val height = o.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT).takeIf { it > 0 } ?: h
         return width to height
     }
