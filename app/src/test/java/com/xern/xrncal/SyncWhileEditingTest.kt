@@ -147,4 +147,22 @@ class SyncWhileEditingTest {
         assertTrue(server.items.getValue(href).second.contains("SUMMARY:Dentist (second)"))
         assertTrue(rows().none { it.dirty })
     }
+
+    @Test
+    fun undoWhileTheDeleteIsOnItsWayMakesTheEventAgainOnTheServer() {
+        synced()
+        server.hold = CountDownLatch(1)
+        val held = server.hold!!
+        val undo = runBlocking { graph.events.delete(occurrence("Dentist"), Scope.ALL) }!!
+        assertTrue("the DELETE started", server.started.tryAcquire(10, TimeUnit.SECONDS))
+        runBlocking { graph.events.undo(undo) }
+        held.countDown()
+        eventually { (server.items.isNotEmpty() && rows().none { it.dirty }) || rows().any { it.problem != null } }
+        assertEquals(emptyList<String>(), rows().mapNotNull { it.problem })
+        assertTrue(rows().none { it.dirty })
+        val back = server.items.entries.single()
+        assertTrue(back.value.second.contains("UID:dentist-1"))
+        assertEquals(back.key, rows().single().href)
+        assertEquals(back.value.first, rows().single().etag)
+    }
 }

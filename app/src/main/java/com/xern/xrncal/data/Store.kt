@@ -253,11 +253,14 @@ abstract class CalendarStore {
         changed()
     }
 
-    /** A DELETE went through (or the server had nothing there). */
+    /**
+     * A DELETE went through (or the server had nothing there). Put back meanwhile (Undo while the
+     * DELETE was on its way), the resource stays, to be made again: its address and ETag are gone.
+     */
     suspend fun pushedDelete(sent: ResourceEntity) {
         atomically {
             val now = get(sent.id) ?: return@atomically
-            if (now.deleted) delete(sent.id)
+            if (now.deleted) delete(sent.id) else if (now.href != null) put(now.copy(href = null, hrefKey = null, etag = null))
         }
         changed()
     }
