@@ -1,11 +1,98 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- A day's header in the agenda widget: "Wednesday 25 November". -->
-<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+<!-- A day in the agenda widget: its weekday, date and lunar date in a column, beside its events
+     as chips (widget_agenda_chip, added in code). -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/row_day"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:fontFamily="sans-serif-medium"
-    android:maxLines="1"
-    android:paddingTop="8dp"
-    android:paddingBottom="2dp"
-    android:textSize="13sp" />
+    android:orientation="horizontal"
+    android:paddingBottom="8dp">
+
+    <LinearLayout
+        android:id="@+id/day_date"
+        android:layout_width="48dp"
+        android:layout_height="wrap_content"
+        android:gravity="center_horizontal"
+        android:orientation="vertical"
+        android:paddingTop="2dp">
+
+        <TextView
+            android:id="@+id/day_weekday"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="sans-serif"
+            android:includeFontPadding="false"
+            android:letterSpacing="0.06"
+            android:maxLines="1"
+            android:textFontWeight="600"
+            android:textSize="11sp" />
+
+        <TextView
+            android:id="@+id/day_number"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:layout_marginTop="2dp"
+            android:background="@drawable/widget_dot"
+            android:fontFamily="sans-serif"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:maxLines="1"
+            android:textFontWeight="700"
+            android:textSize="17sp" />
+
+        <TextView
+            android:id="@+id/day_lunar"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:fontFamily="sans-serif"
+            android:includeFontPadding="false"
+            android:maxLines="1"
+            android:textSize="10sp"
+            android:visibility="gone" />
+
+        <!-- Mùng 1 or rằm: a ring or a dot and the date, on a ground of the moon's colour. -->
+        <LinearLayout
+            android:id="@+id/day_moon"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:background="@drawable/widget_badge"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="5dp"
+            android:paddingTop="1dp"
+            android:paddingEnd="5dp"
+            android:paddingBottom="1dp"
+            android:visibility="gone">
+
+            <ImageView
+                android:id="@+id/day_moon_glyph"
+                android:layout_width="6dp"
+                android:layout_height="6dp"
+                android:importantForAccessibility="no"
+                android:src="@drawable/widget_ring" />
+
+            <TextView
+                android:id="@+id/day_moon_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="3dp"
+                android:fontFamily="sans-serif"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:textFontWeight="600"
+                android:textSize="10sp" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/day_events"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="10dp"
+        android:layout_weight="1"
+        android:divider="@drawable/widget_gap"
+        android:orientation="vertical"
+        android:showDividers="middle" />
+</LinearLayout>

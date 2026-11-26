@@ -61,6 +61,16 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+
+    testOptions {
+        unitTests {
+            // Robolectric draws the widgets with the app's own layouts and drawables.
+            isIncludeAndroidResources = true
+            // AgendaWidgetTest's pictures: -Pshots=<dir>, or build/shots.
+            val shots = (findProperty("shots") ?: layout.buildDirectory.dir("shots").get().asFile.path).toString()
+            all { it.systemProperty("xrncal.shots", shots) }
+        }
+    }
 }
 
 ksp {
@@ -96,5 +106,7 @@ dependencies {
     implementation(libs.okhttp)
     debugImplementation(libs.androidx.compose.ui.tooling)
     testImplementation(libs.junit)
+    // The widgets drawn off a phone (AgendaWidgetTest): RemoteViews applied by the real framework.
+    testImplementation(libs.robolectric)
     testImplementation(libs.kotlinx.coroutines.core)
 }

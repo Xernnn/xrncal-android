@@ -7,17 +7,22 @@ import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.res.ColorStateList
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.RectF
 import android.graphics.Typeface
+import android.net.Uri
+import android.view.View
 import android.widget.RemoteViews
 import com.xern.xrncal.MainActivity
 import com.xern.xrncal.R
 import com.xern.xrncal.XrnCalApp
 import com.xern.xrncal.data.Settings
 import com.xern.xrncal.domain.Lunar
+import com.xern.xrncal.domain.Moon
 import com.xern.xrncal.domain.MonthLayout
 import com.xern.xrncal.domain.Occurrence
 import com.xern.xrncal.domain.WeekStart
@@ -47,11 +52,12 @@ class WidgetInput(
 }
 
 /**
- * The home-screen widgets (docs/spec.md, phase 2 item 12): One Calendar's Agenda, a Month and the
- * date icon. RemoteViews, as the other xrn apps' widgets: the agenda's list uses Android 12's
- * RemoteCollectionItems, so no service is needed, and the month is drawn as one picture of the
- * widget's size. Text uses the system's sans-serif, which is MiSans on the owner's phone (a
- * launcher ignores font resources in a widget).
+ * The home-screen widgets (docs/spec.md, phase 2 item 12): the Agenda (the next event in a card
+ * over the days ahead as date columns and event chips), a Month and the date icon. RemoteViews,
+ * as the other xrn apps' widgets: the agenda's list uses Android 12's RemoteCollectionItems, so
+ * no service is needed, and the month is drawn as one picture of the widget's size. Text uses
+ * the system's sans-serif, which is MiSans on the owner's phone (a launcher ignores font
+ * resources in a widget).
  */
 object Widgets {
     const val MIDNIGHT = "com.xern.xrncal.WIDGETS_MIDNIGHT"
@@ -108,58 +114,131 @@ object Widgets {
         views.setInt(R.id.widget_bg, "setImageAlpha", (s.widgetOpacity.coerceIn(0f, 1f) * 255).toInt())
     }
 
-    /** "Tuesday 24 November", an agenda day's header. */
+    /** "Tuesday 24 November", a day as the agenda reads it out. */
     fun dayTitle(d: LocalDate): String = "${d.dayOfWeek.getDisplayName(TextStyle.FULL, L)} ${d.dayOfMonth} ${d.month.getDisplayName(TextStyle.FULL, L)}"
 
-    /** The agenda's rows as views: what the widget's list holds, and what the previews draw. */
-    fun agendaRows(context: Context, input: WidgetInput): List<Pair<Long, RemoteViews>> {
+    /**
+     * The agenda widget's colours. Its ground, text and today colour are Widget options'; the
+     * rest follow the widget's theme, as its design has them: muted text, the card a faint shade
+     * of the text over the ground (8 % in the dark, 5 % in the light), chips of the calendar's colour (22 % in the dark, 14 % in the
+     * light), the countdown's accent, and the moons' teal and gold.
+     */
+    class AgendaInk(s: Settings) {
+        val text = s.widgetText
+        val muted = alpha(s.widgetText, 0xB3)
+        val today = s.signalFor(s.widgetDark)
+        val card = alpha(s.widgetText, if (s.widgetDark) 0x14 else 0x0D)
+        val accent = if (s.widgetDark) 0xFF7C86FF.toInt() else 0xFF1F6FC5.toInt()
+        val chipAlpha = if (s.widgetDark) 0x38 else 0x24
+        val moonNew = if (s.widgetDark) 0xFF4FD1C1.toInt() else 0xFF0B7166.toInt()
+        val moonFull = if (s.widgetDark) 0xFFF2C14E.toInt() else 0xFF8A5A00.toInt()
+        val moonAlpha = if (s.widgetDark) 0x26 else 0x1F
+
+        companion object {
+            fun alpha(color: Int, a: Int): Int = color and 0x00FFFFFF or (a shl 24)
+        }
+    }
+
+    /** The agenda as the widget shows it, its times written as the rest of the app writes them. */
+    fun agendaView(input: WidgetInput): WidgetData.AgendaView =
+        WidgetData.agenda(input.agenda, input.today, input.now, input.zone, input.settings.widgetHidden, { Format.time(it, input.h24) })
+
+    /** What tapping an event opens: the event, in the app (MainActivity's [MainActivity.OPEN]). */
+    fun eventIntent(o: Occurrence): Intent = Intent().putExtra(MainActivity.OPEN, o.resourceId).putExtra(MainActivity.START, o.start.toEpochMilli())
+
+    /** What tapping a day's date opens: the app's Day view on it, through the time link other apps use (at noon, clear of a zone's midnight). */
+    fun dayIntent(d: LocalDate, zone: java.time.ZoneId): Intent =
+        Intent(Intent.ACTION_VIEW, Uri.parse("content://com.android.calendar/time/${d.atTime(12, 0).atZone(zone).toInstant().toEpochMilli()}"))
+
+    /** The agenda's days as views: what the widget's list holds, each day's events nested in it as chips. */
+    fun agendaRows(context: Context, input: WidgetInput, view: WidgetData.AgendaView = agendaView(input)): List<Pair<Long, RemoteViews>> {
         val s = input.settings
-        val rows = WidgetData.agenda(input.agenda, input.today, input.now, s.widgetHidden)
-        return rows.mapIndexed { i, row ->
-            when (row) {
-                is WidgetData.AgendaRow.Day -> i.toLong() to RemoteViews(context.packageName, R.layout.widget_agenda_day).apply {
-                    setTextViewText(R.id.row_day, dayTitle(row.date) + if (s.lunar) "  ·  " + Format.lunar(row.date) else "")
-                    setTextColor(R.id.row_day, if (row.date == input.today) s.signalFor(s.widgetDark) else s.widgetText)
-                    // A header opens the app.
-                    setOnClickFillInIntent(R.id.row_day, Intent())
-                }
-                is WidgetData.AgendaRow.Event -> i.toLong() to RemoteViews(context.packageName, R.layout.widget_agenda_event).apply {
-                    val o = row.occurrence
-                    setInt(R.id.row_color, "setColorFilter", input.color(o))
-                    val time = when {
-                        o.allDay -> "All day"
-                        o.firstDay != row.date -> "…"
-                        else -> Format.time(o.start.atZone(input.zone).toLocalTime(), input.h24)
+        val ink = AgendaInk(s)
+        return view.days.map { day ->
+            day.date.toEpochDay() to RemoteViews(context.packageName, R.layout.widget_agenda_day).apply {
+                val today = day.date == input.today
+                setTextViewText(R.id.day_weekday, day.weekday)
+                setTextColor(R.id.day_weekday, if (today || day.weekend) ink.today else ink.muted)
+                setTextViewText(R.id.day_number, "${day.date.dayOfMonth}")
+                setTextColor(R.id.day_number, if (today) Color.WHITE else ink.text)
+                setColorStateList(R.id.day_number, "setBackgroundTintList", ColorStateList.valueOf(if (today) ink.today else Color.TRANSPARENT))
+                val lunar = if (s.lunar) WidgetData.lunar(day.date) else null
+                setViewVisibility(R.id.day_lunar, if (lunar != null && lunar.moon == null) View.VISIBLE else View.GONE)
+                setViewVisibility(R.id.day_moon, if (lunar?.moon != null) View.VISIBLE else View.GONE)
+                when (lunar?.moon) {
+                    null -> if (lunar != null) {
+                        setTextViewText(R.id.day_lunar, lunar.text)
+                        setTextColor(R.id.day_lunar, ink.muted)
                     }
-                    setTextViewText(R.id.row_time, time)
-                    setTextColor(R.id.row_time, s.widgetText and 0x00FFFFFF or 0xB3000000.toInt())
-                    setTextViewText(R.id.row_title, o.title.ifBlank { "(no title)" })
-                    setTextColor(R.id.row_title, s.widgetText)
-                    // Tapping an event opens it in the app.
-                    setOnClickFillInIntent(R.id.row_event, Intent().putExtra(MainActivity.OPEN, o.resourceId).putExtra(MainActivity.START, o.start.toEpochMilli()))
+                    else -> {
+                        val color = if (lunar.moon == Moon.NEW) ink.moonNew else ink.moonFull
+                        setImageViewResource(R.id.day_moon_glyph, if (lunar.moon == Moon.NEW) R.drawable.widget_ring else R.drawable.widget_dot)
+                        setInt(R.id.day_moon_glyph, "setColorFilter", color)
+                        setTextViewText(R.id.day_moon_text, lunar.text)
+                        setTextColor(R.id.day_moon_text, color)
+                        setColorStateList(R.id.day_moon, "setBackgroundTintList", ColorStateList.valueOf(AgendaInk.alpha(color, ink.moonAlpha)))
+                        setContentDescription(R.id.day_moon, if (lunar.text == "Tết") "Tết" else (if (lunar.moon == Moon.NEW) "New moon " else "Full moon ") + lunar.text)
+                    }
                 }
+                setContentDescription(R.id.day_date, dayTitle(day.date))
+                setOnClickFillInIntent(R.id.day_date, dayIntent(day.date, input.zone))
+                // A recycled row may still hold another day's chips.
+                removeAllViews(R.id.day_events)
+                for (chip in day.chips) addView(R.id.day_events, chipView(context, input, ink, chip))
             }
         }
     }
 
-    fun agenda(context: Context, input: WidgetInput): RemoteViews {
+    private fun chipView(context: Context, input: WidgetInput, ink: AgendaInk, chip: WidgetData.Chip): RemoteViews =
+        RemoteViews(context.packageName, R.layout.widget_agenda_chip).apply {
+            val color = input.color(chip.occurrence) or 0xFF000000.toInt()
+            setColorStateList(R.id.chip, "setBackgroundTintList", ColorStateList.valueOf(AgendaInk.alpha(color, ink.chipAlpha)))
+            setInt(R.id.chip_color, "setColorFilter", color)
+            setTextViewText(R.id.chip_title, chip.title)
+            setTextColor(R.id.chip_title, ink.text)
+            setTextViewText(R.id.chip_time, chip.time)
+            setTextColor(R.id.chip_time, ink.muted)
+            setOnClickFillInIntent(R.id.chip, eventIntent(chip.occurrence))
+        }
+
+    /** The agenda widget. Without [clicks] (the previews) nothing is tappable. */
+    fun agenda(context: Context, input: WidgetInput, clicks: Boolean = true): RemoteViews = agenda(context, input, agendaView(input), clicks)
+
+    private fun agenda(context: Context, input: WidgetInput, view: WidgetData.AgendaView, clicks: Boolean): RemoteViews {
         val s = input.settings
+        val ink = AgendaInk(s)
         val views = RemoteViews(context.packageName, R.layout.widget_agenda)
         frame(views, s)
-        views.setTextViewText(R.id.widget_title, dayTitle(input.today))
-        views.setTextColor(R.id.widget_title, s.widgetText)
-        views.setOnClickPendingIntent(R.id.widget_title, openApp(context, 1))
-        val rows = agendaRows(context, input)
-        val items = RemoteViews.RemoteCollectionItems.Builder().setHasStableIds(true).setViewTypeCount(2).apply { for ((id, v) in rows) addItem(id, v) }.build()
+        val next = view.next
+        views.setViewVisibility(R.id.next_card, if (next != null) View.VISIBLE else View.GONE)
+        if (next != null) {
+            views.setColorStateList(R.id.next_card, "setBackgroundTintList", ColorStateList.valueOf(ink.card))
+            views.setInt(R.id.next_color, "setColorFilter", input.color(next.occurrence) or 0xFF000000.toInt())
+            views.setTextViewText(R.id.next_title, next.title)
+            views.setTextColor(R.id.next_title, ink.text)
+            views.setTextViewText(R.id.next_time, next.time)
+            views.setTextColor(R.id.next_time, ink.muted)
+            views.setTextViewText(R.id.next_when, next.countdown)
+            views.setTextColor(R.id.next_when, ink.accent)
+            // The card opens its event, as an event on the list does.
+            if (clicks) views.setOnClickPendingIntent(R.id.next_card, PendingIntent.getActivity(context, 5, eventIntent(next.occurrence).setClass(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT))
+        }
+        val rows = agendaRows(context, input, view)
+        val items = RemoteViews.RemoteCollectionItems.Builder().setHasStableIds(true).setViewTypeCount(1).apply { for ((id, v) in rows) addItem(id, v) }.build()
         views.setRemoteAdapter(R.id.widget_list, items)
         views.setEmptyView(R.id.widget_list, R.id.widget_empty)
-        views.setTextColor(R.id.widget_empty, s.widgetText)
-        // The fill-in on each event names it; the template must be mutable to take it.
-        val template = PendingIntent.getActivity(
-            context, 2, Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP),
-            PendingIntent.FLAG_MUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
-        )
-        views.setPendingIntentTemplate(R.id.widget_list, template)
+        views.setTextViewText(R.id.widget_empty, if (next == null) "No events" else "")
+        views.setTextColor(R.id.widget_empty, ink.muted)
+        if (clicks) {
+            // The empty part opens the app.
+            views.setOnClickPendingIntent(R.id.widget_root, openApp(context, 1))
+            // The fill-in on each event names it, on each date its day; the template must be mutable to take them.
+            val template = PendingIntent.getActivity(
+                context, 2, Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP),
+                PendingIntent.FLAG_MUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+            )
+            views.setPendingIntentTemplate(R.id.widget_list, template)
+        }
         return views
     }
 
