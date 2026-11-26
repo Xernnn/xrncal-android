@@ -1,10 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- A day in the agenda widget: its weekday, date and lunar date in a column, beside its events
-     as chips (widget_agenda_chip, added in code). -->
+     as chips (widget_agenda_chip, added in code). The lunar date is 10 sp, as the design has it
+     under the date. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/row_day"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
+    android:baselineAligned="false"
     android:orientation="horizontal"
     android:paddingBottom="8dp">
 
@@ -49,7 +52,8 @@
             android:includeFontPadding="false"
             android:maxLines="1"
             android:textSize="10sp"
-            android:visibility="gone" />
+            android:visibility="gone"
+            tools:ignore="SmallSp" />
 
         <!-- Mùng 1 or rằm: a ring or a dot and the date, on a ground of the moon's colour. -->
         <LinearLayout
@@ -82,7 +86,8 @@
                 android:includeFontPadding="false"
                 android:maxLines="1"
                 android:textFontWeight="600"
-                android:textSize="10sp" />
+                android:textSize="10sp"
+                tools:ignore="SmallSp" />
         </LinearLayout>
     </LinearLayout>
 

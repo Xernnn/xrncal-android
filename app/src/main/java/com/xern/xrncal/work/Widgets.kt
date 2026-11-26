@@ -14,9 +14,9 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.RectF
 import android.graphics.Typeface
-import android.net.Uri
 import android.view.View
 import android.widget.RemoteViews
+import androidx.core.net.toUri
 import com.xern.xrncal.MainActivity
 import com.xern.xrncal.R
 import com.xern.xrncal.XrnCalApp
@@ -196,7 +196,7 @@ object Widgets {
 
     /** What tapping a day's date opens: the app's Day view on it, through the time link other apps use (at noon, clear of a zone's midnight). */
     fun dayIntent(d: LocalDate, zone: java.time.ZoneId): Intent =
-        Intent(Intent.ACTION_VIEW, Uri.parse("content://com.android.calendar/time/${d.atTime(12, 0).atZone(zone).toInstant().toEpochMilli()}"))
+        Intent(Intent.ACTION_VIEW, "content://com.android.calendar/time/${d.atTime(12, 0).atZone(zone).toInstant().toEpochMilli()}".toUri())
 
     /** The agenda's days as views: what the widget's list holds, each day's events nested in it as chips. */
     fun agendaRows(context: Context, input: WidgetInput, view: WidgetData.AgendaView = agendaView(input)): List<Pair<Long, RemoteViews>> {

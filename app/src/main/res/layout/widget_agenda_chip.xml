@@ -3,8 +3,10 @@
      and its time and place. The chip sits in a frame because a nested RemoteViews' tap goes to a
      view inside it: on its root the framework only tags the fill-in, for a list item's own tap. -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content">
+    android:layout_height="wrap_content"
+    tools:ignore="UselessParent">
 
     <LinearLayout
         android:id="@+id/chip"
@@ -17,11 +19,13 @@
         android:paddingEnd="10dp"
         android:paddingBottom="6dp">
 
+        <!-- The dot is its own view, tinted to the calendar's colour, rather than a compound drawable. -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:gravity="center_vertical"
-            android:orientation="horizontal">
+            android:orientation="horizontal"
+            tools:ignore="UseCompoundDrawables">
 
             <ImageView
                 android:id="@+id/chip_color"
@@ -53,7 +57,7 @@
             android:fontFamily="sans-serif"
             android:includeFontPadding="false"
             android:maxLines="1"
-            android:paddingStart="13dp"
+            android:layout_marginStart="13dp"
             android:textSize="11sp" />
     </LinearLayout>
 </FrameLayout>
