@@ -13,6 +13,12 @@ view and editor, the laptop's colours, second time zone, emoji and typed dates, 
 reminders the way One Calendar has them. Where phase 2 changes a phase 1 rule, the phase 2
 section says so and wins.
 
+Status: 1.0.0 (26 Nov 2026) replaced One Calendar on the owner's phone; 1.1 redesigned the agenda
+widget (item 12). After 1.1.1: "This and following events" (item 8), a calendar list that can
+no longer empty the phone (Sync 2), an edit during a sync that no longer cancels it, reminders
+that wait 5 seconds at most for their sync, and the Autostart and Battery rows (Reminders,
+Options item 11).
+
 ## Phase 1: in and out
 
 In:
@@ -274,8 +280,14 @@ on.
 - `app/`: the sync engine against a real **Radicale 3.8.1** started on a free port with a
   throwaway folder and a made-up user (skipped when it isn't installed; `XRNCAL_RADICALE` names
   its executable): discovery, the first sync, incremental sync, an offline edit sent later, a
-  412 conflict, a series with an override, deletes both ways. `ManifestTest`. Reminder planning.
+  412 conflict, a series with an override, deletes both ways, a home that answers 404 or lists
+  nothing, a "This and following" split read back by a second phone. `ManifestTest`. Reminder
+  planning. Against stand-in servers: what a calendar list may remove (`CalendarListingTest`),
+  changes made while a sync sends (`SyncWhileEditingTest`), a reminder while the server hangs
+  (`ReminderRingTest`).
 - CI (GitHub Actions) installs Radicale 3.8.1 with pip and runs every test and a debug build.
+  Robolectric runs offline on the Android jar Gradle resolves (and CI's Gradle cache keeps): its
+  own download from Maven Central failed a run now and then.
 
 ## Phase 2: close the gap to One Calendar and the laptop
 
